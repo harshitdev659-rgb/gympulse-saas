@@ -14,12 +14,37 @@ from app.api import (
 # Initialize database tables
 Base.metadata.create_all(bind=engine)
 
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Ensure database has tables and default seed data on first run."""
+    try:
+        from app.models.models import User
+        from app.core.database import SessionLocal
+        db = SessionLocal()
+        user_count = db.query(User).count()
+        db.close()
+        if user_count == 0:
+            print("[GymPulse] Fresh database detected. Seeding initial tenants and accounts...", flush=True)
+            try:
+                from seed import seed_database
+                seed_database(reset=False)
+            except ImportError:
+                from backend.seed import seed_database
+                seed_database(reset=False)
+            print("[GymPulse] Database successfully initialized.", flush=True)
+    except Exception as e:
+        print(f"[GymPulse] Startup init notice: {e}", flush=True)
+    yield
+
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     description=settings.APP_DESCRIPTION,
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan
 )
 
 # CORS configuration

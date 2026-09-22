@@ -1,12 +1,12 @@
 services:
   - type: web
     name: gympulse-saas
-    runtime: docker
+    runtime: python
     plan: free
     region: oregon
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: PORT
-        value: 8000
       - key: ENVIRONMENT
         value: production
       - key: SECRET_KEY

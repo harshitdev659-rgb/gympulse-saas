@@ -118,7 +118,9 @@ def get_network_info():
             pass
 
     local_url = "http://localhost:8000"
-    active_url = cloud_url or tunnel_url or local_url
+    # Ensure active_url defaults to a verified working server URL (tunnel or local),
+    # never redirecting users to an uncreated external domain with 404 Not Found
+    active_url = tunnel_url or local_url
     return {
         "local_url": local_url,
         "cloud_url": cloud_url,

@@ -38,11 +38,6 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
   }, []);
 
   const handleDownloadClick = () => {
-    const cloudUrl = networkInfo?.cloud_url || 'https://gympulse-saas.onrender.com';
-    const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-    if (isLocal && cloudUrl && cloudUrl.startsWith('http')) {
-      window.open(`${cloudUrl}/download`, '_blank');
-    }
     setIsDownloadModalOpen(true);
   };
 

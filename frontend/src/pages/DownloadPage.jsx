@@ -38,11 +38,9 @@ export const DownloadPage = ({ onBack }) => {
       .catch(() => {});
   }, []);
 
-  const windowOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://gympulse-saas.onrender.com';
-  const cloudUrl = networkInfo?.cloud_url || 'https://gympulse-saas.onrender.com';
-  const currentPublicUrl = networkInfo?.public_url || windowOrigin;
-  // For phone downloads, always prioritize the 24/7 cloud URL
-  const phoneDownloadUrl = cloudUrl.startsWith('http') ? cloudUrl : currentPublicUrl;
+  const windowOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000';
+  const isLocal = windowOrigin.includes('localhost') || windowOrigin.includes('127.0.0.1');
+  const phoneDownloadUrl = isLocal ? windowOrigin : (networkInfo?.public_url || windowOrigin);
   const windowsDownloadUrl = `${windowOrigin}/api/download/windows`;
 
   const handleCopy = (text, key) => {
@@ -79,7 +77,7 @@ export const DownloadPage = ({ onBack }) => {
             </div>
             <div>
               <div className="text-base font-extrabold tracking-tight text-white flex items-center gap-2">
-                GymPulse <span className="px-2 py-0.5 text-[10px] font-black bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/30">24/7 DOWNLOAD HUB</span>
+                GymPulse <span className="px-2 py-0.5 text-[10px] font-black bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/30">DOWNLOAD HUB</span>
               </div>
               <div className="text-[11px] text-slate-400">Install across Android, iPhone, Mac & Windows</div>
             </div>
@@ -113,7 +111,7 @@ export const DownloadPage = ({ onBack }) => {
         <div className="text-center max-w-2xl mx-auto mb-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold uppercase tracking-wider mb-4">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            Cloud Hosting 24/7 Online • No Same Wi-Fi Needed
+            Multi-Platform Download & Install Engine
           </div>
           <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white leading-tight">
             Download GymPulse <br className="hidden sm:inline" />
@@ -126,13 +124,13 @@ export const DownloadPage = ({ onBack }) => {
           </p>
         </div>
 
-        {/* 24/7 Cloud Direct URL Bar */}
+        {/* Live URL Bar */}
         <div className="mb-10 p-4 rounded-2xl bg-gradient-to-r from-slate-900 via-emerald-950/40 to-slate-900 border border-emerald-500/30 shadow-xl shadow-emerald-950/20">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <Sparkles className="w-5 h-5 text-emerald-400 shrink-0" />
               <div>
-                <div className="text-xs font-bold text-white uppercase tracking-wider">24/7 Cloud Hosting Public Address</div>
+                <div className="text-xs font-bold text-white uppercase tracking-wider">GymPulse App Address</div>
                 <div className="text-[11px] text-slate-400 font-mono break-all">{phoneDownloadUrl}</div>
               </div>
             </div>
@@ -146,13 +144,11 @@ export const DownloadPage = ({ onBack }) => {
                 <span>{copiedLink === 'cloud' ? 'Copied' : 'Copy Link'}</span>
               </button>
               <a
-                href={phoneDownloadUrl}
-                target="_blank"
-                rel="noreferrer"
+                href="/"
                 className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black transition-all shadow-md shadow-emerald-500/30"
               >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span>Open 24/7 Website</span>
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Launch Web App</span>
               </a>
             </div>
           </div>

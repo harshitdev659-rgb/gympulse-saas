@@ -88,7 +88,8 @@ def get_public_facility_website(slug: str, db: Session = Depends(get_db)) -> Dic
             {
                 "id": t.id,
                 "name": t.name,
-                "specialization": t.specialization,
+                "specialization": getattr(t, "specialty", None) or "Fitness Coach",
+                "specialty": getattr(t, "specialty", None) or "Fitness Coach",
                 "bio": t.bio
             }
             for t in trainers

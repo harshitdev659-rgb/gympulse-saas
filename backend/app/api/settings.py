@@ -118,11 +118,24 @@ def get_network_info():
             pass
 
     local_url = "http://localhost:8000"
-    # Ensure active_url defaults to a verified working server URL (tunnel or local),
-    # never redirecting users to an uncreated external domain with 404 Not Found
-    active_url = tunnel_url or local_url
+    lan_ip = "127.0.0.1"
+    try:
+        import socket
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            lan_ip = s.getsockname()[0]
+    except Exception:
+        pass
+    lan_url = f"http://{lan_ip}:8000"
+
+    # Prioritize active public tunnel or custom cloud URL over local
+    public_live_url = tunnel_url or (cloud_url if os.path.exists(cloud_file) else None)
+    active_url = public_live_url or local_url
+
     return {
         "local_url": local_url,
+        "lan_ip": lan_ip,
+        "lan_url": lan_url,
         "cloud_url": cloud_url,
         "tunnel_url": tunnel_url,
         "public_url": active_url,

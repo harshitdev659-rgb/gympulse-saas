@@ -45,8 +45,17 @@ export const DownloadAppModal = ({ isOpen, onClose }) => {
 
   const windowOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000';
   const isLocal = windowOrigin.includes('localhost') || windowOrigin.includes('127.0.0.1');
-  const phoneDownloadUrl = isLocal ? windowOrigin : (networkInfo?.public_url || windowOrigin);
-  const windowsDownloadUrl = `${windowOrigin}/api/download/windows`;
+
+  // Phone download URL must ALWAYS be the reachable online link (tunnel, cloud, or Wi-Fi LAN IP)
+  // so mobile phones and tablets never fail on localhost
+  const onlineWebUrl = networkInfo?.public_url || networkInfo?.tunnel_url || networkInfo?.cloud_url;
+  const phoneDownloadUrl = !isLocal
+    ? windowOrigin
+    : (onlineWebUrl || networkInfo?.lan_url || windowOrigin);
+
+  const windowsDownloadUrl = isLocal
+    ? `${windowOrigin}/api/download/windows`
+    : (networkInfo?.full_download_url || `${windowOrigin}/api/download/windows`);
 
   const handleCopy = (text, type) => {
     navigator.clipboard.writeText(text);

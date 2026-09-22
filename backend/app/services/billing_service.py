@@ -1,0 +1,97 @@
+from typing import Dict, Any
+from sqlalchemy.orm import Session
+from app.models.models import Gym, Member
+from app.core.config import settings
+from fastapi import HTTPException, status
+
+TIER_CONFIG = {
+    "free": {
+        "name": "Free Starter",
+        "max_members": 25,
+        "ai_enabled": False,
+        "features": [
+            "Up to 25 active members",
+            "Basic dashboard & KPIs",
+            "Member check-in / check-out",
+            "Manual payment recording",
+            "Standard receipt printing"
+        ]
+    },
+    "pro": {
+        "name": "Pro Growth",
+        "max_members": 250,
+        "ai_enabled": True,
+        "features": [
+            "Up to 250 members",
+            "Advanced analytics & trend charts",
+            "AI Assistant for gym queries",
+            "CSV report exports",
+            "Automated expiry alerts & notifications",
+            "Trainer assignment & profiles"
+        ]
+    },
+    "business": {
+        "name": "Business Enterprise",
+        "max_members": 100000,
+        "ai_enabled": True,
+        "features": [
+            "Unlimited members",
+            "Unlimited staff & trainer accounts",
+            "Priority AI Assistant & insights",
+            "Multi-trainer rosters & commission tracking",
+            "Custom branding & priority support"
+        ]
+    }
+}
+
+class BillingService:
+    @staticmethod
+    def get_tier_status(gym: Gym, db: Session) -> Dict[str, Any]:
+        """Return current billing tier status, usage, and available features."""
+        tier = gym.plan_tier.lower() if gym.plan_tier else "free"
+        config = TIER_CONFIG.get(tier, TIER_CONFIG["free"])
+        
+        member_count = db.query(Member).filter(Member.gym_id == gym.id).count()
+        # Respect custom gym.max_members if set, otherwise default to tier config
+        max_members = gym.max_members if (gym.max_members is not None and gym.max_members > 0) else config["max_members"]
+        usage_pct = round((member_count / max_members) * 100, 1) if max_members > 0 else 0.0
+        can_add_member = member_count < max_members
+        
+        return {
+            "plan_tier": tier,
+            "tier_name": config["name"],
+            "subscription_status": gym.subscription_status,
+            "member_count": member_count,
+            "max_members": max_members,
+            "usage_percentage": min(usage_pct, 100.0),
+            "can_add_member": can_add_member,
+            "ai_enabled": config["ai_enabled"],
+            "features": config["features"]
+        }
+
+    @staticmethod
+    def check_can_add_member(gym: Gym, db: Session):
+        """Enforce subscription tier member limits before adding a new member."""
+        status_info = BillingService.get_tier_status(gym, db)
+        if not status_info["can_add_member"]:
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail=f"Member limit reached for {status_info['tier_name']} ({status_info['member_count']}/{status_info['max_members']}). Please upgrade to add more members."
+            )
+
+    @staticmethod
+    def upgrade_tier(gym: Gym, target_tier: str, db: Session) -> Gym:
+        """Simulate tier upgrade and update limits."""
+        target_tier = target_tier.lower()
+        if target_tier not in TIER_CONFIG:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid tier '{target_tier}'. Choose from {list(TIER_CONFIG.keys())}"
+            )
+        
+        gym.plan_tier = target_tier
+        gym.max_members = TIER_CONFIG[target_tier]["max_members"]
+        gym.subscription_status = "active"
+        db.commit()
+        db.refresh(gym)
+        return gym

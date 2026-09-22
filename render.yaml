@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: gympulse-saas
+    runtime: docker
+    plan: free
+    region: oregon
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: ENVIRONMENT
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gympulse-db
+          property: connectionString
+      - key: AI_PROVIDER
+        value: local
+
+databases:
+  - name: gympulse-db
+    plan: free

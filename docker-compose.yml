@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: gympulse_saas
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - SECRET_KEY=replace-with-a-secure-random-64-character-secret-key
+      - DATABASE_URL=sqlite:///./gympulse.db
+      - AI_PROVIDER=local
+    volumes:
+      - gympulse_data:/app/data
+      - gympulse_uploads:/app/uploads
+    restart: unless-stopped
+
+volumes:
+  gympulse_data:
+  gympulse_uploads:

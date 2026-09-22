@@ -100,8 +100,8 @@ def get_network_info():
     cloud_url = os.environ.get("CLOUD_APP_URL", getattr(settings, "CLOUD_APP_URL", "https://gympulse-saas.onrender.com"))
     if os.path.exists(cloud_file):
         try:
-            with open(cloud_file, "r", encoding="utf-8") as f:
-                c = f.read().strip()
+            with open(cloud_file, "r", encoding="utf-8-sig") as f:
+                c = f.read().strip().lstrip('\ufeff')
                 if c.startswith("http"):
                     cloud_url = c
         except Exception:
@@ -110,8 +110,8 @@ def get_network_info():
     tunnel_url = None
     if os.path.exists(tunnel_file):
         try:
-            with open(tunnel_file, "r", encoding="utf-8") as f:
-                content = f.read().strip()
+            with open(tunnel_file, "r", encoding="utf-8-sig") as f:
+                content = f.read().strip().lstrip('\ufeff')
                 if content.startswith("http"):
                     tunnel_url = content
         except Exception:

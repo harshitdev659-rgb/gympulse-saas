@@ -428,6 +428,18 @@ class ApiService {
       method: 'PATCH'
     });
   }
+
+  // ----------------- Network & 24/7 Cloud Hosting Info -----------------
+  getNetworkInfo() {
+    return this.request('/settings/network-info');
+  }
+
+  updateCloudUrl(cloud_url) {
+    return this.request('/settings/cloud-url', {
+      method: 'POST',
+      body: JSON.stringify({ cloud_url })
+    });
+  }
 }
 
 export const api = new ApiService();

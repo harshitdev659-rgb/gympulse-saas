@@ -548,11 +548,21 @@ def test_windows_portable_download_endpoint():
     assert "application/zip" in win_res.headers.get("content-type", "")
     assert "GymPulse_Windows_Portable.zip" in win_res.headers.get("content-disposition", "")
 
-    # 2. Network info endpoint
+    # 2. Network info endpoint returns 24/7 cloud_url and download URLs
     net_res = client.get("/api/settings/network-info")
     assert net_res.status_code == 200
     data = net_res.json()
     assert data["download_url"] == "/api/download/windows"
     assert "8000" in data["local_url"]
+    assert "cloud_url" in data
+    assert "public_url" in data
+    assert data["cloud_url"].startswith("http")
+
+    # 3. Test updating cloud_url via API
+    update_res = client.post("/api/settings/cloud-url", json={
+        "cloud_url": "https://gympulse-saas.onrender.com"
+    })
+    assert update_res.status_code == 200
+    assert update_res.json()["cloud_url"] == "https://gympulse-saas.onrender.com"
 
 

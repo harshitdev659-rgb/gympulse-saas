@@ -21,7 +21,24 @@ import { DownloadAppModal } from '../components/common/DownloadAppModal';
 
 export const LandingPage = ({ onNavigateLogin, onNavigateRegister, onQuickDemo }) => {
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
+  const [networkInfo, setNetworkInfo] = useState(null);
   const [billingCycle, setBillingCycle] = useState('monthly'); // monthly, yearly
+
+  React.useEffect(() => {
+    fetch('/api/settings/network-info')
+      .then((res) => res.json())
+      .then((data) => setNetworkInfo(data))
+      .catch(() => {});
+  }, []);
+
+  const handleDownloadClick = () => {
+    const cloudUrl = networkInfo?.cloud_url || 'https://gympulse-saas.onrender.com';
+    const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    if (isLocal && cloudUrl && cloudUrl.startsWith('http')) {
+      window.open(`${cloudUrl}/download`, '_blank');
+    }
+    setIsDownloadModalOpen(true);
+  };
   const [openFaq, setOpenFaq] = useState(null);
   const [calculatorMembers, setCalculatorMembers] = useState(150);
   const [calculatorPrice, setCalculatorPrice] = useState(55);
@@ -73,7 +90,7 @@ export const LandingPage = ({ onNavigateLogin, onNavigateRegister, onQuickDemo }
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setIsDownloadModalOpen(true)}
+              onClick={handleDownloadClick}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-brand-50 to-indigo-50 hover:from-brand-100 hover:to-indigo-100 text-brand-700 text-xs font-bold transition-all border border-brand-200/80 shadow-xs"
               title="Download & Install GymPulse on Mobile (iPhone/Android) or PC"
             >
@@ -125,7 +142,7 @@ export const LandingPage = ({ onNavigateLogin, onNavigateRegister, onQuickDemo }
             </Button>
 
             <button
-              onClick={() => setIsDownloadModalOpen(true)}
+              onClick={handleDownloadClick}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 text-base font-bold text-slate-900 bg-amber-50 hover:bg-amber-100 border-2 border-amber-300 rounded-xl shadow-sm transition-all"
             >
               <Download className="w-5 h-5 text-amber-600" />

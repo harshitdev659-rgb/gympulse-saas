@@ -19,10 +19,20 @@ import { PendingApprovalPage } from './pages/PendingApprovalPage';
 import { SuperAdminPage } from './pages/SuperAdminPage';
 import { GymPublicWebsitePage } from './pages/GymPublicWebsitePage';
 import { GymWebsiteManagerPage } from './pages/GymWebsiteManagerPage';
+import { DownloadPage } from './pages/DownloadPage';
 
 function AppContent() {
   const { user, gym, isAuthenticated, loading, login } = useAuth();
   
+  // Dedicated /download route
+  const [isDownloadCenter, setIsDownloadCenter] = useState(() => {
+    try {
+      return window.location.pathname.startsWith('/download');
+    } catch (e) {
+      return false;
+    }
+  });
+
   // Public route state: 'landing', 'login', 'register', 'forgot-password'
   const [publicView, setPublicView] = useState('landing');
 
@@ -84,6 +94,20 @@ function AppContent() {
           <span>Starting operations console...</span>
         </div>
       </div>
+    );
+  }
+
+  // Dedicated /download route
+  if (isDownloadCenter) {
+    return (
+      <DownloadPage
+        onBack={() => {
+          setIsDownloadCenter(false);
+          try {
+            window.history.pushState({}, '', '/');
+          } catch (e) {}
+        }}
+      />
     );
   }
 

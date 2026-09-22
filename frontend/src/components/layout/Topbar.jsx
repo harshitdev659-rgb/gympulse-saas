@@ -27,17 +27,15 @@ export const Topbar = ({ onToggleSidebar, onOpenAi, onQuickCheckIn, onQuickAddMe
   const [copiedWebsite, setCopiedWebsite] = useState(false);
 
   useEffect(() => {
-    if (isMobileModalOpen && !networkInfo) {
-      api.getNetworkInfo()
-        .then((data) => setNetworkInfo(data))
-        .catch(() => {
-          setNetworkInfo({
-            local_ip: window.location.hostname || '127.0.0.1',
-            mobile_url: window.location.origin
-          });
+    api.getNetworkInfo()
+      .then((data) => setNetworkInfo(data))
+      .catch(() => {
+        setNetworkInfo({
+          local_ip: window.location.hostname || '127.0.0.1',
+          mobile_url: window.location.origin
         });
-    }
-  }, [isMobileModalOpen, networkInfo]);
+      });
+  }, []);
 
   // Determine ideal URL: If already on a public URL, use it; otherwise use public_url or mobile_url
   const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000';
@@ -61,6 +59,15 @@ export const Topbar = ({ onToggleSidebar, onOpenAi, onQuickCheckIn, onQuickAddMe
     setCopiedWebsite(true);
     toast.success('Public website link copied!');
     setTimeout(() => setCopiedWebsite(false), 2000);
+  };
+
+  const handleDownloadClick = () => {
+    const cloudUrl = networkInfo?.cloud_url || 'https://gympulse-saas.onrender.com';
+    const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    if (isLocal && cloudUrl && cloudUrl.startsWith('http')) {
+      window.open(`${cloudUrl}/download`, '_blank');
+    }
+    setIsMobileModalOpen(true);
   };
 
   return (
@@ -94,7 +101,7 @@ export const Topbar = ({ onToggleSidebar, onOpenAi, onQuickCheckIn, onQuickAddMe
           {/* Multi-Platform Download App Button */}
           <button
             type="button"
-            onClick={() => setIsMobileModalOpen(true)}
+            onClick={handleDownloadClick}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-brand-300 bg-brand-50 hover:bg-brand-100 text-brand-900 text-xs font-bold transition-all shadow-xs"
             title="Download App for Windows, Android & Apple"
           >

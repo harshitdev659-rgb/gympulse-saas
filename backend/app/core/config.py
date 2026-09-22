@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     # Uploads & Media
     UPLOAD_DIR: str = "./uploads"
 
+    # Cloud Hosting 24/7 URL
+    CLOUD_APP_URL: str = "https://gympulse-saas.onrender.com"
+
 settings = Settings()
 
 # Ensure uploads directory exists

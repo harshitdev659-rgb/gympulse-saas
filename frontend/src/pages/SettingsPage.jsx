@@ -16,7 +16,9 @@ import {
   ArrowUpRight,
   AlertTriangle,
   Trash2,
-  RefreshCw
+  RefreshCw,
+  Globe,
+  ExternalLink
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -65,6 +67,10 @@ export const SettingsPage = () => {
     phone: ''
   });
 
+  // 24/7 Cloud Hosting Public Link
+  const [cloudUrlInput, setCloudUrlInput] = useState('https://gympulse-saas.onrender.com');
+  const [isSavingCloudUrl, setIsSavingCloudUrl] = useState(false);
+
   // Billing
   const [billingStatus, setBillingStatus] = useState(null);
   const [isUpgrading, setIsUpgrading] = useState(false);
@@ -75,7 +81,7 @@ export const SettingsPage = () => {
   const fetchAllSettings = async () => {
     try {
       setIsLoading(true);
-      const [gData, cData, uData, bData] = await Promise.all([
+      const [gData, cData, uData, bData, nData] = await Promise.all([
         api.getGymProfile().catch((err) => {
           console.warn('Failed to load gym profile, using local fallback:', err);
           return gym || null;
@@ -91,8 +97,13 @@ export const SettingsPage = () => {
         api.getBillingStatus().catch((err) => {
           console.warn('Failed to load billing status, using default fallback:', err);
           return null;
-        })
+        }),
+        api.getNetworkInfo().catch(() => null)
       ]);
+
+      if (nData?.cloud_url) {
+        setCloudUrlInput(nData.cloud_url);
+      }
 
       if (gData) {
         setProfileForm({
@@ -178,6 +189,22 @@ export const SettingsPage = () => {
       toast.error(err.message || 'Failed to save configuration.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSaveCloudUrl = async (e) => {
+    e.preventDefault();
+    setIsSavingCloudUrl(true);
+    try {
+      const res = await api.updateCloudUrl(cloudUrlInput);
+      toast.success('24/7 Cloud Hosting URL updated successfully!');
+      if (res?.cloud_url) {
+        setCloudUrlInput(res.cloud_url);
+      }
+    } catch (err) {
+      toast.error(err.message || 'Failed to update cloud URL.');
+    } finally {
+      setIsSavingCloudUrl(false);
     }
   };
 
@@ -483,6 +510,57 @@ export const SettingsPage = () => {
               </Button>
             </div>
           </form>
+
+          {/* 24/7 Cloud Hosting Public Website & Worldwide Download Link */}
+          <div className="mt-8 pt-6 border-t border-slate-200">
+            <div className="bg-gradient-to-br from-emerald-50/70 to-teal-50/50 border border-emerald-200/90 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-1.5 text-emerald-800 font-extrabold text-xs uppercase tracking-wider mb-1">
+                    <Globe className="w-4 h-4 text-emerald-600" />
+                    <span>24/7 Worldwide Cloud Hosting & Download Hub</span>
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-900">
+                    Live Public Domain (Online 24/7 • No Same Wi-Fi Needed)
+                  </h4>
+                  <p className="text-xs text-slate-600 mt-1 max-w-xl">
+                    This is your permanent 24/7 cloud address. When anyone clicks "Download App" or visits this link, they can download and install GymPulse on Android, iPhone, and Windows.
+                  </p>
+                </div>
+                <span className="hidden sm:inline-flex px-2.5 py-1 text-[10px] font-extrabold bg-emerald-100 text-emerald-800 rounded-full border border-emerald-300">
+                  24/7 Cloud Online
+                </span>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <input
+                  type="url"
+                  value={cloudUrlInput}
+                  onChange={(e) => setCloudUrlInput(e.target.value)}
+                  placeholder="https://gympulse-saas.onrender.com"
+                  className="flex-1 px-3.5 py-2 text-xs font-mono rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                />
+                <Button
+                  onClick={handleSaveCloudUrl}
+                  variant="primary"
+                  size="sm"
+                  isLoading={isSavingCloudUrl}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white shrink-0"
+                >
+                  Save Cloud URL
+                </Button>
+                <a
+                  href={`${cloudUrlInput || 'https://gympulse-saas.onrender.com'}/download`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all flex items-center justify-center gap-1 shrink-0"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Open Download Hub</span>
+                </a>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

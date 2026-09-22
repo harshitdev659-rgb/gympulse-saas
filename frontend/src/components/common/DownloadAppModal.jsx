@@ -44,14 +44,16 @@ export const DownloadAppModal = ({ isOpen, onClose }) => {
   }, [isOpen]);
 
   const windowOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000';
+  const cloudUrl = networkInfo?.cloud_url || 'https://gympulse-saas.onrender.com';
   const publicUrl = networkInfo?.public_url || windowOrigin;
+  const phoneDownloadUrl = cloudUrl.startsWith('http') ? cloudUrl : publicUrl;
   const windowsDownloadUrl = `${windowOrigin}/api/download/windows`;
 
   const handleCopy = (text, type) => {
     navigator.clipboard.writeText(text);
     if (type === 'public') {
       setCopiedPublic(true);
-      toast.success('Public worldwide link copied! Open on phone to install.');
+      toast.success('24/7 Cloud link copied! Open on phone to install.');
       setTimeout(() => setCopiedPublic(false), 2200);
     } else {
       setCopiedWin(true);
@@ -69,12 +71,12 @@ export const DownloadAppModal = ({ isOpen, onClose }) => {
       }
       setDeferredPrompt(null);
     } else {
-      navigator.clipboard.writeText(publicUrl);
+      navigator.clipboard.writeText(phoneDownloadUrl);
       toast.info('Link copied! Open on your Android phone in Chrome and tap "Install app"');
     }
   };
 
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&margin=4&data=${encodeURIComponent(publicUrl)}`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&margin=4&data=${encodeURIComponent(phoneDownloadUrl)}`;
 
   return (
     <Modal
@@ -84,8 +86,8 @@ export const DownloadAppModal = ({ isOpen, onClose }) => {
       maxWidth="max-w-lg"
     >
       <div className="space-y-4 text-slate-800">
-        {/* Worldwide Live Link Banner */}
-        <div className="p-3.5 bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-950 text-white rounded-2xl shadow-sm space-y-2">
+        {/* 24/7 Worldwide Cloud Link Banner */}
+        <div className="p-3.5 bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-950 text-white rounded-2xl shadow-sm space-y-2.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="relative flex h-2.5 w-2.5">
@@ -93,11 +95,11 @@ export const DownloadAppModal = ({ isOpen, onClose }) => {
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
               </span>
               <span className="text-xs font-bold text-emerald-300 uppercase tracking-wider">
-                Live Worldwide Public Link
+                24/7 Cloud Hosting Website
               </span>
             </div>
             <span className="px-2 py-0.5 text-[9px] font-extrabold bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/30 uppercase">
-              No Same Wi-Fi Needed
+              Online 24/7 Worldwide
             </span>
           </div>
 
@@ -105,20 +107,30 @@ export const DownloadAppModal = ({ isOpen, onClose }) => {
             <input
               type="text"
               readOnly
-              value={publicUrl}
+              value={phoneDownloadUrl}
               className="w-full px-2.5 py-1.5 text-xs font-mono bg-black/40 border border-white/10 rounded-lg select-all focus:outline-none text-emerald-200"
             />
             <button
               type="button"
-              onClick={() => handleCopy(publicUrl, 'public')}
+              onClick={() => handleCopy(phoneDownloadUrl, 'public')}
               className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition-colors"
             >
               {copiedPublic ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copiedPublic ? 'Copied' : 'Copy Link'}</span>
+              <span>{copiedPublic ? 'Copied' : 'Copy'}</span>
             </button>
+            <a
+              href={`${phoneDownloadUrl}/download`}
+              target="_blank"
+              rel="noreferrer"
+              className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition-colors border border-white/20"
+              title="Open 24/7 Download Hub in New Tab"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Open</span>
+            </a>
           </div>
           <p className="text-[10px] text-slate-300">
-            Works from anywhere on 5G, 4G, or any outside connection.
+            No same Wi-Fi needed. Works on 5G, 4G, iPhone, Android, and outside networks.
           </p>
         </div>
 
@@ -235,7 +247,7 @@ export const DownloadAppModal = ({ isOpen, onClose }) => {
 
               <button
                 type="button"
-                onClick={() => handleCopy(publicUrl, 'public')}
+                onClick={() => handleCopy(phoneDownloadUrl, 'public')}
                 className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs shadow-md shadow-slate-900/25 transition-all text-center"
               >
                 <Copy className="w-4 h-4" />

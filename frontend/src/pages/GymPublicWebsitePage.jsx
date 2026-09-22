@@ -28,6 +28,23 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
+  const [networkInfo, setNetworkInfo] = useState(null);
+
+  useEffect(() => {
+    fetch('/api/settings/network-info')
+      .then((res) => res.json())
+      .then((info) => setNetworkInfo(info))
+      .catch(() => {});
+  }, []);
+
+  const handleDownloadClick = () => {
+    const cloudUrl = networkInfo?.cloud_url || 'https://gympulse-saas.onrender.com';
+    const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    if (isLocal && cloudUrl && cloudUrl.startsWith('http')) {
+      window.open(`${cloudUrl}/download`, '_blank');
+    }
+    setIsDownloadModalOpen(true);
+  };
 
   // Inquiry Form State
   const [form, setForm] = useState({
@@ -171,7 +188,7 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setIsDownloadModalOpen(true)}
+              onClick={handleDownloadClick}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all border border-white/15"
               title="Download & Install Gym App"
             >

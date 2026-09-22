@@ -1,7 +1,9 @@
 import os
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.config import settings
 from app.core.dependencies import get_current_user, get_current_gym, require_owner_or_admin
 from app.models.models import Gym, User, GymSetting
 from app.schemas.schemas import (
@@ -85,28 +87,57 @@ def update_gym_settings(
     db.refresh(settings_obj)
     return settings_obj
 
+class CloudUrlUpdate(BaseModel):
+    cloud_url: str
+
 @router.get("/network-info")
 def get_network_info():
-    """Retrieve local and public website URLs and download links."""
+    """Retrieve local, cloud 24/7, and public website URLs and download links."""
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
     tunnel_file = os.path.join(base_dir, "tunnel_url.txt")
-    public_url = None
+    cloud_file = os.path.join(base_dir, "cloud_url.txt")
+
+    cloud_url = os.environ.get("CLOUD_APP_URL", getattr(settings, "CLOUD_APP_URL", "https://gympulse-saas.onrender.com"))
+    if os.path.exists(cloud_file):
+        try:
+            with open(cloud_file, "r", encoding="utf-8") as f:
+                c = f.read().strip()
+                if c.startswith("http"):
+                    cloud_url = c
+        except Exception:
+            pass
+
+    tunnel_url = None
     if os.path.exists(tunnel_file):
         try:
             with open(tunnel_file, "r", encoding="utf-8") as f:
                 content = f.read().strip()
                 if content.startswith("http"):
-                    public_url = content
+                    tunnel_url = content
         except Exception:
             pass
 
     local_url = "http://localhost:8000"
-    active_url = public_url or local_url
+    active_url = cloud_url or tunnel_url or local_url
     return {
         "local_url": local_url,
+        "cloud_url": cloud_url,
+        "tunnel_url": tunnel_url,
         "public_url": active_url,
         "download_url": "/api/download/windows",
         "full_download_url": f"{active_url}/api/download/windows"
     }
+
+@router.post("/cloud-url")
+def update_cloud_url(req: CloudUrlUpdate):
+    """Save user-configured permanent 24/7 cloud hosting URL."""
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+    cloud_file = os.path.join(base_dir, "cloud_url.txt")
+    clean_url = req.cloud_url.strip().rstrip("/")
+    if clean_url and not clean_url.startswith("http"):
+        clean_url = "https://" + clean_url
+    with open(cloud_file, "w", encoding="utf-8") as f:
+        f.write(clean_url)
+    return {"status": "success", "cloud_url": clean_url}
 
 

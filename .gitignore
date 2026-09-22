@@ -55,3 +55,5 @@ cloudflared.exe
 GymPulse_Windows_Portable.zip
 GymPulse_Windows_Portable/
 tunnel_url.txt
+.desktop_cache/
+*.log

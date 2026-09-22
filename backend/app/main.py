@@ -97,7 +97,7 @@ def health_check():
         "environment": settings.ENVIRONMENT
     }
 
-@app.get("/api/download/windows")
+@app.api_route("/api/download/windows", methods=["GET", "HEAD"])
 def download_windows_app():
     """Direct download for standalone Windows application (zero Python required)."""
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))

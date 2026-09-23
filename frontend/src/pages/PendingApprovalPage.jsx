@@ -124,7 +124,7 @@ export const PendingApprovalPage = ({ onPreviewWebsite }) => {
             </div>
             <div className="mt-3 pt-3 border-t border-white/10 flex items-center gap-2 text-xs font-mono text-brand-300">
               <span className="text-slate-500">Public URL:</span>
-              <span className="underline select-all">https://gympulse.app{publicUrl}</span>
+              <span className="underline select-all">{typeof window !== 'undefined' ? `${window.location.origin}${publicUrl}` : publicUrl}</span>
             </div>
           </div>
 

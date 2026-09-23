@@ -156,7 +156,7 @@ def delete_gym_facility(
 
     return {
         "success": True,
-        "message": f"Facility '{gym_name}' and its public website ('https://gympulse.app/facility/{website_slug}') have been permanently deleted.",
+        "message": f"Facility '{gym_name}' and its public website ('/facility/{website_slug}') have been permanently deleted.",
         "deleted_id": gym_id,
         "deleted_slug": gym_slug
     }

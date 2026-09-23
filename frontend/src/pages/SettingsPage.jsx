@@ -425,7 +425,7 @@ export const SettingsPage = () => {
                   </h4>
                   <p className="text-xs text-slate-600 mt-1 max-w-xl leading-relaxed">
                     Permanently purges all member profiles, check-in history, invoices, and 
-                    <strong> instantly deletes your dedicated public HTTPS website (https://gympulse.app/facility/{gym?.website_subdomain || gym?.slug})</strong>.
+                    <strong> instantly deletes your dedicated public website (/facility/{gym?.website_subdomain || gym?.slug})</strong>.
                     This action is permanent and cannot be undone.
                   </p>
                 </div>
@@ -844,7 +844,7 @@ export const SettingsPage = () => {
               Permanent Facility & Website Decommission
             </div>
             This will permanently erase all members, attendance, billing, and the dedicated public website 
-            <strong> https://gympulse.app/facility/{gym?.website_subdomain || gym?.slug}</strong>.
+            <strong> /facility/{gym?.website_subdomain || gym?.slug}</strong>.
           </div>
 
           <div>

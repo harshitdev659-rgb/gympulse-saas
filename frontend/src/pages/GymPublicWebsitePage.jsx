@@ -155,7 +155,7 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
         <div className="bg-slate-900 border-b border-white/10 px-4 py-2 flex items-center justify-between text-xs sticky top-0 z-50">
           <div className="flex items-center gap-2 text-slate-300">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>Live Branded Gym Website Preview: <strong>https://gympulse.app/facility/{data.website_subdomain || data.slug}</strong></span>
+            <span>Live Branded Gym Website Preview: <strong>{typeof window !== 'undefined' ? `${window.location.origin}/facility/${data.website_subdomain || data.slug}` : `/facility/${data.website_subdomain || data.slug}`}</strong></span>
           </div>
           <button
             onClick={onBackToApp}

@@ -40,9 +40,9 @@ export const Topbar = ({ onToggleSidebar, onOpenAi, onQuickCheckIn, onQuickAddMe
   // Determine ideal URL: If already on a public URL, use it; otherwise use public_url or mobile_url
   const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000';
   const isLocalOrigin = currentOrigin.includes('localhost') || currentOrigin.includes('127.0.0.1');
-  const appUrl = (isLocalOrigin && networkInfo?.public_url)
+  const appUrl = ((isLocalOrigin && networkInfo?.public_url)
     ? networkInfo.public_url
-    : (isLocalOrigin && networkInfo?.mobile_url ? networkInfo.mobile_url : currentOrigin);
+    : (isLocalOrigin && networkInfo?.mobile_url ? networkInfo.mobile_url : currentOrigin)).replace(/\/+$/, '');
 
   const gymSlug = gym?.website_subdomain || gym?.slug || 'apex-fitness-club';
   const websiteUrl = `${appUrl}/facility/${gymSlug}`;

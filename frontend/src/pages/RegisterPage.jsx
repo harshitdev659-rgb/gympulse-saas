@@ -153,7 +153,7 @@ export const RegisterPage = ({ onNavigateLogin, onBackToLanding }) => {
 
             <div className="p-3 bg-brand-50/80 border border-brand-200/80 rounded-xl text-xs text-brand-900 flex items-center gap-2">
               <span className="text-base">🌐</span>
-              <span>Includes free dedicated public gym website (<strong>https://gympulse.app/facility/...</strong>) &amp; member lead capture portal.</span>
+              <span>Includes free dedicated public gym website (<strong>/facility/...</strong>) &amp; member lead capture portal.</span>
             </div>
 
 

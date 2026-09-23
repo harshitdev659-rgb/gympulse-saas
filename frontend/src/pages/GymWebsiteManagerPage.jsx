@@ -26,6 +26,7 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [networkInfo, setNetworkInfo] = useState(null);
 
   // Form state
   const [form, setForm] = useState({
@@ -79,6 +80,7 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
   useEffect(() => {
     fetchWebsiteData();
     fetchInquiries();
+    api.getNetworkInfo().then((data) => setNetworkInfo(data)).catch(() => {});
   }, []);
 
   const handleSave = async (e) => {
@@ -106,8 +108,21 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
     }
   };
 
-  const publicUrl = `/facility/${form.website_subdomain || gym?.slug}`;
-  const fullPublicUrl = `https://gympulse.app${publicUrl}`;
+  const windowOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000';
+  const isLocal = windowOrigin.includes('localhost') || windowOrigin.includes('127.0.0.1');
+  const activeBaseUrl = !isLocal
+    ? windowOrigin
+    : (networkInfo?.public_url?.replace(/\/+$/, '') || windowOrigin);
+  const publicPath = `/facility/${form.website_subdomain || gym?.slug}`;
+  const fullPublicUrl = `${activeBaseUrl}${publicPath}`;
+
+  const handleVisitWebsite = () => {
+    if (onPreviewWebsite) {
+      onPreviewWebsite(form.website_subdomain || gym?.slug);
+    } else {
+      window.open(fullPublicUrl, '_blank');
+    }
+  };
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(fullPublicUrl);
@@ -144,7 +159,7 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
 
           <button
             type="button"
-            onClick={() => onPreviewWebsite ? onPreviewWebsite(form.website_subdomain || gym?.slug) : window.open(publicUrl, '_blank')}
+            onClick={handleVisitWebsite}
             className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-brand-500/25"
           >
             Visit Live Website <ExternalLink className="w-3.5 h-3.5" />
@@ -205,7 +220,7 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
               </label>
               <div className="flex rounded-xl shadow-xs">
                 <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-slate-200 bg-slate-50 text-slate-500 text-xs font-mono">
-                  gympulse.app/facility/
+                  {activeBaseUrl.replace(/^https?:\/\//, '')}/facility/
                 </span>
                 <input
                   type="text"

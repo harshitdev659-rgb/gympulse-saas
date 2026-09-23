@@ -293,6 +293,6 @@ def decommission_gym(
 
     return GymDecommissionResponse(
         success=True,
-        message=f"Facility '{gym_name}' and its dedicated public website ('https://gympulse.app/facility/{website_slug}') have been permanently deleted.",
+        message=f"Facility '{gym_name}' and its dedicated public website ('/facility/{website_slug}') have been permanently deleted.",
         deleted_slug=gym_slug
     )

@@ -41,14 +41,12 @@ export const DownloadPage = ({ onBack }) => {
   const windowOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000';
   const isLocal = windowOrigin.includes('localhost') || windowOrigin.includes('127.0.0.1');
 
-  // Reachable URLs
-  const onlineWebUrl = networkInfo?.public_url || networkInfo?.tunnel_url || networkInfo?.cloud_url;
-  const official247Url = networkInfo?.github_pages_url || 'https://harshitdev659-rgb.github.io/gympulse-saas/';
-  const permanentReleaseUrl = networkInfo?.windows_release_url || 'https://github.com/harshitdev659-rgb/gympulse-saas/releases/download/v1.0.0/GymPulse_Windows_Portable.zip';
+  // Primary 24/7 website for Apple (iPhone/iPad) and Android
+  const official247Url = 'https://harshitdev659-rgb.github.io/gympulse-saas/';
+  const permanentReleaseUrl = 'https://github.com/harshitdev659-rgb/gympulse-saas/releases/download/v1.0.0/GymPulse_Windows_Portable.zip';
 
-  const phoneDownloadUrl = !isLocal
-    ? windowOrigin
-    : (onlineWebUrl || official247Url);
+  // Always use official 24/7 website for Apple and Android downloads
+  const phoneDownloadUrl = official247Url;
 
   const windowsDownloadUrl = isLocal
     ? `${windowOrigin}/api/download/windows`

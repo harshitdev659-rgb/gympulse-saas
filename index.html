@@ -5,7 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GymPulse SaaS - Official Download & App Portal</title>
   <meta name="description" content="Download GymPulse Gym Management SaaS for Windows PC, Android, and Apple iPhone (iOS). 100% online 24/7.">
-  <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/harshitdev659-rgb/gympulse-saas/master/backend/static/gympulse.png">
+  <link rel="icon" type="image/png" href="gympulse.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="gympulse.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="GymPulse">
+  <meta name="theme-color" content="#4f46e5">
   <!-- Tailwind CSS via CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -353,6 +359,12 @@
         } else {
           alert('Link copied to clipboard!');
         }
+      });
+    }
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
       });
     }
   </script>

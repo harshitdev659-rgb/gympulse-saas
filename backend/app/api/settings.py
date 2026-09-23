@@ -128,9 +128,11 @@ def get_network_info():
         pass
     lan_url = f"http://{lan_ip}:8000"
 
-    # Prioritize active public tunnel or custom cloud URL over local
-    public_live_url = tunnel_url or (cloud_url if os.path.exists(cloud_file) else None)
-    active_url = public_live_url or local_url
+    github_pages_url = "https://harshitdev659-rgb.github.io/gympulse-saas/"
+    windows_release_url = "https://github.com/harshitdev659-rgb/gympulse-saas/releases/download/v1.0.0/GymPulse_Windows_Portable.zip"
+
+    # The official 24/7 website for Apple, Android and worldwide access
+    official_website = (cloud_url if os.path.exists(cloud_file) else None) or github_pages_url
 
     return {
         "local_url": local_url,
@@ -138,11 +140,11 @@ def get_network_info():
         "lan_url": lan_url,
         "cloud_url": cloud_url,
         "tunnel_url": tunnel_url,
-        "public_url": active_url,
-        "github_pages_url": "https://harshitdev659-rgb.github.io/gympulse-saas/",
-        "windows_release_url": "https://github.com/harshitdev659-rgb/gympulse-saas/releases/download/v1.0.0/GymPulse_Windows_Portable.zip",
+        "public_url": official_website,
+        "github_pages_url": github_pages_url,
+        "windows_release_url": windows_release_url,
         "download_url": "/api/download/windows",
-        "full_download_url": f"{active_url}/api/download/windows"
+        "full_download_url": windows_release_url
     }
 
 @router.post("/cloud-url")

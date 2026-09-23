@@ -110,7 +110,11 @@ def download_windows_app():
             media_type="application/zip",
             filename="GymPulse_Windows_Portable.zip"
         )
-    return HTMLResponse(status_code=404, content="Windows portable package not found.")
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(
+        url="https://github.com/harshitdev659-rgb/gympulse-saas/releases/download/v1.0.0/GymPulse_Windows_Portable.zip",
+        status_code=302
+    )
 
 
 # Check for production frontend build in static/ or ../frontend/dist

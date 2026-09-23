@@ -41,15 +41,18 @@ export const DownloadPage = ({ onBack }) => {
   const windowOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000';
   const isLocal = windowOrigin.includes('localhost') || windowOrigin.includes('127.0.0.1');
 
-  // Phone download URL must ALWAYS be the reachable online link (tunnel, cloud, or Wi-Fi LAN IP)
+  // Reachable URLs
   const onlineWebUrl = networkInfo?.public_url || networkInfo?.tunnel_url || networkInfo?.cloud_url;
+  const official247Url = networkInfo?.github_pages_url || 'https://harshitdev659-rgb.github.io/gympulse-saas/';
+  const permanentReleaseUrl = networkInfo?.windows_release_url || 'https://github.com/harshitdev659-rgb/gympulse-saas/releases/download/v1.0.0/GymPulse_Windows_Portable.zip';
+
   const phoneDownloadUrl = !isLocal
     ? windowOrigin
-    : (onlineWebUrl || networkInfo?.lan_url || windowOrigin);
+    : (onlineWebUrl || official247Url);
 
   const windowsDownloadUrl = isLocal
     ? `${windowOrigin}/api/download/windows`
-    : (networkInfo?.full_download_url || `${windowOrigin}/api/download/windows`);
+    : permanentReleaseUrl;
 
   const handleCopy = (text, key) => {
     navigator.clipboard.writeText(text);

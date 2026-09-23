@@ -139,6 +139,8 @@ def get_network_info():
         "cloud_url": cloud_url,
         "tunnel_url": tunnel_url,
         "public_url": active_url,
+        "github_pages_url": "https://harshitdev659-rgb.github.io/gympulse-saas/",
+        "windows_release_url": "https://github.com/harshitdev659-rgb/gympulse-saas/releases/download/v1.0.0/GymPulse_Windows_Portable.zip",
         "download_url": "/api/download/windows",
         "full_download_url": f"{active_url}/api/download/windows"
     }

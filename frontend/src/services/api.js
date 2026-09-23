@@ -1,3 +1,5 @@
+import { handleMockRequest } from './mockStorage';
+
 const API_BASE = '/api';
 
 class ApiService {
@@ -32,6 +34,11 @@ class ApiService {
     try {
       const response = await fetch(url, { ...options, headers });
       
+      // If 404 on API endpoint (running on static host like GitHub Pages without Python backend)
+      if (response.status === 404) {
+        return handleMockRequest(endpoint, options);
+      }
+
       if (response.status === 401) {
         // Token expired or invalid
         this.setToken(null);
@@ -57,8 +64,8 @@ class ApiService {
         return text;
       }
     } catch (error) {
-      console.error(`API Error on [${options.method || 'GET'}] ${endpoint}:`, error);
-      throw error;
+      console.warn(`API network unavailable on ${endpoint}. Falling back to standalone mobile engine.`);
+      return handleMockRequest(endpoint, options);
     }
   }
 

@@ -47,7 +47,7 @@ export const DownloadAppModal = ({ isOpen, onClose }) => {
   const isLocal = windowOrigin.includes('localhost') || windowOrigin.includes('127.0.0.1');
 
   // Primary 24/7 permanent website domain for Apple (iPhone/iPad) and Android
-  const official247Url = 'https://harshitdev659-rgb.github.io/gympulse-saas/';
+  const official247Url = 'https://harshitdev659-rgb.github.io/gympulse-saas/app.html';
   const permanentReleaseUrl = 'https://github.com/harshitdev659-rgb/gympulse-saas/releases/download/v1.0.0/GymPulse_Windows_Portable.zip';
 
   // Always use the official 24/7 website domain for Apple and Android

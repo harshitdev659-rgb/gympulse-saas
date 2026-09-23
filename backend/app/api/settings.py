@@ -97,7 +97,7 @@ def get_network_info():
     tunnel_file = os.path.join(base_dir, "tunnel_url.txt")
     cloud_file = os.path.join(base_dir, "cloud_url.txt")
 
-    cloud_url = os.environ.get("CLOUD_APP_URL", getattr(settings, "CLOUD_APP_URL", "https://gympulse-saas.onrender.com"))
+    cloud_url = os.environ.get("CLOUD_APP_URL", "https://harshitdev659-rgb.github.io/gympulse-saas/")
     if os.path.exists(cloud_file):
         try:
             with open(cloud_file, "r", encoding="utf-8-sig") as f:

@@ -68,7 +68,7 @@ export const SettingsPage = () => {
   });
 
   // 24/7 Cloud Hosting Public Link
-  const [cloudUrlInput, setCloudUrlInput] = useState('https://gympulse-saas.onrender.com');
+  const [cloudUrlInput, setCloudUrlInput] = useState('https://harshitdev659-rgb.github.io/gympulse-saas/');
   const [isSavingCloudUrl, setIsSavingCloudUrl] = useState(false);
 
   // Billing
@@ -537,7 +537,7 @@ export const SettingsPage = () => {
                   type="url"
                   value={cloudUrlInput}
                   onChange={(e) => setCloudUrlInput(e.target.value)}
-                  placeholder="https://gympulse-saas.onrender.com"
+                  placeholder="https://harshitdev659-rgb.github.io/gympulse-saas/"
                   className="flex-1 px-3.5 py-2 text-xs font-mono rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
                 />
                 <Button
@@ -550,13 +550,13 @@ export const SettingsPage = () => {
                   Save Cloud URL
                 </Button>
                 <a
-                  href={`${cloudUrlInput || 'https://gympulse-saas.onrender.com'}/download`}
+                  href={`${cloudUrlInput || 'https://harshitdev659-rgb.github.io/gympulse-saas/'}`}
                   target="_blank"
                   rel="noreferrer"
                   className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all flex items-center justify-center gap-1 shrink-0"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                  <span>Open Download Hub</span>
+                  <span>Open 24/7 Portal</span>
                 </a>
               </div>
             </div>

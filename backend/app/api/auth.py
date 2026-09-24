@@ -13,7 +13,7 @@ from app.models.models import Gym, User, GymSetting
 from app.schemas.schemas import (
     RegisterGymRequest, LoginRequest, TokenResponse, 
     UserResponse, UserCreate, UserUpdate, GymResponse,
-    ForgotPasswordRequest, ResetPasswordRequest
+    ForgotPasswordRequest, ResetPasswordRequest, SubmitPaymentRefRequest
 )
 
 router = APIRouter(prefix="/auth", tags=["Authentication & Staff"])
@@ -215,6 +215,32 @@ def get_current_user_profile(
         "user": UserResponse.model_validate(current_user),
         "gym": GymResponse.model_validate(current_gym) if current_gym else None
     }
+
+@router.post("/submit-payment", response_model=GymResponse)
+def submit_payment_reference(
+    req: SubmitPaymentRefRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Facility owner submits or updates payment reference/UTR for Super Admin verification.
+    """
+    if not current_user.gym_id:
+        raise HTTPException(status_code=400, detail="User is not associated with any gym facility")
+    
+    gym = db.query(Gym).filter(Gym.id == current_user.gym_id).first()
+    if not gym:
+        raise HTTPException(status_code=404, detail="Gym facility not found")
+    
+    gym.registration_payment_ref = req.payment_ref.strip()
+    if req.payment_method:
+        gym.registration_payment_method = req.payment_method.strip()
+    gym.approval_status = "pending"
+    gym.is_approved = False
+    
+    db.commit()
+    db.refresh(gym)
+    return GymResponse.model_validate(gym)
 
 @router.post("/forgot-password")
 def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_db)):

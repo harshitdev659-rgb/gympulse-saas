@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ShieldCheck, 
   Building2, 
@@ -21,7 +21,8 @@ import {
   ChevronDown,
   ChevronUp,
   Save,
-  Copy
+  Copy,
+  Sparkles
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useToast } from '../context/ToastContext';
@@ -33,6 +34,26 @@ const DEFAULT_PAYMENT_CONFIG = {
   upi_name: 'GymPulse Platform SaaS',
   upi_qr_url: 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi%3A%2F%2Fpay%3Fpa%3Dgympulse.admin%40upi%26pn%3DGymPulse%2BSaaS',
   card_instructions: 'Secure Credit & Debit Card payments processed via platform merchant gateway.'
+};
+
+// Subtle notification tone for new payment/approval requests
+const playNotificationTone = () => {
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.12); // A5
+    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.45);
+  } catch (e) {}
 };
 
 export const SuperAdminPage = ({ onPreviewWebsite }) => {
@@ -50,28 +71,116 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
   const [isPaymentSettingsOpen, setIsPaymentSettingsOpen] = useState(false);
   const [isSavingPaymentSettings, setIsSavingPaymentSettings] = useState(false);
 
-  const fetchData = async () => {
-    setLoading(true);
+  // Live polling and new payment detection refs
+  const isFirstLoadRef = useRef(true);
+  const prevPendingGymIdsRef = useRef(null);
+  const prevPendingUpgradeIdsRef = useRef(null);
+
+  const fetchData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const [m, g, s] = await Promise.all([
         api.getPlatformMetrics(),
         api.getPlatformGyms(),
-        api.getPlatformPaymentSettings().catch(() => null)
+        isFirstLoadRef.current ? api.getPlatformPaymentSettings().catch(() => null) : Promise.resolve(null)
       ]);
       setMetrics(m);
-      setGyms(g);
+
+      if (Array.isArray(g)) {
+        // Detect new incoming pending gyms / payments
+        const currentPendingGyms = g.filter((item) => item.approval_status === 'pending');
+        const currentPendingIds = new Set(currentPendingGyms.map((item) => String(item.id)));
+
+        if (prevPendingGymIdsRef.current !== null) {
+          const newlyArrived = currentPendingGyms.filter(
+            (item) => !prevPendingGymIdsRef.current.has(String(item.id))
+          );
+          if (newlyArrived.length > 0) {
+            newlyArrived.forEach((gym) => {
+              const methodText = gym.registration_payment_method === 'card' 
+                ? 'Card' 
+                : gym.registration_payment_method === 'cash' 
+                ? 'Cash' 
+                : 'UPI/QR';
+              toast.success(
+                `🔔 Payment Received! "${gym.name}" submitted ${methodText} payment (${gym.registration_payment_ref || 'Awaiting Confirmation'}). Ready for verification & approval!`,
+                { duration: 8000 }
+              );
+            });
+            playNotificationTone();
+          }
+        }
+        prevPendingGymIdsRef.current = currentPendingIds;
+
+        // Detect new tier upgrades
+        const currentPendingUpgrades = g.filter((item) => item.tier_upgrade_status === 'pending');
+        const currentUpgradeIds = new Set(currentPendingUpgrades.map((item) => String(item.id)));
+        if (prevPendingUpgradeIdsRef.current !== null) {
+          const newUpgrades = currentPendingUpgrades.filter(
+            (item) => !prevPendingUpgradeIdsRef.current.has(String(item.id))
+          );
+          if (newUpgrades.length > 0) {
+            newUpgrades.forEach((gym) => {
+              toast.info(
+                `⚡ Tier Upgrade Request: "${gym.name}" requested upgrade to ${gym.requested_plan_tier?.toUpperCase()} tier.`,
+                { duration: 8000 }
+              );
+            });
+            playNotificationTone();
+          }
+        }
+        prevPendingUpgradeIdsRef.current = currentUpgradeIds;
+
+        setGyms(g);
+      }
+
       if (s) {
         setPaymentSettings((prev) => ({ ...prev, ...s }));
       }
     } catch (err) {
-      toast.error(err.message || 'Failed to load platform data.');
+      if (!silent) {
+        toast.error(err.message || 'Failed to load platform data.');
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
+      isFirstLoadRef.current = false;
     }
   };
 
   useEffect(() => {
-    fetchData();
+    fetchData(false);
+
+    // Continuous real-time background polling every 2.5s
+    const interval = setInterval(() => {
+      fetchData(true);
+    }, 2500);
+
+    // Instant cross-tab and storage synchronization
+    const handleSync = () => {
+      fetchData(true);
+    };
+
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('gympulse_db_updated', handleSync);
+
+    let bc = null;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        bc = new BroadcastChannel('gympulse_channel');
+        bc.onmessage = () => {
+          fetchData(true);
+        };
+      }
+    } catch (e) {}
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('gympulse_db_updated', handleSync);
+      if (bc) {
+        try { bc.close(); } catch (e) {}
+      }
+    };
   }, []);
 
   const handleSavePaymentSettings = async (e) => {
@@ -105,7 +214,7 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
     try {
       await api.approveGym(gymId);
       toast.success(`Payment verified! Facility "${gymName}" approved & activated.`);
-      await fetchData();
+      await fetchData(true);
     } catch (err) {
       toast.error(err.message || 'Approval failed.');
     } finally {
@@ -119,7 +228,7 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
     try {
       await api.rejectGym(gymId, 'Documentation verification requirement not met.');
       toast.info(`Facility "${gymName}" was rejected.`);
-      await fetchData();
+      await fetchData(true);
     } catch (err) {
       toast.error(err.message || 'Rejection failed.');
     } finally {
@@ -136,7 +245,7 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
     try {
       await api.approveUpgrade(gymId);
       toast.success(`Payment verified! Facility "${gymName}" upgraded to ${requestedTier?.toUpperCase()} tier.`);
-      await fetchData();
+      await fetchData(true);
     } catch (err) {
       toast.error(err.message || 'Failed to approve tier upgrade.');
     } finally {
@@ -413,6 +522,114 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
           <div className="text-[11px] text-slate-400 mt-1">Estimated platform monthly MRR</div>
         </div>
       </div>
+
+      {/* Pending Facility Approvals Alert Box (Real-time Payment Approvals) */}
+      {gyms.some((g) => g.approval_status === 'pending') && (
+        <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border-2 border-amber-400 rounded-3xl p-6 shadow-md space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2.5">
+              <span className="relative flex h-3.5 w-3.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-amber-600"></span>
+              </span>
+              <h3 className="text-base font-black text-amber-950 flex items-center gap-2">
+                <span>Action Required: Pending Facility Payment Approvals</span>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-200 text-amber-950 border border-amber-300">
+                  {gyms.filter((g) => g.approval_status === 'pending').length} Awaiting Verification
+                </span>
+              </h3>
+            </div>
+            <span className="text-[11px] font-extrabold text-amber-900 bg-white/90 px-3 py-1 rounded-full border border-amber-300 flex items-center gap-1.5 shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Real-time Live Sync (Auto-updates)
+            </span>
+          </div>
+
+          <p className="text-xs text-amber-900 leading-relaxed">
+            The following gym facilities have registered and submitted their subscription payment. Verify the payment reference or cash collection below, then click <strong>Verify Payment &amp; Approve</strong> to instantly unlock their operations.
+          </p>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {gyms.filter((g) => g.approval_status === 'pending').map((g) => {
+              const planPrice = g.plan_tier === 'business' ? '₹5,999/mo' : g.plan_tier === 'pro' ? '₹2,499/mo' : '₹999/mo';
+              const methodLabel = g.registration_payment_method === 'card' 
+                ? 'Credit / Debit Card' 
+                : g.registration_payment_method === 'cash' 
+                ? 'Direct Cash Payment' 
+                : 'Online QR / UPI';
+
+              return (
+                <div key={g.id} className="bg-white p-5 rounded-2xl border-2 border-amber-300 shadow-sm flex flex-col justify-between gap-4 hover:border-amber-400 transition-all">
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span className="font-black text-slate-900 text-sm flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-brand-600" />
+                        {g.name}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-brand-50 text-brand-700 border border-brand-200">
+                        {g.plan_tier || 'STARTER'} &bull; {planPrice}
+                      </span>
+                    </div>
+
+                    <div className="text-xs text-slate-600 space-y-0.5">
+                      <div>Owner: <strong className="text-slate-900">{g.owner_name}</strong> ({g.owner_email})</div>
+                      {g.phone && <div>Phone: <strong className="text-slate-800">{g.phone}</strong></div>}
+                    </div>
+
+                    {/* Payment Reference Callout */}
+                    <div className="mt-3 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs flex items-center justify-between flex-wrap gap-2">
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                          Method &amp; Transaction Reference
+                        </span>
+                        <div className="font-extrabold text-slate-900 flex items-center gap-1.5 mt-0.5">
+                          <span className="text-slate-700">{methodLabel}:</span>
+                          <code className="text-brand-700 bg-brand-50 px-1.5 py-0.5 rounded font-mono text-xs border border-brand-200">
+                            {g.registration_payment_ref || 'NO-REF-SUBMITTED'}
+                          </code>
+                        </div>
+                      </div>
+
+                      {g.registration_payment_ref && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard?.writeText(g.registration_payment_ref);
+                            toast.success(`Copied payment reference: ${g.registration_payment_ref}`);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-slate-100 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                          title="Copy Reference / UTR"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>Copy UTR</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                    <button
+                      onClick={() => handleReject(g.id, g.name)}
+                      disabled={actionLoadingId === g.id}
+                      className="px-3.5 py-2 rounded-xl border border-rose-300 text-rose-700 hover:bg-rose-50 font-bold text-xs transition-colors cursor-pointer"
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => handleApprove(g.id, g.name)}
+                      disabled={actionLoadingId === g.id}
+                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md shadow-emerald-600/25 transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>{actionLoadingId === g.id ? 'Approving...' : 'Verify Payment & Approve Facility'}</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Pending Subscription Upgrades Card (Payment Verification) */}
       {gyms.some((g) => g.tier_upgrade_status === 'pending') && (

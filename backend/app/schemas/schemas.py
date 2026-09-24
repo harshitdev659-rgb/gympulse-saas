@@ -58,6 +58,10 @@ class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str = Field(..., min_length=6)
 
+class SubmitPaymentRefRequest(BaseModel):
+    payment_ref: str
+    payment_method: Optional[str] = None
+
 # ----------------- Gym & Settings Schemas -----------------
 class GymResponse(BaseModel):
     id: int

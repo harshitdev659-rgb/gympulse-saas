@@ -46,10 +46,16 @@ const defaultDb = {
 
 let memoryDb = null;
 
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === STORAGE_KEY || e.key === 'gympulse_last_action') {
+      memoryDb = null;
+    }
+  });
+}
+
 function getDb() {
-  if (memoryDb) {
-    return memoryDb;
-  }
+  // Always inspect latest localStorage so multi-tab or concurrent operations reflect in real-time
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
@@ -59,7 +65,6 @@ function getDb() {
     }
     const parsed = JSON.parse(raw);
     if (!parsed.version || parsed.version < DB_VERSION || !Array.isArray(parsed.gyms)) {
-      // Purge old mock storage and reset to clean version
       localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultDb));
       memoryDb = JSON.parse(JSON.stringify(defaultDb));
       return memoryDb;
@@ -70,6 +75,7 @@ function getDb() {
     memoryDb = parsed;
     return memoryDb;
   } catch (e) {
+    if (memoryDb) return memoryDb;
     memoryDb = JSON.parse(JSON.stringify(defaultDb));
     return memoryDb;
   }
@@ -79,6 +85,19 @@ function saveDb(db) {
   memoryDb = db;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+    // Trigger storage event in other tabs
+    localStorage.setItem('gympulse_last_action', JSON.stringify({ action: 'sync', timestamp: Date.now() }));
+    // Dispatch custom window event in current tab
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('gympulse_db_updated', { detail: { timestamp: Date.now() } }));
+      try {
+        if (typeof BroadcastChannel !== 'undefined') {
+          const bc = new BroadcastChannel('gympulse_channel');
+          bc.postMessage({ type: 'DB_UPDATED', timestamp: Date.now() });
+          setTimeout(() => { try { bc.close(); } catch (e) {} }, 50);
+        }
+      } catch (e) {}
+    }
   } catch (e) {
     console.error('Failed to save standalone db:', e);
   }
@@ -314,6 +333,37 @@ export function handleMockRequest(endpoint, options = {}) {
       user: resolvedUser,
       gym: resolvedGym
     };
+  }
+
+  // Auth: Submit or Update Payment Reference (e.g. UTR number, UPI reference, or Cash note)
+  if (endpoint.startsWith('/auth/submit-payment') && method === 'POST') {
+    const targetGymId = currentUser?.gym_id || tokenGymId || db.currentGymId;
+    let g = db.gyms.find((gym) => gym.id == targetGymId || String(gym.id) === String(targetGymId));
+    if (!g && typeof localStorage !== 'undefined') {
+      try {
+        const savedGym = JSON.parse(localStorage.getItem('gympulse_gym') || '{}');
+        if (savedGym?.id) {
+          g = db.gyms.find((gym) => gym.id == savedGym.id || String(gym.id) === String(savedGym.id));
+        }
+      } catch (e) {}
+    }
+    if (g) {
+      if (body.payment_ref) g.registration_payment_ref = body.payment_ref.trim();
+      if (body.payment_method) g.registration_payment_method = body.payment_method;
+      g.approval_status = 'pending';
+      g.is_approved = false;
+      saveDb(db);
+      if (typeof localStorage !== 'undefined') {
+        try {
+          const savedGym = JSON.parse(localStorage.getItem('gympulse_gym') || '{}');
+          if (String(savedGym.id) === String(g.id)) {
+            localStorage.setItem('gympulse_gym', JSON.stringify({ ...savedGym, ...g }));
+          }
+        } catch (e) {}
+      }
+      return g;
+    }
+    return { error: 'Gym facility not found' };
   }
 
   // Auth: Logout (only clears if current user matches)
@@ -821,11 +871,17 @@ export function handleMockRequest(endpoint, options = {}) {
 
   // 16. Super Admin: Platform Operations & Gym Deletion
   if (endpoint.startsWith('/platform/metrics')) {
+    const pending_approvals = db.gyms.filter((g) => g.approval_status === 'pending').length;
+    const active_facilities = db.gyms.filter((g) => g.approval_status === 'approved' || g.is_approved).length;
     return {
       total_gyms: db.gyms.length,
-      active_gyms: db.gyms.filter((g) => g.is_approved).length,
+      pending_approvals,
+      active_facilities,
+      active_gyms: active_facilities,
+      total_athletes: db.members.length,
       total_platform_members: db.members.length,
-      monthly_platform_revenue: db.payments.reduce((s, p) => s + (p.amount || 0), 0)
+      platform_mrr: active_facilities * 2499.0,
+      currency: 'INR'
     };
   }
 
@@ -950,12 +1006,13 @@ export function handleMockRequest(endpoint, options = {}) {
   // List all gyms for Super Admin
   if (endpoint.startsWith('/platform/gyms') && method === 'GET') {
     return db.gyms.map((g) => {
-      const owner = db.users.find((u) => u.gym_id === g.id && u.role === 'owner') || db.users.find((u) => u.gym_id === g.id);
+      const owner = db.users.find((u) => (u.gym_id == g.id || String(u.gym_id) === String(g.id)) && u.role === 'owner') 
+                 || db.users.find((u) => u.gym_id == g.id || String(u.gym_id) === String(g.id));
       return {
         ...g,
-        owner_name: owner ? owner.name : 'Gym Owner',
+        owner_name: owner ? (owner.full_name || owner.name) : 'Gym Owner',
         owner_email: owner ? owner.email : g.email,
-        members_count: db.members.filter((m) => m.gym_id === g.id).length
+        members_count: db.members.filter((m) => m.gym_id == g.id || String(m.gym_id) === String(g.id)).length
       };
     });
   }

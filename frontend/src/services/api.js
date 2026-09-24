@@ -108,6 +108,13 @@ class ApiService {
     return this.request('/auth/me');
   }
 
+  submitPaymentRef(data) {
+    return this.request('/auth/submit-payment', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
   logout() {
     return this.request('/auth/logout', { method: 'POST' });
   }

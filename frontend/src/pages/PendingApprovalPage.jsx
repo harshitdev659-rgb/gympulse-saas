@@ -29,6 +29,10 @@ export const PendingApprovalPage = ({ onPreviewWebsite, onBackToLanding, onNavig
   const [isChecking, setIsChecking] = useState(false);
   const [paymentSettings, setPaymentSettings] = useState(null);
   const [showQrDetails, setShowQrDetails] = useState(false);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [isSubmittingRef, setIsSubmittingRef] = useState(false);
+  const [newPaymentRef, setNewPaymentRef] = useState(gym?.registration_payment_ref || '');
+  const [newPaymentMethod, setNewPaymentMethod] = useState(gym?.registration_payment_method || 'qr_code');
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -42,12 +46,12 @@ export const PendingApprovalPage = ({ onPreviewWebsite, onBackToLanding, onNavig
     fetchSettings();
   }, []);
 
-  // Automatic background polling so user is instantly redirected the second SuperAdmin approves
+  // Automatic background polling & cross-tab sync so user is instantly redirected the second SuperAdmin approves
   useEffect(() => {
     if (gym?.is_approved || gym?.approval_status === 'approved') return;
 
     let isMounted = true;
-    const interval = setInterval(async () => {
+    const checkApproval = async () => {
       try {
         const data = await api.getMe();
         if (data?.gym && (data.gym.is_approved || data.gym.approval_status === 'approved')) {
@@ -57,11 +61,33 @@ export const PendingApprovalPage = ({ onPreviewWebsite, onBackToLanding, onNavig
           }
         }
       } catch (e) {}
-    }, 2000);
+    };
+
+    const interval = setInterval(checkApproval, 2000);
+
+    const handleSync = () => {
+      checkApproval();
+    };
+
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('gympulse_db_updated', handleSync);
+
+    let bc = null;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        bc = new BroadcastChannel('gympulse_channel');
+        bc.onmessage = () => checkApproval();
+      }
+    } catch (e) {}
 
     return () => {
       isMounted = false;
       clearInterval(interval);
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('gympulse_db_updated', handleSync);
+      if (bc) {
+        try { bc.close(); } catch (e) {}
+      }
     };
   }, [gym?.is_approved, gym?.approval_status]);
 
@@ -78,6 +104,28 @@ export const PendingApprovalPage = ({ onPreviewWebsite, onBackToLanding, onNavig
       toast.error('Could not check status right now.');
     } finally {
       setIsChecking(false);
+    }
+  };
+
+  const handleSubmitPaymentRef = async (e) => {
+    e.preventDefault();
+    if (!newPaymentRef.trim()) {
+      toast.error('Please enter a transaction ID, UPI UTR number, or cash collection note.');
+      return;
+    }
+    setIsSubmittingRef(true);
+    try {
+      await api.submitPaymentRef({
+        payment_ref: newPaymentRef.trim(),
+        payment_method: newPaymentMethod
+      });
+      await refreshGymProfile();
+      toast.success('🚀 Payment reference submitted! Platform Super Admin has been notified immediately.');
+      setShowSubmitModal(false);
+    } catch (err) {
+      toast.error(err.message || 'Failed to submit payment reference.');
+    } finally {
+      setIsSubmittingRef(false);
     }
   };
 
@@ -283,6 +331,42 @@ export const PendingApprovalPage = ({ onPreviewWebsite, onBackToLanding, onNavig
             </div>
           ) : null}
 
+          {/* Payment Confirmation & Direct UTR Submission Card */}
+          <div className="bg-gradient-to-r from-brand-900/60 via-indigo-900/50 to-slate-900/80 border border-brand-500/40 rounded-2xl p-5 mb-6 text-white shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 text-xs font-black text-brand-300 uppercase tracking-wider mb-1">
+                  <Sparkles className="w-4 h-4 text-brand-400" />
+                  Instant Payment Confirmation
+                </div>
+                <h3 className="text-base font-black text-white">
+                  Paid via Online QR, UPI, Card, or Cash?
+                </h3>
+                <p className="text-xs text-slate-300 mt-1 max-w-md">
+                  Submit your transaction UTR reference number or cash receipt note so the Platform Super Admin is notified immediately to verify and approve your facility.
+                </p>
+                {gym?.registration_payment_ref && (
+                  <div className="mt-2 text-xs text-slate-300">
+                    Current Reference on File: <code className="bg-black/50 text-amber-300 px-2 py-0.5 rounded font-mono text-xs border border-white/10">{gym.registration_payment_ref}</code>
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setNewPaymentRef(gym?.registration_payment_ref || '');
+                  setNewPaymentMethod(gym?.registration_payment_method || 'qr_code');
+                  setShowSubmitModal(true);
+                }}
+                className="px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-slate-950 font-black text-xs shadow-lg shadow-brand-500/30 transition-all flex items-center justify-center gap-2 flex-shrink-0 cursor-pointer"
+              >
+                <CheckCircle2 className="w-4 h-4 text-slate-950" />
+                <span>{gym?.registration_payment_ref ? 'Update Payment Reference' : 'I Have Paid / Submit Reference'}</span>
+              </button>
+            </div>
+          </div>
+
           {/* Auto-Generated Website Feature Box */}
           <div className="bg-gradient-to-r from-brand-950/60 to-indigo-950/60 border border-brand-500/30 rounded-2xl p-5 mb-8">
             <div className="flex items-center justify-between flex-wrap gap-3">
@@ -344,6 +428,102 @@ export const PendingApprovalPage = ({ onPreviewWebsite, onBackToLanding, onNavig
           </div>
         </div>
       </main>
+
+      {/* Submit / Update Payment Reference Modal */}
+      {showSubmitModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-white/20 rounded-3xl max-w-lg w-full p-6 sm:p-8 text-white shadow-2xl relative">
+            <button
+              onClick={() => setShowSubmitModal(false)}
+              className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 text-lg font-bold"
+            >
+              &times;
+            </button>
+
+            <div className="flex items-center gap-2 text-brand-400 text-xs font-black uppercase tracking-wider mb-1">
+              <Sparkles className="w-4 h-4" /> Direct Admin Notification
+            </div>
+            <h2 className="text-xl font-black text-white">
+              Submit Payment Reference / UTR
+            </h2>
+            <p className="text-xs text-slate-400 mt-1">
+              Once you submit, the Platform Super Admin console will immediately receive an alert to verify payment and approve your facility.
+            </p>
+
+            <form onSubmit={handleSubmitPaymentRef} className="mt-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 uppercase mb-1.5">
+                  Payment Method
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'qr_code', label: 'Online UPI / QR', icon: QrCode },
+                    { id: 'card', label: 'Debit / Credit Card', icon: CreditCard },
+                    { id: 'cash', label: 'Direct Cash', icon: Banknote },
+                  ].map((m) => {
+                    const Icon = m.icon;
+                    const isSelected = newPaymentMethod === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => setNewPaymentMethod(m.id)}
+                        className={`p-3 rounded-xl border text-left flex flex-col items-center justify-center gap-1.5 transition-all text-xs font-bold cursor-pointer ${
+                          isSelected
+                            ? 'border-brand-500 bg-brand-500/20 text-white ring-1 ring-brand-500'
+                            : 'border-white/10 bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
+                        }`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span className="text-[11px] text-center">{m.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 uppercase mb-1.5">
+                  {newPaymentMethod === 'cash' ? 'Cash Handover Note / Token *' : 'Transaction UTR / Reference ID *'}
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newPaymentRef}
+                  onChange={(e) => setNewPaymentRef(e.target.value)}
+                  placeholder={
+                    newPaymentMethod === 'cash'
+                      ? 'e.g., Handed ₹999 cash to admin'
+                      : 'e.g., 426819284712 (UPI 12-digit UTR)'
+                  }
+                  className="w-full px-4 py-2.5 bg-black/50 border border-white/20 rounded-xl text-white font-mono text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Found on your PhonePe, Google Pay, Paytm, or bank statement.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowSubmitModal(false)}
+                  className="px-4 py-2 rounded-xl border border-white/20 text-slate-300 hover:text-white text-xs font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingRef}
+                  className="px-5 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-slate-950 font-black text-xs shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{isSubmittingRef ? 'Submitting...' : 'Submit & Notify Admin'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="border-t border-white/10 py-4 text-center text-xs text-slate-500">

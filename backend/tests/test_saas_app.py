@@ -374,7 +374,15 @@ def test_platform_admin_approval_workflow():
     assert blocked_res.status_code == 403
     assert "pending platform owner approval" in blocked_res.json()["detail"].lower()
 
-    # 3. Super Admin logs in and approves facility
+    # 3. Owner submits payment reference (e.g. UTR / Cash voucher)
+    pay_res = client.post("/api/auth/submit-payment", headers=owner_headers, json={
+        "payment_ref": "UPI-REF-998877",
+        "payment_method": "qr_code"
+    })
+    assert pay_res.status_code == 200
+    assert pay_res.json()["registration_payment_ref"] == "UPI-REF-998877"
+
+    # 4. Super Admin logs in and verifies payment and approves facility
     superadmin_token = get_auth_token("superadmin@gympulse.com", "SuperAdmin123!")
     admin_headers = {"Authorization": f"Bearer {superadmin_token}"}
     

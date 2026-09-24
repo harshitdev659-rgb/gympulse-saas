@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     # Security & JWT
     SECRET_KEY: str = "gympulse-super-secret-key-change-in-production-min32chars!!"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 365 * 10  # 10 years (persistent device session until explicit signout)
     
     # Database
     DATABASE_URL: str = "sqlite:///./gympulse.db"

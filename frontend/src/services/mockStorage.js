@@ -102,10 +102,29 @@ export function handleMockRequest(endpoint, options = {}) {
     const tokenMatch = tokenStr.match(/^mock-token-(\d+)-/);
     if (tokenMatch) {
       tokenUserId = parseInt(tokenMatch[1], 10);
+    } else if (tokenStr.startsWith('eyJ')) {
+      try {
+        const payloadBase64 = tokenStr.split('.')[1];
+        const decoded = JSON.parse(atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/')));
+        if (decoded?.sub) {
+          tokenUserId = parseInt(decoded.sub, 10);
+        }
+      } catch (e) {}
     } else if (tokenStr.includes('admin')) {
       const admin = db.users.find((u) => u.is_superadmin || u.role === 'superadmin');
       tokenUserId = admin?.id || 1;
     }
+  }
+
+  // Restore user from persistent device storage if freshly loaded
+  if (!tokenUserId && typeof localStorage !== 'undefined') {
+    try {
+      const savedUserStr = localStorage.getItem('gympulse_user');
+      if (savedUserStr) {
+        const parsed = JSON.parse(savedUserStr);
+        if (parsed?.id) tokenUserId = parsed.id;
+      }
+    } catch (e) {}
   }
 
   let currentUser = tokenUserId 
@@ -221,6 +240,24 @@ export function handleMockRequest(endpoint, options = {}) {
   // 3. Auth: Current User (/auth/me)
   if (endpoint.startsWith('/auth/me')) {
     let resolvedUser = currentUser;
+    if (!resolvedUser && tokenUserId) {
+      resolvedUser = db.users.find((u) => u.id === tokenUserId) || null;
+    }
+    if (!resolvedUser && typeof localStorage !== 'undefined') {
+      try {
+        const savedUserStr = localStorage.getItem('gympulse_user');
+        if (savedUserStr) {
+          const parsed = JSON.parse(savedUserStr);
+          if (parsed && parsed.id) {
+            resolvedUser = parsed;
+            if (!db.users.some((u) => u.id === parsed.id)) {
+              db.users.push(parsed);
+              saveDb(db);
+            }
+          }
+        }
+      } catch (e) {}
+    }
     if (!resolvedUser && db.currentUserId) {
       resolvedUser = db.users.find((u) => u.id === db.currentUserId) || null;
     }
@@ -230,18 +267,35 @@ export function handleMockRequest(endpoint, options = {}) {
     if (!resolvedUser) {
       throw new Error('Not authenticated');
     }
-    const resolvedGym = resolvedUser.gym_id ? db.gyms.find((g) => g.id === resolvedUser.gym_id) || null : null;
+    let resolvedGym = resolvedUser.gym_id ? db.gyms.find((g) => g.id === resolvedUser.gym_id) || null : null;
+    if (!resolvedGym && typeof localStorage !== 'undefined') {
+      try {
+        const savedGymStr = localStorage.getItem('gympulse_gym');
+        if (savedGymStr) {
+          const parsedGym = JSON.parse(savedGymStr);
+          if (parsedGym && parsedGym.id) {
+            resolvedGym = parsedGym;
+            if (!db.gyms.some((g) => g.id === parsedGym.id)) {
+              db.gyms.push(parsedGym);
+              saveDb(db);
+            }
+          }
+        }
+      } catch (e) {}
+    }
     return {
       user: resolvedUser,
       gym: resolvedGym
     };
   }
 
-  // Auth: Logout
+  // Auth: Logout (only clears if current user matches)
   if (endpoint.startsWith('/auth/logout')) {
-    db.currentUserId = null;
-    db.currentGymId = null;
-    saveDb(db);
+    if (currentUser && db.currentUserId === currentUser.id) {
+      db.currentUserId = null;
+      db.currentGymId = null;
+      saveDb(db);
+    }
     return { success: true };
   }
 

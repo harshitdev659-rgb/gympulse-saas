@@ -138,6 +138,9 @@ function AppContent() {
     );
   }
 
+  // Viewing public landing while retaining device login session
+  const [isViewingLanding, setIsViewingLanding] = useState(false);
+
   // If not authenticated, render public pages
   if (!isAuthenticated) {
     if (publicView === 'login') {
@@ -173,14 +176,54 @@ function AppContent() {
     );
   }
 
+  // If authenticated user chooses to view the landing page, retain device session
+  if (isViewingLanding) {
+    return (
+      <div className="relative">
+        <div className="bg-slate-900 border-b border-brand-500/30 px-4 py-2.5 flex items-center justify-between text-xs text-white sticky top-0 z-50 shadow-md">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>Device Session Active: Signed in as <strong>{user?.name || user?.email}</strong> ({gym?.name || (isSuperAdmin ? 'Platform Super Admin' : 'Gym Facility')})</span>
+            {gym && !gym?.is_approved && !isSuperAdmin && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                PENDING APPROVAL
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsViewingLanding(false)}
+              className="px-3 py-1 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-bold transition-all shadow-xs cursor-pointer"
+            >
+              &larr; Return to {isSuperAdmin ? 'SuperAdmin Console' : gym?.is_approved ? 'Dashboard' : 'Approval Status Screen'}
+            </button>
+            <button
+              onClick={() => {
+                logout();
+                setIsViewingLanding(false);
+              }}
+              className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white font-semibold transition-all cursor-pointer"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+        <LandingPage
+          onNavigateLogin={() => setIsViewingLanding(false)}
+          onNavigateRegister={() => setIsViewingLanding(false)}
+          currentUser={user}
+        />
+      </div>
+    );
+  }
+
   // If gym registration is pending approval and user is NOT platform super admin:
   if (!isSuperAdmin && (gym?.approval_status === 'pending' || !gym?.is_approved)) {
     return (
       <PendingApprovalPage
         onPreviewWebsite={(slug) => setPreviewFacilitySlug(slug || gym?.website_subdomain || gym?.slug)}
         onBackToLanding={() => {
-          logout();
-          setPublicView('landing');
+          setIsViewingLanding(true);
         }}
         onNavigateLogin={() => {
           logout();

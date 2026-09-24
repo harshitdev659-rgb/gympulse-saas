@@ -19,7 +19,7 @@ import {
 import { Button } from '../components/common/Button';
 import { DownloadAppModal } from '../components/common/DownloadAppModal';
 
-export const LandingPage = ({ onNavigateLogin, onNavigateRegister }) => {
+export const LandingPage = ({ onNavigateLogin, onNavigateRegister, currentUser }) => {
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [networkInfo, setNetworkInfo] = useState(null);
   const [billingCycle, setBillingCycle] = useState('monthly'); // monthly, yearly
@@ -92,19 +92,31 @@ export const LandingPage = ({ onNavigateLogin, onNavigateRegister }) => {
               <Download className="w-3.5 h-3.5 text-brand-600" />
               <span>Download App</span>
             </button>
-            <button
-              onClick={onNavigateLogin}
-              className="text-sm font-bold text-slate-700 hover:text-brand-600 px-4 py-2 rounded-xl transition-colors"
-            >
-              Sign In
-            </button>
-            <Button
-              onClick={onNavigateRegister}
-              variant="primary"
-              size="md"
-            >
-              Register Facility
-            </Button>
+            {currentUser ? (
+              <Button
+                onClick={onNavigateLogin}
+                variant="primary"
+                size="md"
+              >
+                Go to Console &rarr;
+              </Button>
+            ) : (
+              <>
+                <button
+                  onClick={onNavigateLogin}
+                  className="text-sm font-bold text-slate-700 hover:text-brand-600 px-4 py-2 rounded-xl transition-colors cursor-pointer"
+                >
+                  Sign In
+                </button>
+                <Button
+                  onClick={onNavigateRegister}
+                  variant="primary"
+                  size="md"
+                >
+                  Register Facility
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -126,28 +138,40 @@ export const LandingPage = ({ onNavigateLogin, onNavigateRegister }) => {
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button
-              onClick={onNavigateRegister}
-              size="lg"
-              className="w-full sm:w-auto text-base px-8 py-4 shadow-xl shadow-brand-600/25"
-            >
-              Get Started Today
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
+            {currentUser ? (
+              <Button
+                onClick={onNavigateLogin}
+                size="lg"
+                className="w-full sm:w-auto text-base px-8 py-4 shadow-xl shadow-brand-600/25"
+              >
+                Return to Facility Operations Console ({currentUser.name || 'Active'}) &rarr;
+              </Button>
+            ) : (
+              <>
+                <Button
+                  onClick={onNavigateRegister}
+                  size="lg"
+                  className="w-full sm:w-auto text-base px-8 py-4 shadow-xl shadow-brand-600/25"
+                >
+                  Get Started Today
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+
+                <button
+                  onClick={onNavigateLogin}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 text-base font-bold text-slate-800 bg-white border border-slate-200 hover:border-brand-500 hover:bg-brand-50/30 rounded-xl shadow-sm transition-all cursor-pointer"
+                >
+                  Sign In to Your Facility
+                </button>
+              </>
+            )}
 
             <button
               onClick={handleDownloadClick}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 text-base font-bold text-slate-900 bg-amber-50 hover:bg-amber-100 border-2 border-amber-300 rounded-xl shadow-sm transition-all"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 text-base font-bold text-slate-900 bg-amber-50 hover:bg-amber-100 border-2 border-amber-300 rounded-xl shadow-sm transition-all cursor-pointer"
             >
               <Download className="w-5 h-5 text-amber-600" />
               Download App (Mobile & PC)
-            </button>
-
-            <button
-              onClick={onNavigateLogin}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 text-base font-bold text-slate-800 bg-white border border-slate-200 hover:border-brand-500 hover:bg-brand-50/30 rounded-xl shadow-sm transition-all"
-            >
-              Sign In to Your Facility
             </button>
           </div>
 

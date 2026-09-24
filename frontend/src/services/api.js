@@ -39,8 +39,8 @@ class ApiService {
         return handleMockRequest(endpoint, options);
       }
 
-      if (response.status === 401) {
-        // Token expired or invalid
+      if (response.status === 401 && !endpoint.includes('/auth/login')) {
+        // Token revoked or user deleted from platform
         this.setToken(null);
         window.dispatchEvent(new CustomEvent('auth:unauthorized'));
       }
@@ -86,6 +86,10 @@ class ApiService {
 
   getMe() {
     return this.request('/auth/me');
+  }
+
+  logout() {
+    return this.request('/auth/logout', { method: 'POST' });
   }
 
   forgotPassword(email) {

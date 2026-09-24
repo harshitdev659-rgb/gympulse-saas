@@ -24,7 +24,9 @@ class Gym(Base):
     subscription_status = Column(String(50), default="active", nullable=False)  # active, past_due, trialing
     approval_status = Column(String(50), default="pending", nullable=False)  # pending, approved, rejected
     is_approved = Column(Boolean, default=False, nullable=False)
-    payment_verified = Column(Boolean, default=True, nullable=False)
+    payment_verified = Column(Boolean, default=False, nullable=False)
+    registration_payment_method = Column(String(50), default="qr_code", nullable=True)  # qr_code, card, cash
+    registration_payment_ref = Column(String(100), nullable=True)
     requested_plan_tier = Column(String(50), nullable=True)  # pro, business
     tier_upgrade_status = Column(String(50), default="none", nullable=False)  # none, pending, approved, rejected
     tier_upgrade_requested_at = Column(DateTime, nullable=True)

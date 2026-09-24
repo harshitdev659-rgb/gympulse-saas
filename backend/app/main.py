@@ -20,6 +20,19 @@ from contextlib import asynccontextmanager
 async def lifespan(app: FastAPI):
     """Ensure database has tables and default seed data on first run."""
     try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            res = conn.execute(text("PRAGMA table_info(gyms);")).fetchall()
+            col_names = [r[1] for r in res]
+            if "registration_payment_method" not in col_names:
+                conn.execute(text("ALTER TABLE gyms ADD COLUMN registration_payment_method VARCHAR(50) DEFAULT 'qr_code';"))
+            if "registration_payment_ref" not in col_names:
+                conn.execute(text("ALTER TABLE gyms ADD COLUMN registration_payment_ref VARCHAR(100);"))
+            conn.commit()
+    except Exception as e:
+        pass
+
+    try:
         from app.models.models import User
         from app.core.database import SessionLocal
         db = SessionLocal()

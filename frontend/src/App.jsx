@@ -22,7 +22,7 @@ import { GymWebsiteManagerPage } from './pages/GymWebsiteManagerPage';
 import { DownloadPage } from './pages/DownloadPage';
 
 function AppContent() {
-  const { user, gym, isAuthenticated, loading, login } = useAuth();
+  const { user, gym, isAuthenticated, loading, login, logout } = useAuth();
   
   // Dedicated /download route
   const [isDownloadCenter, setIsDownloadCenter] = useState(() => {
@@ -161,6 +161,7 @@ function AppContent() {
       return (
         <ForgotPasswordPage
           onNavigateLogin={() => setPublicView('login')}
+          onBackToLanding={() => setPublicView('landing')}
         />
       );
     }
@@ -177,6 +178,14 @@ function AppContent() {
     return (
       <PendingApprovalPage
         onPreviewWebsite={(slug) => setPreviewFacilitySlug(slug || gym?.website_subdomain || gym?.slug)}
+        onBackToLanding={() => {
+          logout();
+          setPublicView('landing');
+        }}
+        onNavigateLogin={() => {
+          logout();
+          setPublicView('login');
+        }}
       />
     );
   }

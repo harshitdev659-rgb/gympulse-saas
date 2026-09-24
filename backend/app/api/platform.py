@@ -56,6 +56,8 @@ def list_all_platform_gyms(
                 approval_status=g.approval_status,
                 is_approved=g.is_approved,
                 payment_verified=g.payment_verified,
+                registration_payment_method=g.registration_payment_method or "qr_code",
+                registration_payment_ref=g.registration_payment_ref,
                 requested_plan_tier=g.requested_plan_tier,
                 tier_upgrade_status=g.tier_upgrade_status or "none",
                 tier_upgrade_requested_at=g.tier_upgrade_requested_at,
@@ -111,6 +113,7 @@ def approve_gym_facility(
 
     gym.approval_status = "approved"
     gym.is_approved = True
+    gym.payment_verified = True
     gym.subscription_status = "active"
 
     # Send confirmation notification to gym
@@ -125,6 +128,35 @@ def approve_gym_facility(
     db.refresh(gym)
 
     return GymResponse.model_validate(gym)
+
+# ----------------- Platform Subscription Payment Settings -----------------
+PLATFORM_PAYMENT_CONFIG = {
+    "qr_code_url": "https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=4&data=upi://pay?pa=gympulse.admin@upi%26pn=GymPulse%20SaaS%20Platform%26cu=INR",
+    "upi_id": "gympulse.admin@upi",
+    "payee_name": "GymPulse SaaS Platform",
+    "bank_name": "State Bank of India",
+    "account_number": "1000987654321",
+    "ifsc_code": "SBIN0001234",
+    "card_enabled": True,
+    "cash_enabled": True,
+    "instructions": "Scan QR Code with PhonePe, Google Pay, or Paytm. Enter the transaction reference ID during registration for Super Admin verification."
+}
+
+@router.get("/payment-settings")
+def get_platform_payment_settings():
+    """Retrieve platform subscription payment details (QR code, UPI, Bank) - accessible for gym registration."""
+    return PLATFORM_PAYMENT_CONFIG
+
+@router.post("/payment-settings")
+def update_platform_payment_settings(
+    settings: Dict[str, Any],
+    current_admin: User = Depends(require_superadmin)
+):
+    """Super Admin updates platform subscription payment methods and QR code."""
+    for key in PLATFORM_PAYMENT_CONFIG:
+        if key in settings:
+            PLATFORM_PAYMENT_CONFIG[key] = settings[key]
+    return PLATFORM_PAYMENT_CONFIG
 
 @router.post("/gyms/{gym_id}/reject", response_model=GymResponse)
 def reject_gym_facility(

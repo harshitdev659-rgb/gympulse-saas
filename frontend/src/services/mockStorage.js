@@ -33,6 +33,17 @@ const defaultDb = {
     receipt_footer_text: 'Thank you for training with us!',
     primary_color: '#4f46e5'
   },
+  platform_payment_settings: {
+    qr_code_url: 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=4&data=upi://pay?pa=gympulse.admin@upi%26pn=GymPulse%20SaaS%20Platform%26cu=INR',
+    upi_id: 'gympulse.admin@upi',
+    payee_name: 'GymPulse SaaS Platform',
+    bank_name: 'State Bank of India',
+    account_number: '1000987654321',
+    ifsc_code: 'SBIN0001234',
+    card_enabled: true,
+    cash_enabled: true,
+    instructions: 'Scan QR Code with PhonePe, Google Pay, or Paytm. Enter your transaction reference ID for Super Admin verification.'
+  },
   website: {}
 };
 
@@ -48,6 +59,9 @@ function getDb() {
       // Purge old mock storage and reset to clean version 3
       localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultDb));
       return defaultDb;
+    }
+    if (!parsed.platform_payment_settings) {
+      parsed.platform_payment_settings = { ...defaultDb.platform_payment_settings };
     }
     return parsed;
   } catch (e) {
@@ -76,8 +90,28 @@ export function handleMockRequest(endpoint, options = {}) {
   }
 
   // Current active tenant & user resolver
-  let currentGymId = db.currentGymId || null;
-  let currentUser = db.currentUserId ? db.users.find((u) => u.id === db.currentUserId) || null : null;
+  let authHeader = options?.headers?.Authorization || options?.headers?.authorization || '';
+  if (!authHeader && typeof localStorage !== 'undefined') {
+    const rawToken = localStorage.getItem('gympulse_token');
+    if (rawToken) authHeader = `Bearer ${rawToken}`;
+  }
+
+  let tokenUserId = null;
+  if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+    const tokenStr = authHeader.replace('Bearer ', '').trim();
+    const tokenMatch = tokenStr.match(/^mock-token-(\d+)-/);
+    if (tokenMatch) {
+      tokenUserId = parseInt(tokenMatch[1], 10);
+    } else if (tokenStr.includes('admin')) {
+      const admin = db.users.find((u) => u.is_superadmin || u.role === 'superadmin');
+      tokenUserId = admin?.id || 1;
+    }
+  }
+
+  let currentUser = tokenUserId 
+    ? db.users.find((u) => u.id === tokenUserId) || null 
+    : (db.currentUserId ? db.users.find((u) => u.id === db.currentUserId) || null : null);
+  let currentGymId = currentUser?.gym_id || db.currentGymId || null;
   let currentGym = currentGymId ? db.gyms.find((g) => g.id === currentGymId) || null : null;
 
   // 1. Auth: Login
@@ -95,7 +129,7 @@ export function handleMockRequest(endpoint, options = {}) {
       db.currentGymId = null;
       saveDb(db);
       return {
-        access_token: 'mock-standalone-admin-token-' + Date.now(),
+        access_token: `mock-token-${adminUser.id}-admin-${Date.now()}`,
         token_type: 'bearer',
         user: adminUser,
         gym: null
@@ -118,7 +152,7 @@ export function handleMockRequest(endpoint, options = {}) {
     saveDb(db);
 
     return {
-      access_token: 'mock-standalone-token-' + Date.now(),
+      access_token: `mock-token-${user.id}-${Date.now()}`,
       token_type: 'bearer',
       user,
       gym: currentGym
@@ -140,10 +174,13 @@ export function handleMockRequest(endpoint, options = {}) {
       phone: body.phone || '+91 90000 00000',
       address: 'Fitness Facility Address',
       currency: body.currency || 'INR',
-      plan_tier: 'pro',
+      plan_tier: body.plan_tier || 'starter',
       is_approved: false, // Requires Super Admin approval
       approval_status: 'pending',
-      member_capacity: 150,
+      payment_verified: false,
+      registration_payment_method: body.payment_method || 'qr_code',
+      registration_payment_ref: body.payment_ref || '',
+      member_capacity: body.plan_tier === 'business' ? 10000 : body.plan_tier === 'pro' ? 250 : 50,
       logo_url: '/gympulse.png',
       created_at: new Date().toISOString()
     };
@@ -156,6 +193,7 @@ export function handleMockRequest(endpoint, options = {}) {
       email: (body.email || '').toLowerCase().trim(),
       password: body.password || '',
       name: body.owner_name || 'Gym Owner',
+      full_name: body.owner_name || 'Gym Owner',
       role: 'owner',
       is_superadmin: false
     };
@@ -163,8 +201,8 @@ export function handleMockRequest(endpoint, options = {}) {
 
     // Initial default membership plans for this newly registered gym
     db.plans.push(
-      { id: Date.now() + 1, gym_id: newGymId, name: 'Monthly Flex Pass', duration_days: 30, price: 1500, description: 'Standard monthly gym floor access' },
-      { id: Date.now() + 2, gym_id: newGymId, name: 'Quarterly Power Plan', duration_days: 90, price: 4000, description: '3 months access with trainer consult' }
+      { id: Date.now() + 1, gym_id: newGymId, name: 'Monthly Flex Pass', duration_days: 30, price: 1499, description: 'Standard monthly gym floor access' },
+      { id: Date.now() + 2, gym_id: newGymId, name: 'Quarterly Power Plan', duration_days: 90, price: 3999, description: '3 months access with trainer consult' }
     );
 
     // Newly registered gym starts with strictly 0 members and 0 invoices
@@ -173,7 +211,7 @@ export function handleMockRequest(endpoint, options = {}) {
     saveDb(db);
 
     return {
-      access_token: 'mock-standalone-token-' + Date.now(),
+      access_token: `mock-token-${newUserId}-${Date.now()}`,
       token_type: 'bearer',
       user: newUser,
       gym: newGym
@@ -182,17 +220,20 @@ export function handleMockRequest(endpoint, options = {}) {
 
   // 3. Auth: Current User (/auth/me)
   if (endpoint.startsWith('/auth/me')) {
-    if (!db.currentUserId) {
+    let resolvedUser = currentUser;
+    if (!resolvedUser && db.currentUserId) {
+      resolvedUser = db.users.find((u) => u.id === db.currentUserId) || null;
+    }
+    if (!resolvedUser) {
+      resolvedUser = db.users.find((u) => !u.is_superadmin) || db.users[0] || null;
+    }
+    if (!resolvedUser) {
       throw new Error('Not authenticated');
     }
-    const user = db.users.find((u) => u.id === db.currentUserId);
-    if (!user) {
-      throw new Error('User not found');
-    }
-    const gym = user.gym_id ? db.gyms.find((g) => g.id === user.gym_id) || null : null;
+    const resolvedGym = resolvedUser.gym_id ? db.gyms.find((g) => g.id === resolvedUser.gym_id) || null : null;
     return {
-      user,
-      gym
+      user: resolvedUser,
+      gym: resolvedGym
     };
   }
 
@@ -759,6 +800,7 @@ export function handleMockRequest(endpoint, options = {}) {
     if (g) {
       g.is_approved = true;
       g.approval_status = 'approved';
+      g.payment_verified = true;
       saveDb(db);
       return g;
     }
@@ -771,9 +813,23 @@ export function handleMockRequest(endpoint, options = {}) {
     if (g) {
       g.is_approved = false;
       g.approval_status = 'rejected';
+      g.payment_verified = false;
       saveDb(db);
       return g;
     }
+  }
+
+  // Platform Subscription Payment Settings (Super Admin configuration)
+  if (endpoint.startsWith('/platform/payment-settings')) {
+    if (method === 'POST') {
+      db.platform_payment_settings = {
+        ...(db.platform_payment_settings || defaultDb.platform_payment_settings),
+        ...body
+      };
+      saveDb(db);
+      return db.platform_payment_settings;
+    }
+    return db.platform_payment_settings || defaultDb.platform_payment_settings;
   }
 
   // List all gyms for Super Admin

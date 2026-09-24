@@ -20,6 +20,9 @@ class RegisterGymRequest(BaseModel):
     password: str = Field(..., min_length=6)
     phone: Optional[str] = None
     currency: str = "INR"
+    plan_tier: Optional[str] = "starter"
+    payment_method: Optional[str] = "qr_code"
+    payment_ref: Optional[str] = None
 
 class UserCreate(BaseModel):
     full_name: str
@@ -69,7 +72,9 @@ class GymResponse(BaseModel):
     subscription_status: str
     approval_status: str = "pending"
     is_approved: bool = False
-    payment_verified: bool = True
+    payment_verified: bool = False
+    registration_payment_method: Optional[str] = "qr_code"
+    registration_payment_ref: Optional[str] = None
     requested_plan_tier: Optional[str] = None
     tier_upgrade_status: str = "none"
     tier_upgrade_requested_at: Optional[datetime.datetime] = None
@@ -423,6 +428,8 @@ class PlatformGymItem(BaseModel):
     approval_status: str
     is_approved: bool
     payment_verified: bool
+    registration_payment_method: Optional[str] = "qr_code"
+    registration_payment_ref: Optional[str] = None
     requested_plan_tier: Optional[str] = None
     tier_upgrade_status: str = "none"
     tier_upgrade_requested_at: Optional[datetime.datetime] = None

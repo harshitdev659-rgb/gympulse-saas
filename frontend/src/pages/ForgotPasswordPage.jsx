@@ -4,7 +4,7 @@ import { api } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { Button } from '../components/common/Button';
 
-export const ForgotPasswordPage = ({ onNavigateLogin }) => {
+export const ForgotPasswordPage = ({ onNavigateLogin, onBackToLanding }) => {
   const toast = useToast();
   const [email, setEmail] = useState('');
   const [token, setToken] = useState('');
@@ -47,9 +47,29 @@ export const ForgotPasswordPage = ({ onNavigateLogin }) => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      {/* Top Navigation Bar with Back Button */}
+      <div className="max-w-md w-full mx-auto px-4 mb-4 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={onBackToLanding || onNavigateLogin}
+          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white border border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-slate-100 font-bold text-xs shadow-xs transition-all cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4 text-slate-600" />
+          <span>Back to Home</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={onNavigateLogin}
+          className="text-xs font-bold text-brand-600 hover:text-brand-800 hover:underline cursor-pointer"
+        >
+          Back to Sign In &rarr;
+        </button>
+      </div>
+
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
         <button
-          onClick={onNavigateLogin}
+          onClick={onBackToLanding || onNavigateLogin}
           className="inline-flex items-center gap-2 mb-6 cursor-pointer"
         >
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-brand-600 to-brand-400 flex items-center justify-center text-white font-black text-2xl shadow-xl shadow-brand-500/25">

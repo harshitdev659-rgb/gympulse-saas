@@ -412,6 +412,17 @@ class ApiService {
     });
   }
 
+  getPlatformPaymentSettings() {
+    return this.request('/platform/payment-settings');
+  }
+
+  updatePlatformPaymentSettings(data) {
+    return this.request('/platform/payment-settings', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
   // ----------------- Public Website & Inquiry Generator -----------------
   getPublicFacility(slug) {
     return this.request(`/public/facility/${slug}`);

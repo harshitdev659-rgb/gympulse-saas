@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dumbbell, Lock, Mail, ArrowRight, ShieldCheck, Sparkles, Building2, User, Clock } from 'lucide-react';
+import { Dumbbell, Lock, Mail, ArrowRight, ArrowLeft, ShieldCheck, Sparkles, Building2, User, Clock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { Button } from '../components/common/Button';
@@ -30,6 +30,26 @@ export const LoginPage = ({ onNavigateRegister, onNavigateForgotPassword, onBack
 
   return (
     <div className="min-h-screen bg-radial from-slate-100 via-slate-50 to-slate-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      {/* Top Navigation Bar with Back Button */}
+      <div className="max-w-md w-full mx-auto px-4 mb-4 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={onBackToLanding}
+          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white border border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-slate-100 font-bold text-xs shadow-xs transition-all cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4 text-slate-600" />
+          <span>Back to Landing Page</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={onNavigateRegister}
+          className="text-xs font-bold text-brand-600 hover:text-brand-800 hover:underline cursor-pointer"
+        >
+          Register facility &rarr;
+        </button>
+      </div>
+
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
         <button
           onClick={onBackToLanding}

@@ -19,9 +19,14 @@
 
   /* Crisp, high-contrast form inputs with prominent cursor */
   input, textarea, select {
-    color: #0f172a !important;
     font-weight: 550;
-    caret-color: #4338ca !important; /* Bold indigo cursor */
+    caret-color: #4338ca; /* Bold indigo cursor */
+  }
+
+  input:not([class*="text-"]),
+  textarea:not([class*="text-"]),
+  select:not([class*="text-"]) {
+    color: #0f172a;
   }
 
   input::placeholder, textarea::placeholder {

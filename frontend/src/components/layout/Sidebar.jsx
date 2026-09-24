@@ -14,13 +14,21 @@ import {
   ShieldCheck,
   ChevronRight,
   Globe,
-  Crown
+  Crown,
+  ExternalLink
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export const Sidebar = ({ activeTab, setActiveTab, onOpenAi, isOpen, onClose }) => {
   const { user, gym, logout } = useAuth();
   const isSuperAdmin = user?.is_superadmin || user?.role === 'superadmin';
+
+  const gymSlug = (gym?.website_subdomain || gym?.slug || '').trim();
+  const windowOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000';
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+  const isGitHubPages = windowOrigin.includes('github.io') || pathname.includes('/gympulse-saas');
+  const baseSubpath = isGitHubPages ? '/gympulse-saas' : '';
+  const websiteUrl = gymSlug ? `${windowOrigin}${baseSubpath}/app.html?facility=${encodeURIComponent(gymSlug)}` : null;
 
   const navItems = [
     ...(isSuperAdmin ? [{ id: 'superadmin', label: 'Platform Control', icon: Crown }] : []),
@@ -117,6 +125,25 @@ export const Sidebar = ({ activeTab, setActiveTab, onOpenAi, isOpen, onClose }) 
             })}
           </nav>
         </div>
+
+        {/* Dedicated Live Gym Website Quick Link */}
+        {!isSuperAdmin && websiteUrl && (
+          <div className="px-4 py-2 border-t border-slate-800/80">
+            <a
+              href={websiteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between p-2.5 rounded-xl bg-indigo-950/40 hover:bg-indigo-900/50 border border-indigo-500/30 text-xs text-indigo-200 hover:text-white transition-all group"
+              title={`Visit Live Website: ${websiteUrl}`}
+            >
+              <div className="flex items-center gap-2 truncate">
+                <Globe className="w-4 h-4 text-indigo-400 shrink-0" />
+                <span className="truncate font-bold">Live Gym Website</span>
+              </div>
+              <ExternalLink className="w-3.5 h-3.5 text-indigo-400 group-hover:scale-110 transition-transform shrink-0" />
+            </a>
+          </div>
+        )}
 
         {/* User Profile & Logout */}
         <div className="p-4 border-t border-slate-800/80 bg-slate-950/40">

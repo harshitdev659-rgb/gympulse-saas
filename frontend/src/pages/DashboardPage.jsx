@@ -21,7 +21,9 @@ import {
   Check,
   Laptop,
   Smartphone,
-  Apple
+  Apple,
+  Globe,
+  ExternalLink
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -61,12 +63,36 @@ export const DashboardPage = ({ setActiveTab, onQuickCheckIn, onOpenAi, refreshT
   }, [refreshTrigger]);
 
   const windowOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000';
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+  const isGitHubPages = windowOrigin.includes('github.io') || pathname.includes('/gympulse-saas');
+  const baseSubpath = isGitHubPages ? '/gympulse-saas' : '';
+  const gymSlug = (gym?.website_subdomain || gym?.slug || '').trim();
+  const publicWebsiteUrl = gymSlug ? `${windowOrigin}${baseSubpath}/app.html?facility=${encodeURIComponent(gymSlug)}` : null;
+  const officialAppUrl = 'https://harshitdev659-rgb.github.io/gympulse-saas/app.html';
   const downloadLink = `${windowOrigin}/api/download/windows`;
+
+  const [copiedWebsite, setCopiedWebsite] = useState(false);
+  const [copiedApp, setCopiedApp] = useState(false);
+
+  const handleCopyWebsiteUrl = () => {
+    if (!publicWebsiteUrl) return;
+    navigator.clipboard.writeText(publicWebsiteUrl);
+    setCopiedWebsite(true);
+    toast.success('Facility public website link copied!');
+    setTimeout(() => setCopiedWebsite(false), 2200);
+  };
+
+  const handleCopyAppUrl = () => {
+    navigator.clipboard.writeText(officialAppUrl);
+    setCopiedApp(true);
+    toast.success('Official app portal link copied!');
+    setTimeout(() => setCopiedApp(false), 2200);
+  };
 
   const handleCopyDownloadLink = () => {
     navigator.clipboard.writeText(downloadLink);
     setCopiedShare(true);
-    toast.success('Download link copied to clipboard!');
+    toast.success('Windows download link copied!');
     setTimeout(() => setCopiedShare(false), 2200);
   };
 
@@ -130,43 +156,112 @@ export const DashboardPage = ({ setActiveTab, onQuickCheckIn, onOpenAi, refreshT
         </div>
       </div>
 
-      {/* Clean Standalone App Download Bar */}
-      <div className="bg-white border border-emerald-200/90 rounded-2xl p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0">
-            <Download className="w-5 h-5 text-emerald-600" />
-          </div>
-          <div>
-            <div className="text-xs font-bold text-slate-900 flex items-center gap-2">
-              <span>Download Standalone App</span>
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
-                PORTABLE ZIP (~20 MB)
-              </span>
+      {/* Dedicated Gym Website & App Access Quick Bar */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* 1. Live Gym Public Website Card */}
+        {publicWebsiteUrl && (
+          <div className="bg-white border-2 border-indigo-200 rounded-2xl p-4 shadow-xs flex flex-col justify-between space-y-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center shrink-0">
+                  <Globe className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                  <div className="text-xs font-black text-slate-900 flex items-center gap-2">
+                    <span>Your Dedicated Gym Website</span>
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
+                      LIVE 24/7
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Share with prospective members to join and explore your gym online.
+                  </p>
+                </div>
+              </div>
             </div>
-            <p className="text-[11px] text-slate-500 mt-0.5">
-              Zero Python or setup required. Unzip and run standalone anywhere on Windows.
-            </p>
-          </div>
-        </div>
 
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          <a
-            href="/api/download/windows"
-            download="GymPulse_Windows_Portable.zip"
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors shrink-0"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Download App (.zip)</span>
-          </a>
-          <Button
-            onClick={handleCopyDownloadLink}
-            variant="secondary"
-            size="sm"
-            className="shrink-0"
-          >
-            {copiedShare ? <Check className="w-3.5 h-3.5 mr-1 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
-            {copiedShare ? 'Copied' : 'Copy Download Link'}
-          </Button>
+            {/* Visible Direct Website Link */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex items-center justify-between gap-2">
+              <div className="font-mono text-xs font-black text-indigo-950 select-all break-all flex-1 leading-relaxed">
+                {publicWebsiteUrl}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1 flex-wrap">
+              <button
+                type="button"
+                onClick={handleCopyWebsiteUrl}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors"
+              >
+                {copiedWebsite ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedWebsite ? 'Copied' : 'Copy Website Link'}</span>
+              </button>
+              <a
+                href={publicWebsiteUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition-colors border border-slate-200"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Visit Live Website</span>
+              </a>
+              <button
+                type="button"
+                onClick={() => setActiveTab('website')}
+                className="inline-flex items-center gap-1 px-3 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl text-xs font-semibold transition-colors"
+              >
+                Customize
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 2. Official App Portal & Download Card */}
+        <div className="bg-white border-2 border-emerald-200 rounded-2xl p-4 shadow-xs flex flex-col justify-between space-y-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0">
+                <Download className="w-5 h-5 text-emerald-600" />
+              </div>
+              <div>
+                <div className="text-xs font-black text-slate-900 flex items-center gap-2">
+                  <span>Official App Portal Link</span>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
+                    ANDROID • iOS • PC
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Universal app portal for Android Chrome, Apple iPhone Safari, &amp; Windows Desktop.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Visible Direct App URL */}
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex items-center justify-between gap-2">
+            <div className="font-mono text-xs font-black text-slate-950 select-all break-all flex-1 leading-relaxed">
+              {officialAppUrl}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 pt-1 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setIsDownloadModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Download Options</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleCopyAppUrl}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition-colors border border-slate-200"
+            >
+              {copiedApp ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedApp ? 'Copied' : 'Copy App Link'}</span>
+            </button>
+          </div>
         </div>
       </div>
 

@@ -337,7 +337,7 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
                           )}
                         </div>
                         <div className="font-bold text-slate-700 mt-1 text-xs">
-                          {g.plan_tier === 'pro' ? '₹2,499/mo' : g.plan_tier === 'business' ? '₹5,999/mo' : '₹0/mo Free'}
+                          {g.plan_tier === 'pro' ? '₹2,499/mo' : g.plan_tier === 'business' ? '₹5,999/mo' : '₹999/mo Starter'}
                         </div>
                         {g.tier_upgrade_status === 'pending' ? (
                           <button
@@ -349,7 +349,7 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
                             Verify & Upgrade
                           </button>
                         ) : (
-                          <div className="text-[10px] text-emerald-600 font-semibold">● Paid & Verified</div>
+                          <div className="text-[10px] text-emerald-600 font-semibold">● Paid & Active</div>
                         )}
                       </td>
 

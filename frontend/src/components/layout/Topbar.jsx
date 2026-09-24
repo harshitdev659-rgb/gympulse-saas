@@ -8,7 +8,8 @@ import {
   Copy,
   Check,
   ExternalLink,
-  Download
+  Download,
+  Globe
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -39,13 +40,16 @@ export const Topbar = ({ onToggleSidebar, onOpenAi, onQuickCheckIn, onQuickAddMe
 
   // Determine ideal URL: If already on a public URL, use it; otherwise use public_url or mobile_url
   const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000';
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
   const isLocalOrigin = currentOrigin.includes('localhost') || currentOrigin.includes('127.0.0.1');
+  const isGitHubPages = currentOrigin.includes('github.io') || pathname.includes('/gympulse-saas');
+  const baseSubpath = isGitHubPages ? '/gympulse-saas' : '';
   const appUrl = ((isLocalOrigin && networkInfo?.public_url)
     ? networkInfo.public_url
     : (isLocalOrigin && networkInfo?.mobile_url ? networkInfo.mobile_url : currentOrigin)).replace(/\/+$/, '');
 
-  const gymSlug = gym?.website_subdomain || gym?.slug || 'apex-fitness-club';
-  const websiteUrl = `${appUrl}/facility/${gymSlug}`;
+  const gymSlug = (gym?.website_subdomain || gym?.slug || '').trim();
+  const websiteUrl = gymSlug ? `${currentOrigin}${baseSubpath}/app.html?facility=${encodeURIComponent(gymSlug)}` : null;
 
   const handleCopyApp = () => {
     navigator.clipboard.writeText(appUrl);
@@ -55,6 +59,7 @@ export const Topbar = ({ onToggleSidebar, onOpenAi, onQuickCheckIn, onQuickAddMe
   };
 
   const handleCopyWebsite = () => {
+    if (!websiteUrl) return;
     navigator.clipboard.writeText(websiteUrl);
     setCopiedWebsite(true);
     toast.success('Public website link copied!');
@@ -101,8 +106,35 @@ export const Topbar = ({ onToggleSidebar, onOpenAi, onQuickCheckIn, onQuickAddMe
             title="Download App for Windows, Android & Apple"
           >
             <Download className="w-3.5 h-3.5 text-brand-600" />
-            <span>Download App</span>
+            <span className="hidden xs:inline">Download App</span>
+            <span className="xs:hidden">App</span>
           </button>
+
+          {/* Dedicated Live Gym Website Button */}
+          {!isSuperAdmin && websiteUrl && (
+            <div className="flex items-center bg-indigo-50 border border-indigo-200 rounded-xl overflow-hidden shadow-xs">
+              <a
+                href={websiteUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-bold text-indigo-900 hover:bg-indigo-100/70 transition-colors"
+                title={`Visit Live Gym Website: ${websiteUrl}`}
+              >
+                <Globe className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                <span className="hidden sm:inline">Gym Website</span>
+                <span className="sm:hidden">Website</span>
+                <ExternalLink className="w-3 h-3 text-indigo-400 shrink-0" />
+              </a>
+              <button
+                type="button"
+                onClick={handleCopyWebsite}
+                className="p-1.5 text-indigo-700 hover:bg-indigo-100 border-l border-indigo-200 transition-colors"
+                title="Copy Gym Website URL"
+              >
+                {copiedWebsite ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+          )}
 
           {/* Quick Check-In Button */}
           <Button

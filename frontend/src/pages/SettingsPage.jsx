@@ -690,18 +690,18 @@ export const SettingsPage = () => {
             <div className="grid md:grid-cols-3 gap-4">
               <div className="p-4 rounded-2xl border border-slate-200 text-center flex flex-col justify-between">
                 <div>
-                  <h4 className="font-bold text-slate-900">Free Starter</h4>
-                  <div className="text-2xl font-black text-slate-900 my-2">₹0</div>
-                  <p className="text-xs text-slate-500">Up to 25 members</p>
+                  <h4 className="font-bold text-slate-900">Starter Tier</h4>
+                  <div className="text-2xl font-black text-slate-900 my-2">₹999/mo</div>
+                  <p className="text-xs text-slate-500">Up to 50 members</p>
                 </div>
                 <Button
                   onClick={() => handleUpgradeTier('free')}
-                  disabled={billingStatus.plan_tier === 'free' || isUpgrading}
+                  disabled={billingStatus.plan_tier === 'free' || billingStatus.plan_tier === 'starter' || isUpgrading}
                   variant="secondary"
                   size="sm"
                   className="mt-4 w-full"
                 >
-                  {billingStatus.plan_tier === 'free' ? 'Current Plan' : 'Switch to Free'}
+                  {billingStatus.plan_tier === 'free' || billingStatus.plan_tier === 'starter' ? 'Current Plan' : 'Switch to Starter'}
                 </Button>
               </div>
 

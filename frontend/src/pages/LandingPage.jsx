@@ -55,8 +55,8 @@ export const LandingPage = ({ onNavigateLogin, onNavigateRegister }) => {
       a: "Yes! GymPulse generates branded electronic receipts and tax-compliant invoice slips that can be printed or saved as PDFs with one click."
     },
     {
-      q: "Can I register my gym without entering credit card details?",
-      a: "Absolutely. You can start your facility's 14-day free trial immediately without requiring any credit card information."
+      q: "How does facility onboarding work?",
+      a: "GymPulse is a commercial, multi-tenant gym management software. You can register your facility and owner account instantly, customize your dedicated member website, and begin operations once verified."
     }
   ];
 
@@ -103,7 +103,7 @@ export const LandingPage = ({ onNavigateLogin, onNavigateRegister }) => {
               variant="primary"
               size="md"
             >
-              Start Free Trial
+              Register Facility
             </Button>
           </div>
         </div>
@@ -131,7 +131,7 @@ export const LandingPage = ({ onNavigateLogin, onNavigateRegister }) => {
               size="lg"
               className="w-full sm:w-auto text-base px-8 py-4 shadow-xl shadow-brand-600/25"
             >
-              Start Free 14-Day Trial
+              Get Started Today
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
 
@@ -376,18 +376,18 @@ export const LandingPage = ({ onNavigateLogin, onNavigateRegister }) => {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {/* Free Starter */}
+            {/* Starter Tier */}
             <div className="rounded-3xl border border-slate-200 p-8 flex flex-col justify-between hover:shadow-lg transition-all">
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Free Starter</h3>
+                <h3 className="text-lg font-bold text-slate-900">Starter Tier</h3>
                 <p className="text-xs text-slate-500 mt-1">For boutique studios & independent trainers.</p>
                 <div className="mt-6">
-                  <span className="text-4xl font-black text-slate-900">₹0</span>
-                  <span className="text-slate-500 text-xs"> / forever</span>
+                  <span className="text-4xl font-black text-slate-900">{billingCycle === 'monthly' ? '₹999' : '₹799'}</span>
+                  <span className="text-slate-500 text-xs"> / month</span>
                 </div>
                 <ul className="mt-8 space-y-3 text-xs text-slate-600 font-medium">
                   <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Up to 25 active members
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Up to 50 active members
                   </li>
                   <li className="flex items-center gap-2.5">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Automated Gym Public Website (HTTPS)
@@ -404,7 +404,7 @@ export const LandingPage = ({ onNavigateLogin, onNavigateRegister }) => {
                 </ul>
               </div>
               <Button onClick={onNavigateRegister} variant="secondary" className="mt-8 w-full">
-                Get Started Free
+                Choose Starter Tier
               </Button>
             </div>
 
@@ -442,7 +442,7 @@ export const LandingPage = ({ onNavigateLogin, onNavigateRegister }) => {
                 </ul>
               </div>
               <Button onClick={onNavigateRegister} variant="primary" className="mt-8 w-full">
-                Start 14-Day Free Trial
+                Choose Pro Tier
               </Button>
             </div>
 

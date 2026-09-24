@@ -238,7 +238,7 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
               onClick={() => document.getElementById('inquiry-section')?.scrollIntoView({ behavior: 'smooth' })}
               className="px-6 py-3 rounded-xl border border-white/20 hover:bg-white/10 text-white font-bold text-sm transition-all"
             >
-              Free Trial / Inquire
+              Inquire / Join Facility
             </button>
           </div>
         </div>
@@ -371,7 +371,7 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
               Start Training at {data.name}
             </h2>
             <p className="text-slate-400 text-xs mt-1">
-              Leave your details below. Our coaching team will reach out within 2 hours to confirm your membership or free trial session.
+              Leave your details below. Our coaching team will reach out within 2 hours to confirm your membership details.
             </p>
           </div>
 
@@ -451,7 +451,6 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
                         {p.name} - {formatCurrency(p.price, data.currency)}
                       </option>
                     ))}
-                    <option value="General Trial">Free 1-Day Trial Pass</option>
                   </select>
                 </div>
               </div>

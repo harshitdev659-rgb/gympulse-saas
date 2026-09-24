@@ -6,7 +6,7 @@ from fastapi import HTTPException, status
 
 TIER_CONFIG = {
     "free": {
-        "name": "Free Starter",
+        "name": "Starter Tier",
         "max_members": 25,
         "ai_enabled": False,
         "features": [

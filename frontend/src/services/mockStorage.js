@@ -634,7 +634,7 @@ export function handleMockRequest(endpoint, options = {}) {
     const tier = currentGym?.plan_tier || 'free';
     return {
       plan_tier: tier,
-      tier_name: tier === 'free' ? 'Free Starter' : tier === 'business' ? 'Business Enterprise' : 'Pro Growth',
+      tier_name: tier === 'free' || tier === 'starter' ? 'Starter Tier' : tier === 'business' ? 'Business Enterprise' : 'Pro Growth',
       subscription_status: currentGym?.subscription_status || 'active',
       member_count: gymMembers.length,
       max_members: currentGym?.member_capacity || (tier === 'free' ? 25 : tier === 'business' ? 10000 : 250),

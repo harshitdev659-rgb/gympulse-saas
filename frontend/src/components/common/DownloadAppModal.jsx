@@ -14,13 +14,16 @@ import {
 import { Modal } from './Modal';
 import { Button } from './Button';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
 
 export const DownloadAppModal = ({ isOpen, onClose }) => {
+  const { gym } = useAuth();
   const toast = useToast();
   const [activeTab, setActiveTab] = useState('android');
   const [networkInfo, setNetworkInfo] = useState(null);
   const [copiedPublic, setCopiedPublic] = useState(false);
   const [copiedWin, setCopiedWin] = useState(false);
+  const [copiedGymWebsite, setCopiedGymWebsite] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
 
   // Capture PWA install prompt if supported on current browser
@@ -44,7 +47,10 @@ export const DownloadAppModal = ({ isOpen, onClose }) => {
   }, [isOpen]);
 
   const windowOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000';
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
   const isLocal = windowOrigin.includes('localhost') || windowOrigin.includes('127.0.0.1');
+  const isGitHubPages = windowOrigin.includes('github.io') || pathname.includes('/gympulse-saas');
+  const baseSubpath = isGitHubPages ? '/gympulse-saas' : '';
 
   // Primary 24/7 permanent website domain for Apple (iPhone/iPad) and Android
   const official247Url = 'https://harshitdev659-rgb.github.io/gympulse-saas/app.html';
@@ -57,12 +63,19 @@ export const DownloadAppModal = ({ isOpen, onClose }) => {
     ? `${windowOrigin}/api/download/windows`
     : permanentReleaseUrl;
 
+  const gymSlug = (gym?.website_subdomain || gym?.slug || '').trim();
+  const gymPublicUrl = gymSlug ? `${windowOrigin}${baseSubpath}/app.html?facility=${encodeURIComponent(gymSlug)}` : null;
+
   const handleCopy = (text, type) => {
     navigator.clipboard.writeText(text);
     if (type === 'public') {
       setCopiedPublic(true);
       toast.success('App link copied! Open on your phone to install.');
       setTimeout(() => setCopiedPublic(false), 2200);
+    } else if (type === 'gymWebsite') {
+      setCopiedGymWebsite(true);
+      toast.success('Facility public website link copied!');
+      setTimeout(() => setCopiedGymWebsite(false), 2200);
     } else {
       setCopiedWin(true);
       toast.success('Windows download link copied!');
@@ -94,51 +107,95 @@ export const DownloadAppModal = ({ isOpen, onClose }) => {
       maxWidth="max-w-lg"
     >
       <div className="space-y-4 text-slate-800">
-        {/* Working Live Link Banner */}
-        <div className="p-3.5 bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-950 text-white rounded-2xl shadow-sm space-y-2.5">
+        {/* Visible Download & App Access URL Card */}
+        <div className="p-4 bg-emerald-50/80 border-2 border-emerald-400 rounded-2xl shadow-xs space-y-2.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="relative flex h-2.5 w-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-600"></span>
               </span>
-              <span className="text-xs font-bold text-emerald-300 uppercase tracking-wider">
-                GymPulse App Link
+              <span className="text-xs font-black text-emerald-950 uppercase tracking-wider">
+                Official App URL (Visible Link)
               </span>
             </div>
-            <span className="px-2 py-0.5 text-[9px] font-extrabold bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/30 uppercase">
-              Ready to Install
+            <span className="px-2 py-0.5 text-[9px] font-extrabold bg-emerald-200 text-emerald-900 rounded border border-emerald-300 uppercase">
+              24/7 Verified
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              readOnly
-              value={phoneDownloadUrl}
-              className="w-full px-2.5 py-1.5 text-xs font-mono bg-black/40 border border-white/10 rounded-lg select-all focus:outline-none text-emerald-200"
-            />
-            <button
-              type="button"
-              onClick={() => handleCopy(phoneDownloadUrl, 'public')}
-              className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition-colors"
-            >
-              {copiedPublic ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copiedPublic ? 'Copied' : 'Copy'}</span>
-            </button>
-            <a
-              href={`${windowOrigin}/download`}
-              className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition-colors border border-white/20"
-              title="Open Full Download Hub"
-            >
-              <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Full Page</span>
-            </a>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <div className="flex-1 px-3 py-2 text-xs font-mono font-black text-slate-950 bg-white border border-slate-300 rounded-xl select-all break-all shadow-inner leading-relaxed">
+              {phoneDownloadUrl}
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => handleCopy(phoneDownloadUrl, 'public')}
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors"
+              >
+                {copiedPublic ? <Check className="w-4 h-4 text-white" /> : <Copy className="w-4 h-4" />}
+                <span>{copiedPublic ? 'Copied' : 'Copy'}</span>
+              </button>
+              <a
+                href={`${windowOrigin}/download`}
+                className="flex items-center justify-center gap-1 px-3 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs transition-colors border border-slate-200"
+                title="Open Full Download Hub"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Hub</span>
+              </a>
+            </div>
           </div>
-          <p className="text-[10px] text-slate-300">
-            Works across Android (Chrome PWA), iPhone (Safari Add to Home), and Windows PC.
+          <p className="text-[11px] text-emerald-800 font-medium">
+            Open this URL on your Android (Chrome) or iPhone (Safari) to install the app directly.
           </p>
         </div>
+
+        {/* Dedicated Live Gym Website Link (Prominently Shown) */}
+        {gymPublicUrl && (
+          <div className="p-4 bg-indigo-50/80 border-2 border-indigo-300 rounded-2xl shadow-xs space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-indigo-950">
+                <Globe className="w-4 h-4 text-indigo-600" />
+                <span className="text-xs font-black uppercase tracking-wider">
+                  Your Facility's Live Website
+                </span>
+              </div>
+              <span className="px-2 py-0.5 text-[9px] font-extrabold bg-indigo-200 text-indigo-900 rounded border border-indigo-300 uppercase">
+                Public Website
+              </span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <div className="flex-1 px-3 py-2 text-xs font-mono font-black text-indigo-950 bg-white border border-indigo-200 rounded-xl select-all break-all shadow-inner leading-relaxed">
+                {gymPublicUrl}
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleCopy(gymPublicUrl, 'gymWebsite')}
+                  className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-colors"
+                >
+                  {copiedGymWebsite ? <Check className="w-4 h-4 text-white" /> : <Copy className="w-4 h-4" />}
+                  <span>{copiedGymWebsite ? 'Copied' : 'Copy'}</span>
+                </button>
+                <a
+                  href={gymPublicUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-1 px-3 py-2 rounded-xl bg-white hover:bg-slate-100 text-indigo-900 font-bold text-xs transition-colors border border-indigo-200"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Open</span>
+                </a>
+              </div>
+            </div>
+            <p className="text-[11px] text-indigo-800 font-medium">
+              Share this website link with prospective members so they can join your gym online.
+            </p>
+          </div>
+        )}
 
         {/* Device Switcher Tabs */}
         <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200">
@@ -313,22 +370,19 @@ export const DownloadAppModal = ({ isOpen, onClose }) => {
               </a>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1.5">
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-700">
                 Direct Windows Download URL:
               </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  readOnly
-                  value={windowsDownloadUrl}
-                  className="w-full px-2.5 py-1.5 text-xs font-mono bg-white border border-slate-200 rounded-lg select-all focus:outline-none text-slate-800"
-                />
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <div className="flex-1 px-3 py-2 text-xs font-mono font-black text-slate-900 bg-white border border-slate-300 rounded-lg select-all break-all shadow-inner leading-relaxed">
+                  {windowsDownloadUrl}
+                </div>
                 <Button
                   onClick={() => handleCopy(windowsDownloadUrl, 'win')}
                   size="sm"
                   variant="secondary"
-                  className="shrink-0 text-xs"
+                  className="shrink-0 text-xs font-bold"
                 >
                   {copiedWin ? <Check className="w-3.5 h-3.5 mr-1 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
                   {copiedWin ? 'Copied' : 'Copy'}

@@ -49,7 +49,7 @@ export const RegisterPage = ({ onNavigateLogin, onBackToLanding }) => {
 
         <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Register your gym or studio</h2>
         <p className="mt-1 text-sm text-slate-500">
-          Get started with a 14-day free Pro tier trial. No credit card required.
+          Professional facility management, automated member check-ins, and dedicated website.
         </p>
       </div>
 
@@ -153,7 +153,7 @@ export const RegisterPage = ({ onNavigateLogin, onBackToLanding }) => {
 
             <div className="p-3 bg-brand-50/80 border border-brand-200/80 rounded-xl text-xs text-brand-900 flex items-center gap-2">
               <span className="text-base">🌐</span>
-              <span>Includes free dedicated public gym website (<strong>/facility/...</strong>) &amp; member lead capture portal.</span>
+              <span>Includes dedicated public gym website (<strong>/facility/...</strong>) &amp; member lead capture portal.</span>
             </div>
 
             <div>
@@ -179,7 +179,7 @@ export const RegisterPage = ({ onNavigateLogin, onBackToLanding }) => {
               isLoading={isLoading}
               className="w-full mt-2 py-3 font-bold"
             >
-              Create Gym & Start Free Trial
+              Register Gym Facility
             </Button>
           </form>
 

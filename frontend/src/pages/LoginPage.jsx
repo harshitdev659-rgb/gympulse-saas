@@ -112,7 +112,7 @@ export const LoginPage = ({ onNavigateRegister, onNavigateForgotPassword, onBack
               onClick={onNavigateRegister}
               className="font-bold text-brand-600 hover:text-brand-700"
             >
-              Register your gym free
+              Register your gym facility
             </button>
           </div>
         </div>

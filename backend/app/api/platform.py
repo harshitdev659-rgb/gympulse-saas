@@ -134,9 +134,6 @@ PLATFORM_PAYMENT_CONFIG = {
     "qr_code_url": "https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=4&data=upi://pay?pa=gympulse.admin@upi%26pn=GymPulse%20SaaS%20Platform%26cu=INR",
     "upi_id": "gympulse.admin@upi",
     "payee_name": "GymPulse SaaS Platform",
-    "bank_name": "State Bank of India",
-    "account_number": "1000987654321",
-    "ifsc_code": "SBIN0001234",
     "card_enabled": True,
     "cash_enabled": True,
     "instructions": "Scan QR Code with PhonePe, Google Pay, or Paytm. Enter the transaction reference ID during registration for Super Admin verification."

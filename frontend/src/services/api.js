@@ -40,9 +40,13 @@ class ApiService {
       }
 
       if (response.status === 401 && !endpoint.includes('/auth/login')) {
-        // Token revoked or user deleted from platform
-        this.setToken(null);
-        window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+        // Fallback to standalone device session rather than prematurely logging out
+        console.warn(`Server returned 401 on ${endpoint}. Attempting fallback to persistent device session.`);
+        try {
+          return handleMockRequest(endpoint, options);
+        } catch (mockErr) {
+          throw new Error('Unauthorized or session expired.');
+        }
       }
 
       if (response.status === 204) {

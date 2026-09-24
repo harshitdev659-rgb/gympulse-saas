@@ -42,15 +42,37 @@ export const PendingApprovalPage = ({ onPreviewWebsite, onBackToLanding, onNavig
     fetchSettings();
   }, []);
 
+  // Automatic background polling so user is instantly redirected the second SuperAdmin approves
+  useEffect(() => {
+    if (gym?.is_approved || gym?.approval_status === 'approved') return;
+
+    let isMounted = true;
+    const interval = setInterval(async () => {
+      try {
+        const data = await api.getMe();
+        if (data?.gym && (data.gym.is_approved || data.gym.approval_status === 'approved')) {
+          if (isMounted) {
+            await refreshGymProfile();
+            toast.success('🎉 Request approved! Directing you to your gym management dashboard...');
+          }
+        }
+      } catch (e) {}
+    }, 2000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [gym?.is_approved, gym?.approval_status]);
+
   const handleCheckStatus = async () => {
     setIsChecking(true);
     try {
-      await refreshGymProfile();
-      // Wait for state update / check current gym
-      if (gym?.is_approved || gym?.approval_status === 'approved') {
-        toast.success('🎉 Facility Approved! Payment has been verified. Welcome aboard!');
+      const data = await refreshGymProfile();
+      if (data?.gym && (data.gym.is_approved || data.gym.approval_status === 'approved')) {
+        toast.success('🎉 Facility Approved! Directing you to your gym management dashboard...');
       } else {
-        toast.info('Checked status: Payment verification is still pending by the Super Admin.');
+        toast.info('Checked status: Awaiting Super Admin payment verification.');
       }
     } catch (e) {
       toast.error('Could not check status right now.');
@@ -74,10 +96,16 @@ export const PendingApprovalPage = ({ onPreviewWebsite, onBackToLanding, onNavig
     ? 'Starter (₹999/mo)' 
     : 'Pro Facility (₹2,499/mo)';
 
+  const cashAmount = gym?.plan_tier === 'business' 
+    ? '₹5,999' 
+    : gym?.plan_tier === 'starter' 
+    ? '₹999' 
+    : '₹2,499';
+
   const paymentMethodLabel = gym?.registration_payment_method === 'card'
     ? 'Credit / Debit Card'
     : gym?.registration_payment_method === 'cash'
-    ? 'Cash / Bank Wire'
+    ? 'Direct Cash Payment'
     : 'Online QR / UPI';
 
   return (
@@ -175,8 +203,41 @@ export const PendingApprovalPage = ({ onPreviewWebsite, onBackToLanding, onNavig
             </div>
           </div>
 
-          {/* SuperAdmin Payment QR Reference Box */}
-          {paymentSettings && (
+          {/* Payment Details Box */}
+          {gym?.registration_payment_method === 'cash' ? (
+            <div className="bg-emerald-950/40 border border-emerald-500/40 rounded-2xl p-5 mb-6 text-white shadow-lg">
+              <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                <div className="flex items-center gap-2 text-sm font-extrabold text-emerald-400">
+                  <Banknote className="w-5 h-5 text-emerald-400" />
+                  <span>Direct Cash Payment Pending</span>
+                </div>
+                <span className="px-2.5 py-1 rounded-full text-xs font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  Awaiting Admin Collection
+                </span>
+              </div>
+              <div className="bg-white/10 rounded-xl p-4 border border-white/10 flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-300 block">
+                    Amount Needed to Pay in Cash
+                  </span>
+                  <div className="text-3xl font-black text-emerald-400 mt-0.5">
+                    {cashAmount}
+                    <span className="text-xs font-bold text-slate-300 ml-2 font-sans">
+                      ({planTierName})
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-slate-300 mt-3 leading-relaxed">
+                Please hand over the exact subscription amount of <strong className="text-emerald-300">{cashAmount}</strong> directly in cash to the platform administrator. Once received, your facility dashboard will unlock automatically.
+              </p>
+              {gym?.registration_payment_ref && (
+                <div className="mt-2 text-xs text-slate-400 font-mono">
+                  Cash Note: <span className="text-white">{gym.registration_payment_ref}</span>
+                </div>
+              )}
+            </div>
+          ) : paymentSettings ? (
             <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
@@ -216,14 +277,11 @@ export const PendingApprovalPage = ({ onPreviewWebsite, onBackToLanding, onNavig
                         <Copy className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                    <div className="text-[11px] text-slate-400">
-                      Bank Wire: {paymentSettings.bank_name} • A/C: {paymentSettings.bank_account} • IFSC: {paymentSettings.bank_ifsc}
-                    </div>
                   </div>
                 </div>
               )}
             </div>
-          )}
+          ) : null}
 
           {/* Auto-Generated Website Feature Box */}
           <div className="bg-gradient-to-r from-brand-950/60 to-indigo-950/60 border border-brand-500/30 rounded-2xl p-5 mb-8">

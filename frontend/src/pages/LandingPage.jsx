@@ -36,7 +36,7 @@ export const LandingPage = ({ onNavigateLogin, onNavigateRegister, currentUser }
   };
   const [openFaq, setOpenFaq] = useState(null);
   const [calculatorMembers, setCalculatorMembers] = useState(150);
-  const [calculatorPrice, setCalculatorPrice] = useState(55);
+  const [calculatorPrice, setCalculatorPrice] = useState(1500);
 
   const calculatedRevenue = calculatorMembers * calculatorPrice;
   const calculatedSavings = Math.round(calculatedRevenue * 0.08); // estimated recovery from churn & missed renewals
@@ -341,13 +341,13 @@ export const LandingPage = ({ onNavigateLogin, onNavigateRegister, currentUser }
               <div>
                 <div className="flex justify-between text-sm font-bold text-slate-800 mb-2">
                   <span>Average Monthly Membership Fee</span>
-                  <span className="text-brand-600">${calculatorPrice} / month</span>
+                  <span className="text-brand-600">₹{calculatorPrice.toLocaleString('en-IN')} / month</span>
                 </div>
                 <input
                   type="range"
-                  min="20"
-                  max="200"
-                  step="5"
+                  min="500"
+                  max="5000"
+                  step="100"
                   value={calculatorPrice}
                   onChange={(e) => setCalculatorPrice(Number(e.target.value))}
                   className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-brand-600"
@@ -357,11 +357,11 @@ export const LandingPage = ({ onNavigateLogin, onNavigateRegister, currentUser }
 
             <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-6 rounded-2xl text-white text-center">
               <div className="text-xs uppercase tracking-wider font-bold text-slate-400">Monthly Gross Revenue</div>
-              <div className="text-3xl font-extrabold text-white mt-1">${calculatedRevenue.toLocaleString()}</div>
+              <div className="text-3xl font-extrabold text-white mt-1">₹{calculatedRevenue.toLocaleString('en-IN')}</div>
 
               <div className="mt-6 pt-6 border-t border-slate-700">
                 <div className="text-xs uppercase tracking-wider font-bold text-emerald-400">Estimated Annual Churn Prevented</div>
-                <div className="text-3xl font-black text-emerald-400 mt-1">${(calculatedSavings * 12).toLocaleString()}</div>
+                <div className="text-3xl font-black text-emerald-400 mt-1">₹{(calculatedSavings * 12).toLocaleString('en-IN')}</div>
                 <p className="text-[11px] text-slate-400 mt-2">
                   Based on automated 7-day renewal alerts and proactive inactive member engagement.
                 </p>

@@ -32,12 +32,7 @@ const DEFAULT_PAYMENT_CONFIG = {
   upi_id: 'gympulse.admin@upi',
   upi_name: 'GymPulse Platform SaaS',
   upi_qr_url: 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi%3A%2F%2Fpay%3Fpa%3Dgympulse.admin%40upi%26pn%3DGymPulse%2BSaaS',
-  card_instructions: 'Secure Credit & Debit Card payments processed via platform merchant gateway.',
-  bank_name: 'HDFC Bank',
-  bank_account: '50200012345678',
-  bank_ifsc: 'HDFC0001234',
-  bank_account_name: 'GymPulse SaaS Platform Private Ltd',
-  bank_instructions: 'Transfer registration fee via NEFT/IMPS/RTGS and submit transaction UTR below.'
+  card_instructions: 'Secure Credit & Debit Card payments processed via platform merchant gateway.'
 };
 
 export const SuperAdminPage = ({ onPreviewWebsite }) => {
@@ -223,7 +218,7 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
                 SaaS Subscription Payment Methods Configuration
               </div>
               <h2 className="text-lg font-black text-slate-900 mt-1">
-                Configure Online QR Code, UPI, Card &amp; Bank Transfer Details
+                Configure Online QR Code, UPI, Card &amp; Cash Payment Details
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
                 These payment options are displayed to new facility owners during registration and on their pending status page.
@@ -321,67 +316,18 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
 
               {/* RIGHT: Bank Wire & Card Settings */}
               <div className="space-y-4">
-                {/* Bank Wire Details */}
-                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
-                  <div className="flex items-center gap-2 text-xs font-black text-slate-900 uppercase">
+                {/* Cash Payment Settings */}
+                <div className="bg-emerald-50/60 border border-emerald-200 rounded-2xl p-5 space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-black text-emerald-950 uppercase">
                     <Banknote className="w-4 h-4 text-emerald-600" />
-                    2. Cash / Direct Bank Wire Details
+                    2. Direct Cash Payment Support
                   </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                        Bank Name
-                      </label>
-                      <input
-                        type="text"
-                        value={paymentSettings.bank_name || ''}
-                        onChange={(e) => setPaymentSettings({ ...paymentSettings, bank_name: e.target.value })}
-                        placeholder="HDFC Bank"
-                        className="block w-full px-3 py-1.5 text-xs text-slate-900 bg-white rounded-xl border border-slate-300"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                        Account Name
-                      </label>
-                      <input
-                        type="text"
-                        value={paymentSettings.bank_account_name || ''}
-                        onChange={(e) => setPaymentSettings({ ...paymentSettings, bank_account_name: e.target.value })}
-                        placeholder="GymPulse SaaS Ltd"
-                        className="block w-full px-3 py-1.5 text-xs text-slate-900 bg-white rounded-xl border border-slate-300"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                        Account Number
-                      </label>
-                      <input
-                        type="text"
-                        value={paymentSettings.bank_account || ''}
-                        onChange={(e) => setPaymentSettings({ ...paymentSettings, bank_account: e.target.value })}
-                        placeholder="50200012345678"
-                        className="block w-full px-3 py-1.5 text-xs font-mono text-slate-900 bg-white rounded-xl border border-slate-300"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                        IFSC Code
-                      </label>
-                      <input
-                        type="text"
-                        value={paymentSettings.bank_ifsc || ''}
-                        onChange={(e) => setPaymentSettings({ ...paymentSettings, bank_ifsc: e.target.value })}
-                        placeholder="HDFC0001234"
-                        className="block w-full px-3 py-1.5 text-xs font-mono text-slate-900 bg-white rounded-xl border border-slate-300"
-                      />
-                    </div>
+                  <p className="text-xs text-emerald-900 leading-relaxed">
+                    Direct Cash payments are enabled for gym facility registrations. Applicants selecting Cash are displayed the exact amount needed to pay (Starter: ₹999/mo, Pro: ₹2,499/mo, Enterprise: ₹5,999/mo) and queued for your verification.
+                  </p>
+                  <div className="bg-white rounded-xl p-3 border border-emerald-200 text-xs font-bold text-emerald-800 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Cash payments are collected in-person or at front desk before clicking "Verify Payment &amp; Approve".</span>
                   </div>
                 </div>
 
@@ -624,7 +570,7 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
                             </span>
                           ) : g.registration_payment_method === 'cash' ? (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              <Banknote className="w-3 h-3" /> Cash / Wire
+                              <Banknote className="w-3 h-3" /> Cash Payment
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">

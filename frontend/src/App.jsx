@@ -84,6 +84,13 @@ function AppContent() {
     }
   }, [isSuperAdmin]);
 
+  // When gym becomes approved or session is established, direct to console
+  React.useEffect(() => {
+    if (gym?.is_approved) {
+      setIsViewingLanding(false);
+    }
+  }, [gym?.is_approved]);
+
   const handleOpenAi = (prompt = '') => {
     setAiInitialPrompt(prompt);
     setIsAiOpen(true);
@@ -149,6 +156,15 @@ function AppContent() {
           onNavigateRegister={() => setPublicView('register')}
           onNavigateForgotPassword={() => setPublicView('forgot-password')}
           onBackToLanding={() => setPublicView('landing')}
+          onLoginSuccess={(authData) => {
+            setIsViewingLanding(false);
+            setPublicView('landing');
+            if (authData?.user?.is_superadmin || authData?.user?.role === 'superadmin') {
+              setActiveTab('superadmin');
+            } else {
+              setActiveTab('dashboard');
+            }
+          }}
         />
       );
     }

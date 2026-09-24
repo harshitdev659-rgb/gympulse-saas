@@ -37,9 +37,6 @@ const defaultDb = {
     qr_code_url: 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=4&data=upi://pay?pa=gympulse.admin@upi%26pn=GymPulse%20SaaS%20Platform%26cu=INR',
     upi_id: 'gympulse.admin@upi',
     payee_name: 'GymPulse SaaS Platform',
-    bank_name: 'State Bank of India',
-    account_number: '1000987654321',
-    ifsc_code: 'SBIN0001234',
     card_enabled: true,
     cash_enabled: true,
     instructions: 'Scan QR Code with PhonePe, Google Pay, or Paytm. Enter your transaction reference ID for Super Admin verification.'
@@ -128,10 +125,10 @@ export function handleMockRequest(endpoint, options = {}) {
   }
 
   let currentUser = tokenUserId 
-    ? db.users.find((u) => u.id === tokenUserId) || null 
-    : (db.currentUserId ? db.users.find((u) => u.id === db.currentUserId) || null : null);
+    ? db.users.find((u) => u.id == tokenUserId || String(u.id) === String(tokenUserId)) || null 
+    : (db.currentUserId ? db.users.find((u) => u.id == db.currentUserId || String(u.id) === String(db.currentUserId)) || null : null);
   let currentGymId = currentUser?.gym_id || db.currentGymId || null;
-  let currentGym = currentGymId ? db.gyms.find((g) => g.id === currentGymId) || null : null;
+  let currentGym = currentGymId ? db.gyms.find((g) => g.id == currentGymId || String(g.id) === String(currentGymId)) || null : null;
 
   // 1. Auth: Login
   if (endpoint.startsWith('/auth/login') && method === 'POST') {
@@ -167,8 +164,14 @@ export function handleMockRequest(endpoint, options = {}) {
 
     db.currentUserId = user.id;
     db.currentGymId = user.gym_id;
-    currentGym = db.gyms.find((g) => g.id === user.gym_id) || null;
+    currentGym = db.gyms.find((g) => g.id == user.gym_id || String(g.id) === String(user.gym_id)) || null;
     saveDb(db);
+
+    if (currentGym && typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem('gympulse_gym', JSON.stringify(currentGym));
+      } catch (e) {}
+    }
 
     return {
       access_token: `mock-token-${user.id}-${Date.now()}`,
@@ -241,7 +244,7 @@ export function handleMockRequest(endpoint, options = {}) {
   if (endpoint.startsWith('/auth/me')) {
     let resolvedUser = currentUser;
     if (!resolvedUser && tokenUserId) {
-      resolvedUser = db.users.find((u) => u.id === tokenUserId) || null;
+      resolvedUser = db.users.find((u) => u.id == tokenUserId || String(u.id) === String(tokenUserId)) || null;
     }
     if (!resolvedUser && typeof localStorage !== 'undefined') {
       try {
@@ -250,7 +253,7 @@ export function handleMockRequest(endpoint, options = {}) {
           const parsed = JSON.parse(savedUserStr);
           if (parsed && parsed.id) {
             resolvedUser = parsed;
-            if (!db.users.some((u) => u.id === parsed.id)) {
+            if (!db.users.some((u) => u.id == parsed.id || String(u.id) === String(parsed.id))) {
               db.users.push(parsed);
               saveDb(db);
             }
@@ -259,7 +262,7 @@ export function handleMockRequest(endpoint, options = {}) {
       } catch (e) {}
     }
     if (!resolvedUser && db.currentUserId) {
-      resolvedUser = db.users.find((u) => u.id === db.currentUserId) || null;
+      resolvedUser = db.users.find((u) => u.id == db.currentUserId || String(u.id) === String(db.currentUserId)) || null;
     }
     if (!resolvedUser) {
       resolvedUser = db.users.find((u) => !u.is_superadmin) || db.users[0] || null;
@@ -267,15 +270,21 @@ export function handleMockRequest(endpoint, options = {}) {
     if (!resolvedUser) {
       throw new Error('Not authenticated');
     }
-    let resolvedGym = resolvedUser.gym_id ? db.gyms.find((g) => g.id === resolvedUser.gym_id) || null : null;
+
+    // Always fetch live gym from db.gyms first with loose ID comparison
+    let resolvedGym = resolvedUser.gym_id 
+      ? db.gyms.find((g) => g.id == resolvedUser.gym_id || String(g.id) === String(resolvedUser.gym_id)) || null 
+      : null;
+
+    // Only if not found in db.gyms, check localStorage
     if (!resolvedGym && typeof localStorage !== 'undefined') {
       try {
         const savedGymStr = localStorage.getItem('gympulse_gym');
         if (savedGymStr) {
           const parsedGym = JSON.parse(savedGymStr);
-          if (parsedGym && parsedGym.id) {
+          if (parsedGym && parsedGym.id && (String(parsedGym.id) === String(resolvedUser.gym_id) || !resolvedUser.gym_id)) {
             resolvedGym = parsedGym;
-            if (!db.gyms.some((g) => g.id === parsedGym.id)) {
+            if (!db.gyms.some((g) => g.id == parsedGym.id || String(g.id) === String(parsedGym.id))) {
               db.gyms.push(parsedGym);
               saveDb(db);
             }
@@ -283,6 +292,14 @@ export function handleMockRequest(endpoint, options = {}) {
         }
       } catch (e) {}
     }
+
+    // Sync the resolved live gym into localStorage so refreshing retains approved state
+    if (resolvedGym && typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem('gympulse_gym', JSON.stringify(resolvedGym));
+      } catch (e) {}
+    }
+
     return {
       user: resolvedUser,
       gym: resolvedGym
@@ -856,6 +873,23 @@ export function handleMockRequest(endpoint, options = {}) {
       g.approval_status = 'approved';
       g.payment_verified = true;
       saveDb(db);
+
+      if (typeof localStorage !== 'undefined') {
+        try {
+          const savedGymStr = localStorage.getItem('gympulse_gym');
+          if (savedGymStr) {
+            const parsedGym = JSON.parse(savedGymStr);
+            if (String(parsedGym.id) === String(g.id)) {
+              localStorage.setItem('gympulse_gym', JSON.stringify({
+                ...parsedGym,
+                is_approved: true,
+                approval_status: 'approved',
+                payment_verified: true
+              }));
+            }
+          }
+        } catch (e) {}
+      }
       return g;
     }
   }
@@ -869,6 +903,23 @@ export function handleMockRequest(endpoint, options = {}) {
       g.approval_status = 'rejected';
       g.payment_verified = false;
       saveDb(db);
+
+      if (typeof localStorage !== 'undefined') {
+        try {
+          const savedGymStr = localStorage.getItem('gympulse_gym');
+          if (savedGymStr) {
+            const parsedGym = JSON.parse(savedGymStr);
+            if (String(parsedGym.id) === String(g.id)) {
+              localStorage.setItem('gympulse_gym', JSON.stringify({
+                ...parsedGym,
+                is_approved: false,
+                approval_status: 'rejected',
+                payment_verified: false
+              }));
+            }
+          }
+        } catch (e) {}
+      }
       return g;
     }
   }

@@ -58,19 +58,7 @@ export const AuthProvider = ({ children }) => {
 
     initAuth();
 
-    // Only clear session when server explicitly rejects authorization (401 on authenticated resource)
-    const handleUnauthorized = () => {
-      setUser(null);
-      setGym(null);
-      try {
-        localStorage.removeItem('gympulse_token');
-        localStorage.removeItem('gympulse_user');
-        localStorage.removeItem('gympulse_gym');
-      } catch (e) {}
-    };
-
-    window.addEventListener('auth:unauthorized', handleUnauthorized);
-    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+    // Session stays strictly active on this device until user explicitly clicks Sign Out
   }, []);
 
   const login = async (email, password) => {

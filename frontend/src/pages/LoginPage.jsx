@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { Button } from '../components/common/Button';
 
-export const LoginPage = ({ onNavigateRegister, onNavigateForgotPassword, onBackToLanding }) => {
+export const LoginPage = ({ onNavigateRegister, onNavigateForgotPassword, onBackToLanding, onLoginSuccess }) => {
   const { login } = useAuth();
   const toast = useToast();
   const [email, setEmail] = useState('');
@@ -19,8 +19,11 @@ export const LoginPage = ({ onNavigateRegister, onNavigateForgotPassword, onBack
     }
     setIsLoading(true);
     try {
-      await login(email, password);
-      toast.success('Welcome back! Successfully authenticated.');
+      const res = await login(email, password);
+      toast.success('Welcome back! Directing you to gym management console...');
+      if (onLoginSuccess) {
+        onLoginSuccess(res);
+      }
     } catch (err) {
       toast.error(err.message || 'Login failed. Please check credentials.');
     } finally {

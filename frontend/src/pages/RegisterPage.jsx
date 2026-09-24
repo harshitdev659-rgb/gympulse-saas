@@ -25,12 +25,7 @@ const DEFAULT_PAYMENT_CONFIG = {
   upi_id: 'gympulse.admin@upi',
   upi_name: 'GymPulse Platform SaaS',
   upi_qr_url: 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi%3A%2F%2Fpay%3Fpa%3Dgympulse.admin%40upi%26pn%3DGymPulse%2BSaaS',
-  card_instructions: 'Secure Credit & Debit Card payments processed via platform merchant gateway.',
-  bank_name: 'HDFC Bank',
-  bank_account: '50200012345678',
-  bank_ifsc: 'HDFC0001234',
-  bank_account_name: 'GymPulse SaaS Platform Private Ltd',
-  bank_instructions: 'Transfer registration fee via NEFT/IMPS/RTGS and submit transaction UTR below.'
+  card_instructions: 'Secure Credit & Debit Card payments processed via platform merchant gateway.'
 };
 
 const PLAN_TIERS = [
@@ -395,7 +390,7 @@ export const RegisterPage = ({ onNavigateLogin, onBackToLanding }) => {
                   }`}
                 >
                   <Banknote className="w-4 h-4 text-emerald-600" />
-                  <span className="truncate">Cash / Bank Wire</span>
+                  <span className="truncate">Cash Payment</span>
                 </button>
               </div>
 
@@ -537,33 +532,45 @@ export const RegisterPage = ({ onNavigateLogin, onBackToLanding }) => {
                 </div>
               )}
 
-              {/* TAB 3: Cash / Bank Wire */}
+              {/* TAB 3: Cash Payment */}
               {paymentMethod === 'cash' && (
-                <div className="bg-slate-50 border-2 border-emerald-200 rounded-2xl p-4 sm:p-5 space-y-3.5">
-                  <div className="flex items-center gap-2 text-emerald-900 text-xs font-bold">
-                    <Banknote className="w-4 h-4 text-emerald-600" />
-                    <span>Platform Bank Account for Direct Wire / Cash Deposit</span>
+                <div className="bg-emerald-50/60 border-2 border-emerald-200 rounded-2xl p-5 space-y-4">
+                  <div className="flex items-center gap-2 text-emerald-950 text-xs font-black uppercase tracking-wider">
+                    <Banknote className="w-5 h-5 text-emerald-600" />
+                    <span>Direct Cash Payment at Facility / Headquarters</span>
                   </div>
 
-                  <div className="bg-white rounded-xl p-3 border border-slate-200 text-xs space-y-1.5 font-mono text-slate-800">
-                    <div>Bank: <strong>{paymentSettings.bank_name || 'HDFC Bank'}</strong></div>
-                    <div>Account Name: <strong>{paymentSettings.bank_account_name || 'GymPulse SaaS Ltd'}</strong></div>
-                    <div>Account Number: <strong>{paymentSettings.bank_account || '50200012345678'}</strong></div>
-                    <div>IFSC Code: <strong>{paymentSettings.bank_ifsc || 'HDFC0001234'}</strong></div>
+                  <div className="bg-white rounded-2xl p-4 border-2 border-emerald-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 block">
+                        Amount Needed to Pay in Cash
+                      </span>
+                      <div className="text-3xl font-black text-emerald-700 mt-1">
+                        {selectedPlan === 'starter' ? '₹999' : selectedPlan === 'business' ? '₹5,999' : '₹2,499'}
+                        <span className="text-xs font-bold text-slate-500 ml-1.5 font-sans">
+                          ({selectedPlan === 'starter' ? 'Starter Plan' : selectedPlan === 'business' ? 'Enterprise Plan' : 'Pro Facility Plan'})
+                        </span>
+                      </div>
+                    </div>
+                    <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 w-fit">
+                      ● Cash Collection Pending
+                    </span>
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                      Deposit / Cash Receipt Note / Bank Reference *
+                      Cash Receipt / Note (Optional)
                     </label>
                     <input
                       type="text"
-                      required={paymentMethod === 'cash'}
                       value={paymentRef}
                       onChange={(e) => setPaymentRef(e.target.value)}
-                      placeholder="e.g. Bank IMPS Ref: 981240192 or Cash Paid at Headquarters"
-                      className="block w-full px-4 py-2.5 text-sm font-semibold text-slate-900 bg-white rounded-xl border-2 border-slate-300 focus:outline-none focus:ring-4 focus:ring-brand-500/20 focus:border-brand-600 shadow-xs"
+                      placeholder="e.g. Will pay cash in person, or cash receipt number"
+                      className="block w-full px-4 py-2.5 text-sm font-semibold text-slate-900 bg-white rounded-xl border-2 border-slate-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-xs"
                     />
+                    <span className="text-[11px] text-slate-500 mt-1.5 block">
+                      Pay cash directly to the platform administrator upon physical or offline verification.
+                    </span>
                   </div>
                 </div>
               )}

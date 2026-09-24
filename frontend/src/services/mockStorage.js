@@ -44,29 +44,39 @@ const defaultDb = {
   website: {}
 };
 
+let memoryDb = null;
+
 function getDb() {
+  if (memoryDb) {
+    return memoryDb;
+  }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultDb));
-      return defaultDb;
+      memoryDb = JSON.parse(JSON.stringify(defaultDb));
+      return memoryDb;
     }
     const parsed = JSON.parse(raw);
     if (!parsed.version || parsed.version < DB_VERSION || !Array.isArray(parsed.gyms)) {
-      // Purge old mock storage and reset to clean version 3
+      // Purge old mock storage and reset to clean version
       localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultDb));
-      return defaultDb;
+      memoryDb = JSON.parse(JSON.stringify(defaultDb));
+      return memoryDb;
     }
     if (!parsed.platform_payment_settings) {
       parsed.platform_payment_settings = { ...defaultDb.platform_payment_settings };
     }
-    return parsed;
+    memoryDb = parsed;
+    return memoryDb;
   } catch (e) {
-    return defaultDb;
+    memoryDb = JSON.parse(JSON.stringify(defaultDb));
+    return memoryDb;
   }
 }
 
 function saveDb(db) {
+  memoryDb = db;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
   } catch (e) {

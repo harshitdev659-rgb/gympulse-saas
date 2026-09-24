@@ -2,6 +2,11 @@ import { handleMockRequest } from './mockStorage';
 
 const API_BASE = '/api';
 
+const isStaticHost = typeof window !== 'undefined' && (
+  window.location.hostname.endsWith('github.io') ||
+  window.location.protocol === 'file:'
+);
+
 class ApiService {
   constructor() {
     this.token = localStorage.getItem('gympulse_token') || null;
@@ -28,13 +33,23 @@ class ApiService {
   }
 
   async request(endpoint, options = {}) {
+    // If running on static host (e.g. GitHub Pages or file://), immediately execute via in-memory mock engine with zero network latency
+    if (isStaticHost) {
+      return handleMockRequest(endpoint, options);
+    }
+
     const url = `${API_BASE}${endpoint}`;
     const headers = { ...this.getHeaders(options.body && typeof options.body === 'string'), ...options.headers };
 
+    // Prevent UI hanging on sleeping/cold backend containers with 3.5s timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+
     try {
-      const response = await fetch(url, { ...options, headers });
+      const response = await fetch(url, { ...options, headers, signal: controller.signal });
+      clearTimeout(timeoutId);
       
-      // If 404 on API endpoint (running on static host like GitHub Pages without Python backend)
+      // If 404 on API endpoint (running on static host without Python backend)
       if (response.status === 404) {
         return handleMockRequest(endpoint, options);
       }
@@ -68,6 +83,7 @@ class ApiService {
         return text;
       }
     } catch (error) {
+      clearTimeout(timeoutId);
       console.warn(`API network unavailable on ${endpoint}. Falling back to standalone mobile engine.`);
       return handleMockRequest(endpoint, options);
     }

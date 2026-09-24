@@ -1,25 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { Shell } from './components/layout/Shell';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
-import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { MembersPage } from './pages/MembersPage';
-import { MemberDetailPage } from './pages/MemberDetailPage';
-import { PlansPage } from './pages/PlansPage';
-import { AttendancePage } from './pages/AttendancePage';
-import { PaymentsPage } from './pages/PaymentsPage';
-import { TrainersPage } from './pages/TrainersPage';
-import { ReportsPage } from './pages/ReportsPage';
-import { SettingsPage } from './pages/SettingsPage';
 import { PendingApprovalPage } from './pages/PendingApprovalPage';
-import { SuperAdminPage } from './pages/SuperAdminPage';
-import { GymPublicWebsitePage } from './pages/GymPublicWebsitePage';
-import { GymWebsiteManagerPage } from './pages/GymWebsiteManagerPage';
-import { DownloadPage } from './pages/DownloadPage';
+
+// Code-split dynamic routes for blazing fast initial bundle & load times
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage })));
+const MemberDetailPage = lazy(() => import('./pages/MemberDetailPage').then(m => ({ default: m.MemberDetailPage })));
+const PlansPage = lazy(() => import('./pages/PlansPage').then(m => ({ default: m.PlansPage })));
+const AttendancePage = lazy(() => import('./pages/AttendancePage').then(m => ({ default: m.AttendancePage })));
+const PaymentsPage = lazy(() => import('./pages/PaymentsPage').then(m => ({ default: m.PaymentsPage })));
+const TrainersPage = lazy(() => import('./pages/TrainersPage').then(m => ({ default: m.TrainersPage })));
+const ReportsPage = lazy(() => import('./pages/ReportsPage').then(m => ({ default: m.ReportsPage })));
+const SettingsPage = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
+const SuperAdminPage = lazy(() => import('./pages/SuperAdminPage').then(m => ({ default: m.SuperAdminPage })));
+const GymPublicWebsitePage = lazy(() => import('./pages/GymPublicWebsitePage').then(m => ({ default: m.GymPublicWebsitePage })));
+const GymWebsiteManagerPage = lazy(() => import('./pages/GymWebsiteManagerPage').then(m => ({ default: m.GymWebsiteManagerPage })));
+const DownloadPage = lazy(() => import('./pages/DownloadPage').then(m => ({ default: m.DownloadPage })));
+
+const LoadingFallback = () => (
+  <div className="flex items-center justify-center min-h-[300px] py-12">
+    <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-white border border-slate-200/80 text-xs font-bold text-slate-700 shadow-xs">
+      <div className="w-4 h-4 border-2 border-brand-600 border-t-transparent rounded-full animate-spin"></div>
+      <span>Loading module...</span>
+    </div>
+  </div>
+);
 
 function AppContent() {
   const { user, gym, isAuthenticated, loading, login, logout } = useAuth();
@@ -118,30 +129,34 @@ function AppContent() {
   // Dedicated /download route
   if (isDownloadCenter) {
     return (
-      <DownloadPage
-        onBack={() => {
-          setIsDownloadCenter(false);
-          try {
-            window.history.pushState({}, '', '/');
-          } catch (e) {}
-        }}
-      />
+      <Suspense fallback={<LoadingFallback />}>
+        <DownloadPage
+          onBack={() => {
+            setIsDownloadCenter(false);
+            try {
+              window.history.pushState({}, '', '/');
+            } catch (e) {}
+          }}
+        />
+      </Suspense>
     );
   }
 
   // If viewing a gym's public website or previewing it
   if (previewFacilitySlug || publicFacilitySlug) {
     return (
-      <GymPublicWebsitePage
-        slug={previewFacilitySlug || publicFacilitySlug}
-        onBackToApp={() => {
-          setPreviewFacilitySlug(null);
-          setPublicFacilitySlug(null);
-          try {
-            window.history.pushState({}, '', '/');
-          } catch (e) {}
-        }}
-      />
+      <Suspense fallback={<LoadingFallback />}>
+        <GymPublicWebsitePage
+          slug={previewFacilitySlug || publicFacilitySlug}
+          onBackToApp={() => {
+            setPreviewFacilitySlug(null);
+            setPublicFacilitySlug(null);
+            try {
+              window.history.pushState({}, '', '/');
+            } catch (e) {}
+          }}
+        />
+      </Suspense>
     );
   }
 
@@ -178,10 +193,12 @@ function AppContent() {
     }
     if (publicView === 'forgot-password') {
       return (
-        <ForgotPasswordPage
-          onNavigateLogin={() => setPublicView('login')}
-          onBackToLanding={() => setPublicView('landing')}
-        />
+        <Suspense fallback={<LoadingFallback />}>
+          <ForgotPasswordPage
+            onNavigateLogin={() => setPublicView('login')}
+            onBackToLanding={() => setPublicView('landing')}
+          />
+        </Suspense>
       );
     }
     return (
@@ -270,62 +287,64 @@ function AppContent() {
         setDashboardRefreshTrigger((prev) => prev + 1);
       }}
     >
-      {activeTab === 'superadmin' && (
-        <SuperAdminPage onPreviewWebsite={(slug) => setPreviewFacilitySlug(slug)} />
-      )}
+      <Suspense fallback={<LoadingFallback />}>
+        {activeTab === 'superadmin' && (
+          <SuperAdminPage onPreviewWebsite={(slug) => setPreviewFacilitySlug(slug)} />
+        )}
 
-      {activeTab === 'website' && (
-        <GymWebsiteManagerPage onPreviewWebsite={(slug) => setPreviewFacilitySlug(slug)} />
-      )}
+        {activeTab === 'website' && (
+          <GymWebsiteManagerPage onPreviewWebsite={(slug) => setPreviewFacilitySlug(slug)} />
+        )}
 
-      {activeTab === 'dashboard' && (
-        <DashboardPage
-          setActiveTab={setActiveTab}
-          onQuickCheckIn={() => setIsQuickCheckInOpen(true)}
-          onOpenAi={handleOpenAi}
-          refreshTrigger={dashboardRefreshTrigger}
-        />
-      )}
-
-      {activeTab === 'members' && (
-        selectedMemberId ? (
-          <MemberDetailPage
-            memberId={selectedMemberId}
-            onBack={() => setSelectedMemberId(null)}
+        {activeTab === 'dashboard' && (
+          <DashboardPage
+            setActiveTab={setActiveTab}
+            onQuickCheckIn={() => setIsQuickCheckInOpen(true)}
+            onOpenAi={handleOpenAi}
+            refreshTrigger={dashboardRefreshTrigger}
           />
-        ) : (
-          <MembersPage
-            onSelectMember={(id) => setSelectedMemberId(id)}
-            isAddModalOpen={isQuickAddMemberOpen}
-            setIsAddModalOpen={setIsQuickAddMemberOpen}
+        )}
+
+        {activeTab === 'members' && (
+          selectedMemberId ? (
+            <MemberDetailPage
+              memberId={selectedMemberId}
+              onBack={() => setSelectedMemberId(null)}
+            />
+          ) : (
+            <MembersPage
+              onSelectMember={(id) => setSelectedMemberId(id)}
+              isAddModalOpen={isQuickAddMemberOpen}
+              setIsAddModalOpen={setIsQuickAddMemberOpen}
+            />
+          )
+        )}
+
+        {activeTab === 'memberships' && <PlansPage />}
+
+        {activeTab === 'attendance' && (
+          <AttendancePage
+            isCheckInModalOpen={isQuickCheckInOpen}
+            setIsCheckInModalOpen={setIsQuickCheckInOpen}
+            refreshTrigger={dashboardRefreshTrigger}
           />
-        )
-      )}
+        )}
 
-      {activeTab === 'memberships' && <PlansPage />}
+        {activeTab === 'payments' && <PaymentsPage />}
 
-      {activeTab === 'attendance' && (
-        <AttendancePage
-          isCheckInModalOpen={isQuickCheckInOpen}
-          setIsCheckInModalOpen={setIsQuickCheckInOpen}
-          refreshTrigger={dashboardRefreshTrigger}
-        />
-      )}
+        {activeTab === 'trainers' && (
+          <TrainersPage
+            onSelectMember={(id) => {
+              setActiveTab('members');
+              setSelectedMemberId(id);
+            }}
+          />
+        )}
 
-      {activeTab === 'payments' && <PaymentsPage />}
+        {activeTab === 'reports' && <ReportsPage />}
 
-      {activeTab === 'trainers' && (
-        <TrainersPage
-          onSelectMember={(id) => {
-            setActiveTab('members');
-            setSelectedMemberId(id);
-          }}
-        />
-      )}
-
-      {activeTab === 'reports' && <ReportsPage />}
-
-      {activeTab === 'settings' && <SettingsPage />}
+        {activeTab === 'settings' && <SettingsPage />}
+      </Suspense>
     </Shell>
   );
 }

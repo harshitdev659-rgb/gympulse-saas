@@ -7,7 +7,7 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: "UserResponse"
-    gym: "GymResponse"
+    gym: Optional["GymResponse"] = None
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -37,7 +37,7 @@ class UserUpdate(BaseModel):
 
 class UserResponse(BaseModel):
     id: int
-    gym_id: int
+    gym_id: Optional[int] = None
     full_name: str
     email: str
     role: str
@@ -70,6 +70,9 @@ class GymResponse(BaseModel):
     approval_status: str = "pending"
     is_approved: bool = False
     payment_verified: bool = True
+    requested_plan_tier: Optional[str] = None
+    tier_upgrade_status: str = "none"
+    tier_upgrade_requested_at: Optional[datetime.datetime] = None
     website_subdomain: Optional[str] = None
     website_enabled: bool = True
     website_headline: Optional[str] = None
@@ -364,6 +367,9 @@ class BillingStatusResponse(BaseModel):
     can_add_member: bool
     ai_enabled: bool
     features: List[str]
+    requested_plan_tier: Optional[str] = None
+    tier_upgrade_status: str = "none"
+    tier_upgrade_requested_at: Optional[datetime.datetime] = None
 
 class UpgradePlanRequest(BaseModel):
     target_tier: str  # pro, business
@@ -417,6 +423,9 @@ class PlatformGymItem(BaseModel):
     approval_status: str
     is_approved: bool
     payment_verified: bool
+    requested_plan_tier: Optional[str] = None
+    tier_upgrade_status: str = "none"
+    tier_upgrade_requested_at: Optional[datetime.datetime] = None
     website_subdomain: Optional[str] = None
     owner_name: Optional[str] = None
     owner_email: Optional[str] = None

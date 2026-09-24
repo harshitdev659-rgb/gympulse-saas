@@ -182,13 +182,15 @@ def login(req: LoginRequest, request: Request, db: Session = Depends(get_db)):
             detail="Your account has been deactivated. Please contact your administrator."
         )
 
-    gym = db.query(Gym).filter(Gym.id == matched_user.gym_id).first()
-    if not gym:
+    gym = None
+    if matched_user.gym_id:
+        gym = db.query(Gym).filter(Gym.id == matched_user.gym_id).first()
+    elif not matched_user.is_superadmin and matched_user.role != "superadmin":
         raise HTTPException(status_code=404, detail="Gym tenant not found")
 
     token = create_access_token({
         "sub": str(matched_user.id),
-        "gym_id": gym.id,
+        "gym_id": gym.id if gym else None,
         "role": matched_user.role,
         "is_superadmin": matched_user.is_superadmin
     })
@@ -197,19 +199,19 @@ def login(req: LoginRequest, request: Request, db: Session = Depends(get_db)):
         access_token=token,
         token_type="bearer",
         user=UserResponse.model_validate(matched_user),
-        gym=GymResponse.model_validate(gym)
+        gym=GymResponse.model_validate(gym) if gym else None
     )
 
 
 @router.get("/me")
 def get_current_user_profile(
     current_user: User = Depends(get_current_user),
-    current_gym: Gym = Depends(get_current_gym)
+    current_gym: Optional[Gym] = Depends(get_current_gym)
 ):
     """Retrieve logged in user and gym details."""
     return {
         "user": UserResponse.model_validate(current_user),
-        "gym": GymResponse.model_validate(current_gym)
+        "gym": GymResponse.model_validate(current_gym) if current_gym else None
     }
 
 @router.post("/forgot-password")

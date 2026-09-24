@@ -20,6 +20,7 @@ import { Badge } from '../components/common/Badge';
 import { Modal } from '../components/common/Modal';
 import { ReceiptModal } from '../components/receipts/ReceiptModal';
 import { formatCurrency } from '../utils/currency';
+import { exportPaymentsLedgerCsv } from '../utils/csvExport';
 
 export const PaymentsPage = () => {
   const { gym } = useAuth();
@@ -43,6 +44,7 @@ export const PaymentsPage = () => {
 
   // Receipt Modal
   const [selectedReceiptId, setSelectedReceiptId] = useState(null);
+  const [selectedReceiptPayment, setSelectedReceiptPayment] = useState(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
 
   const fetchPayments = async () => {
@@ -98,6 +100,7 @@ export const PaymentsPage = () => {
 
       // Prompt receipt
       setSelectedReceiptId(res.id);
+      setSelectedReceiptPayment(res);
       setIsReceiptModalOpen(true);
     } catch (err) {
       toast.error(err.message || 'Failed to record payment.');
@@ -107,8 +110,12 @@ export const PaymentsPage = () => {
   };
 
   const handleExportCsv = () => {
-    const url = api.exportRevenueCsvUrl(startDate, endDate);
-    window.open(url, '_blank');
+    if (payments.length === 0) {
+      toast.error('No payments found in current filter to export.');
+      return;
+    }
+    exportPaymentsLedgerCsv(payments, currency);
+    toast.success('Payments ledger exported successfully!');
   };
 
   const currency = gym?.currency || 'INR';
@@ -269,6 +276,7 @@ export const PaymentsPage = () => {
                       <button
                         onClick={() => {
                           setSelectedReceiptId(p.id);
+                          setSelectedReceiptPayment(p);
                           setIsReceiptModalOpen(true);
                         }}
                         className="px-3 py-1 text-xs font-bold text-brand-600 hover:bg-brand-50 rounded-lg transition-colors inline-flex items-center gap-1.5"
@@ -380,8 +388,12 @@ export const PaymentsPage = () => {
       {/* Receipt Modal */}
       <ReceiptModal
         isOpen={isReceiptModalOpen}
-        onClose={() => setIsReceiptModalOpen(false)}
+        onClose={() => {
+          setIsReceiptModalOpen(false);
+          setSelectedReceiptPayment(null);
+        }}
         paymentId={selectedReceiptId}
+        initialPayment={selectedReceiptPayment}
       />
     </div>
   );

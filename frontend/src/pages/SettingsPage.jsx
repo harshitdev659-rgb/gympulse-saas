@@ -664,11 +664,27 @@ export const SettingsPage = () => {
             </div>
           </div>
 
-          {/* Tier Switcher Simulation */}
+          {/* Pending Tier Upgrade Alert */}
+          {billingStatus.tier_upgrade_status === 'pending' && (
+            <div className="bg-amber-50 border-2 border-amber-300 p-5 rounded-2xl flex items-start gap-3 shadow-xs">
+              <Clock className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0 animate-pulse" />
+              <div>
+                <h4 className="text-sm font-extrabold text-amber-950">
+                  Tier Upgrade Request Submitted (Payment Verification Pending)
+                </h4>
+                <p className="text-xs text-amber-800 mt-1">
+                  You have requested to upgrade your facility plan to <strong className="font-black uppercase">{billingStatus.requested_plan_tier} TIER</strong>.
+                  Please complete offline/UPI payment with the Platform Administrator. Once confirmed, your new member quotas and features will be unlocked immediately.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Tier Switcher / Request Flow */}
           <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs">
-            <h3 className="text-base font-bold text-slate-900 mb-1">Simulate SaaS Tier Upgrade</h3>
+            <h3 className="text-base font-bold text-slate-900 mb-1">Upgrade Facility Subscription Tier</h3>
             <p className="text-xs text-slate-500 mb-6">
-              Switch tiers immediately to test quota enforcement and feature gating. In production, this hooks to Stripe Checkout.
+              Select your target tier below to submit an upgrade request. Upgrades require Super Admin payment confirmation before activation.
             </p>
 
             <div className="grid md:grid-cols-3 gap-4">
@@ -697,12 +713,20 @@ export const SettingsPage = () => {
                 </div>
                 <Button
                   onClick={() => handleUpgradeTier('pro')}
-                  disabled={billingStatus.plan_tier === 'pro' || isUpgrading}
+                  disabled={
+                    billingStatus.plan_tier === 'pro' ||
+                    (billingStatus.tier_upgrade_status === 'pending' && billingStatus.requested_plan_tier === 'pro') ||
+                    isUpgrading
+                  }
                   variant="primary"
                   size="sm"
                   className="mt-4 w-full"
                 >
-                  {billingStatus.plan_tier === 'pro' ? 'Current Plan' : 'Upgrade to Pro'}
+                  {billingStatus.plan_tier === 'pro'
+                    ? 'Current Plan'
+                    : (billingStatus.tier_upgrade_status === 'pending' && billingStatus.requested_plan_tier === 'pro')
+                    ? 'Payment Pending Verification'
+                    : 'Request Upgrade to Pro'}
                 </Button>
               </div>
 
@@ -714,12 +738,20 @@ export const SettingsPage = () => {
                 </div>
                 <Button
                   onClick={() => handleUpgradeTier('business')}
-                  disabled={billingStatus.plan_tier === 'business' || isUpgrading}
+                  disabled={
+                    billingStatus.plan_tier === 'business' ||
+                    (billingStatus.tier_upgrade_status === 'pending' && billingStatus.requested_plan_tier === 'business') ||
+                    isUpgrading
+                  }
                   variant="secondary"
                   size="sm"
                   className="mt-4 w-full"
                 >
-                  {billingStatus.plan_tier === 'business' ? 'Current Plan' : 'Upgrade to Business'}
+                  {billingStatus.plan_tier === 'business'
+                    ? 'Current Plan'
+                    : (billingStatus.tier_upgrade_status === 'pending' && billingStatus.requested_plan_tier === 'business')
+                    ? 'Payment Pending Verification'
+                    : 'Request Upgrade to Business'}
                 </Button>
               </div>
             </div>

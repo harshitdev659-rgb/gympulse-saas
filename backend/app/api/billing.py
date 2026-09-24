@@ -25,13 +25,14 @@ def upgrade_saas_plan(
     db: Session = Depends(get_db)
 ):
     """
-    Simulate SaaS tier upgrade for this gym.
-    In production, this initiates Stripe/LemonSqueezy checkout session.
+    Submit SaaS tier upgrade request for this gym.
+    Places tier upgrade in 'pending' status awaiting Super Admin payment verification.
     """
-    updated_gym = BillingService.upgrade_tier(current_gym, req.target_tier, db)
+    updated_gym = BillingService.request_upgrade(current_gym, req.target_tier, db)
     return {
-        "message": f"Successfully upgraded {updated_gym.name} to {req.target_tier.upper()} tier!",
-        "new_tier": updated_gym.plan_tier,
-        "max_members": updated_gym.max_members,
+        "message": f"Upgrade request to {req.target_tier.upper()} tier submitted! Payment is pending Admin verification.",
+        "requested_tier": updated_gym.requested_plan_tier,
+        "current_tier": updated_gym.plan_tier,
+        "upgrade_status": updated_gym.tier_upgrade_status,
         "status": updated_gym.subscription_status
     }

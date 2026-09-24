@@ -1,5 +1,5 @@
 // GymPulse Lightweight Service Worker for PWA installation
-const CACHE_NAME = 'gympulse-cache-v3';
+const CACHE_NAME = 'gympulse-cache-v1';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

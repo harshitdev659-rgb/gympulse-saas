@@ -14,6 +14,7 @@ import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { Button } from '../components/common/Button';
+import { exportRevenueCsv, exportMembersListCsv, exportAttendanceLogCsv } from '../utils/csvExport';
 
 export const ReportsPage = () => {
   const { gym } = useAuth();
@@ -46,16 +47,36 @@ export const ReportsPage = () => {
     fetchReports();
   }, [startDate, endDate]);
 
-  const handleExportRevenue = () => {
-    window.open(api.exportRevenueCsvUrl(startDate, endDate), '_blank');
+  const handleExportRevenue = async () => {
+    try {
+      const rev = await api.getRevenueReport(startDate || null, endDate || null);
+      const breakdown = rev?.daily_breakdown || [];
+      const total = rev?.total_revenue ?? (summary?.total_revenue || 0);
+      exportRevenueCsv(breakdown, total, currency);
+      toast.success('Revenue report downloaded!');
+    } catch (e) {
+      toast.error('Failed to export revenue CSV.');
+    }
   };
 
-  const handleExportMembers = () => {
-    window.open(api.exportMembersCsvUrl('all'), '_blank');
+  const handleExportMembers = async () => {
+    try {
+      const members = await api.getMembers();
+      exportMembersListCsv(members);
+      toast.success('Members roster exported!');
+    } catch (e) {
+      toast.error('Failed to export members CSV.');
+    }
   };
 
-  const handleExportAttendance = () => {
-    window.open(api.exportAttendanceCsvUrl(startDate, endDate), '_blank');
+  const handleExportAttendance = async () => {
+    try {
+      const att = await api.getAttendanceHistory({ start_date: startDate || null, end_date: endDate || null });
+      exportAttendanceLogCsv(att);
+      toast.success('Attendance history exported!');
+    } catch (e) {
+      toast.error('Failed to export attendance CSV.');
+    }
   };
 
   const currency = gym?.currency || 'USD';

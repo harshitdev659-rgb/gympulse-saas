@@ -25,6 +25,9 @@ class Gym(Base):
     approval_status = Column(String(50), default="pending", nullable=False)  # pending, approved, rejected
     is_approved = Column(Boolean, default=False, nullable=False)
     payment_verified = Column(Boolean, default=True, nullable=False)
+    requested_plan_tier = Column(String(50), nullable=True)  # pro, business
+    tier_upgrade_status = Column(String(50), default="none", nullable=False)  # none, pending, approved, rejected
+    tier_upgrade_requested_at = Column(DateTime, nullable=True)
     website_subdomain = Column(String(100), unique=True, index=True, nullable=True)
     website_enabled = Column(Boolean, default=True, nullable=False)
     website_headline = Column(String(255), nullable=True)

@@ -141,6 +141,49 @@ def record_payment(
         created_at=payment.created_at
     )
 
+@router.get("/{payment_id}", response_model=PaymentResponse)
+def get_payment_detail(
+    payment_id: int,
+    current_user: User = Depends(require_staff_or_above),
+    current_gym: Gym = Depends(get_current_gym),
+    db: Session = Depends(get_db)
+):
+    payment = db.query(Payment).filter(
+        Payment.id == payment_id,
+        Payment.gym_id == current_gym.id
+    ).first()
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment record not found")
+
+    member = db.query(Member).filter(Member.id == payment.member_id).first()
+    plan_name = None
+    if payment.membership_id:
+        mm = (
+            db.query(MemberMembership, MembershipPlan)
+            .join(MembershipPlan, MemberMembership.plan_id == MembershipPlan.id)
+            .filter(MemberMembership.id == payment.membership_id)
+            .first()
+        )
+        if mm:
+            plan_name = mm[1].name
+
+    return PaymentResponse(
+        id=payment.id,
+        gym_id=payment.gym_id,
+        member_id=payment.member_id,
+        member_name=member.full_name if member else "Unknown",
+        membership_id=payment.membership_id,
+        plan_name=plan_name,
+        amount=payment.amount,
+        payment_date=payment.payment_date,
+        payment_method=payment.payment_method,
+        status=payment.status,
+        invoice_number=payment.invoice_number,
+        receipt_url=payment.receipt_url,
+        notes=payment.notes,
+        created_at=payment.created_at
+    )
+
 @router.get("/{payment_id}/receipt", response_class=HTMLResponse)
 def get_payment_receipt_html(
     payment_id: int,

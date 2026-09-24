@@ -3,16 +3,64 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
   body {
-    @apply text-slate-800 bg-slate-50 antialiased;
+    @apply text-slate-900 bg-slate-50 font-normal;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    color: #0f172a;
+    line-height: 1.5;
+  }
+
+  /* Crisp, high-contrast form inputs with prominent cursor */
+  input, textarea, select {
+    color: #0f172a !important;
+    font-weight: 550;
+    caret-color: #4338ca !important; /* Bold indigo cursor */
+  }
+
+  input::placeholder, textarea::placeholder {
+    color: #94a3b8 !important;
+    font-weight: 400;
+  }
+
+  input:focus, textarea:focus, select:focus {
+    caret-color: #3730a3 !important;
+  }
+
+  /* Make table data crisp and prominent */
+  table th {
+    color: #334155 !important;
+    font-weight: 750 !important;
+  }
+
+  table td {
+    color: #0f172a;
+  }
+
+  /* Strengthen low-contrast muted labels throughout the app */
+  .text-slate-400 {
+    color: #64748b !important;
+  }
+
+  .text-slate-500 {
+    color: #475569 !important;
+  }
+
+  .text-slate-600 {
+    color: #334155 !important;
   }
 }
 
 /* Custom scrollbars for dashboard */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
@@ -32,5 +80,9 @@
 @media print {
   .no-print {
     display: none !important;
+  }
+  body {
+    background: transparent !important;
+    color: #000000 !important;
   }
 }

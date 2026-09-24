@@ -208,9 +208,30 @@ def test_member_crud_and_tier_limits():
     })
     assert m3.status_code == 402  # Payment Required / Quota Exceeded
 
-    # Upgrade tier to Pro
+    # Upgrade tier to Pro requested (placed into pending state awaiting admin payment confirmation)
     upgrade_res = client.post("/api/billing/upgrade", headers=headers, json={"target_tier": "pro"})
     assert upgrade_res.status_code == 200
+    assert upgrade_res.json()["upgrade_status"] == "pending"
+
+    # Before Admin approval, member addition must still be blocked by tier limit!
+    m3_blocked = client.post("/api/members", headers=headers, json={
+        "first_name": "Blocked",
+        "last_name": "User",
+        "phone": "+1-555-555-6666"
+    })
+    assert m3_blocked.status_code == 402
+
+    # Super Admin verifies payment and approves upgrade
+    admin_token = get_auth_token("superadmin@gympulse.com", "SuperAdmin123!")
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+    db = TestingSessionLocal()
+    titan_gym = db.query(Gym).filter(Gym.slug == "titan-gym").first()
+    gym_id = titan_gym.id
+    db.close()
+
+    approve_res = client.post(f"/api/platform/gyms/{gym_id}/approve-upgrade", headers=admin_headers)
+    assert approve_res.status_code == 200
+    assert approve_res.json()["plan_tier"] == "pro"
 
     # Now Member 3 can be added!
     m3_retry = client.post("/api/members", headers=headers, json={

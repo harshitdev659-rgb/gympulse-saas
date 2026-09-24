@@ -66,7 +66,10 @@ class BillingService:
             "usage_percentage": min(usage_pct, 100.0),
             "can_add_member": can_add_member,
             "ai_enabled": config["ai_enabled"],
-            "features": config["features"]
+            "features": config["features"],
+            "requested_plan_tier": gym.requested_plan_tier,
+            "tier_upgrade_status": gym.tier_upgrade_status or "none",
+            "tier_upgrade_requested_at": gym.tier_upgrade_requested_at
         }
 
     @staticmethod
@@ -80,16 +83,51 @@ class BillingService:
             )
 
     @staticmethod
-    def upgrade_tier(gym: Gym, target_tier: str, db: Session) -> Gym:
-        """Simulate tier upgrade and update limits."""
+    def request_upgrade(gym: Gym, target_tier: str, db: Session) -> Gym:
+        """Submit SaaS tier upgrade request pending Super Admin payment verification."""
+        import datetime
         target_tier = target_tier.lower()
         if target_tier not in TIER_CONFIG:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid tier '{target_tier}'. Choose from {list(TIER_CONFIG.keys())}"
             )
-        
+        gym.requested_plan_tier = target_tier
+        gym.tier_upgrade_status = "pending"
+        gym.tier_upgrade_requested_at = datetime.datetime.utcnow()
+        db.commit()
+        db.refresh(gym)
+        return gym
+
+    @staticmethod
+    def approve_upgrade(gym: Gym, db: Session) -> Gym:
+        """Super Admin confirms payment and applies tier upgrade."""
+        target_tier = (gym.requested_plan_tier or "").lower()
+        if not target_tier or target_tier not in TIER_CONFIG:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"No valid pending upgrade request found for this gym."
+            )
         gym.plan_tier = target_tier
+        gym.max_members = TIER_CONFIG[target_tier]["max_members"]
+        gym.tier_upgrade_status = "approved"
+        gym.subscription_status = "active"
+        db.commit()
+        db.refresh(gym)
+        return gym
+
+    @staticmethod
+    def upgrade_tier(gym: Gym, target_tier: str, db: Session) -> Gym:
+        """Direct tier upgrade (used in admin overrides or tests)."""
+        target_tier = target_tier.lower()
+        if target_tier not in TIER_CONFIG:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid tier '{target_tier}'. Choose from {list(TIER_CONFIG.keys())}"
+            )
+        gym.plan_tier = target_tier
+        gym.requested_plan_tier = target_tier
+        gym.tier_upgrade_status = "approved"
         gym.max_members = TIER_CONFIG[target_tier]["max_members"]
         gym.subscription_status = "active"
         db.commit()

@@ -109,16 +109,17 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
   };
 
   const windowOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000';
-  const isLocal = windowOrigin.includes('localhost') || windowOrigin.includes('127.0.0.1');
-  const activeBaseUrl = !isLocal
-    ? windowOrigin
-    : (networkInfo?.public_url?.replace(/\/+$/, '') || windowOrigin);
-  const publicPath = `/facility/${form.website_subdomain || gym?.slug}`;
-  const fullPublicUrl = `${activeBaseUrl}${publicPath}`;
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+  const isGitHubPages = windowOrigin.includes('github.io') || pathname.includes('/gympulse-saas');
+  const baseSubpath = isGitHubPages ? '/gympulse-saas' : '';
+  const currentSlug = (form.website_subdomain || gym?.slug || 'my-gym').trim();
+
+  // Universal direct link that works reliably across all environments (GitHub Pages, localhost, mobile)
+  const fullPublicUrl = `${windowOrigin}${baseSubpath}/app.html?facility=${encodeURIComponent(currentSlug)}`;
 
   const handleVisitWebsite = () => {
     if (onPreviewWebsite) {
-      onPreviewWebsite(form.website_subdomain || gym?.slug);
+      onPreviewWebsite(currentSlug);
     } else {
       window.open(fullPublicUrl, '_blank');
     }
@@ -127,7 +128,7 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
   const handleCopyLink = () => {
     navigator.clipboard.writeText(fullPublicUrl);
     setCopied(true);
-    toast.success('Website link copied to clipboard!');
+    toast.success('Direct website link copied to clipboard!');
     setTimeout(() => setCopied(false), 2000);
   };
 

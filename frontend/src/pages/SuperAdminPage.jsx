@@ -81,6 +81,19 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
     setDeletingGym(gym);
   };
 
+  const handleApproveTierUpgrade = async (gymId, gymName, requestedTier) => {
+    setActionLoadingId(gymId);
+    try {
+      await api.approveUpgrade(gymId);
+      toast.success(`Payment verified! Facility "${gymName}" upgraded to ${requestedTier?.toUpperCase()} tier.`);
+      await fetchData();
+    } catch (err) {
+      toast.error(err.message || 'Failed to approve tier upgrade.');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
   const handleConfirmDeleteFacility = async () => {
     if (!deletingGym) return;
     setActionLoadingId(deletingGym.id);
@@ -182,6 +195,53 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
         </div>
       </div>
 
+      {/* Pending Subscription Upgrades Card (Payment Verification) */}
+      {gyms.some((g) => g.tier_upgrade_status === 'pending') && (
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-3xl p-6 shadow-sm space-y-4">
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-amber-500 animate-ping"></span>
+            <h3 className="text-base font-black text-amber-950">
+              Action Required: Pending Subscription Tier Upgrades ({gyms.filter((g) => g.tier_upgrade_status === 'pending').length})
+            </h3>
+          </div>
+          <p className="text-xs text-amber-800">
+            The following gym facilities have submitted an upgrade request. Please confirm receipt of offline/UPI payment before approving their tier upgrade.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {gyms.filter((g) => g.tier_upgrade_status === 'pending').map((g) => (
+              <div key={g.id} className="bg-white p-4 rounded-2xl border border-amber-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h4 className="font-extrabold text-slate-900 text-sm">{g.name}</h4>
+                  <div className="text-xs text-slate-500 mt-0.5">
+                    Owner: <strong className="text-slate-800">{g.owner_name}</strong> ({g.owner_email})
+                  </div>
+                  <div className="text-xs font-bold text-amber-900 mt-1 flex items-center gap-1.5 flex-wrap">
+                    <span className="px-1.5 py-0.5 rounded bg-slate-100 uppercase">{g.plan_tier}</span>
+                    <span>&rarr;</span>
+                    <span className="px-2 py-0.5 rounded bg-brand-100 text-brand-700 font-black uppercase">
+                      {g.requested_plan_tier} TIER
+                    </span>
+                    <span className="text-slate-600 font-semibold">
+                      ({g.requested_plan_tier === 'business' ? '₹5,999/mo' : '₹2,499/mo'})
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => handleApproveTierUpgrade(g.id, g.name, g.requested_plan_tier)}
+                  disabled={actionLoadingId === g.id}
+                  className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs transition-colors flex items-center gap-1.5 flex-shrink-0"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  {actionLoadingId === g.id ? 'Approving...' : 'Confirm Payment & Approve'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Facilities Table Card */}
       <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
         {/* Table Controls */}
@@ -266,13 +326,31 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
 
                       {/* Plan & Fee */}
                       <td className="py-3.5 px-4">
-                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-brand-50 text-brand-700 border border-brand-200">
-                          {g.plan_tier} Tier
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-brand-50 text-brand-700 border border-brand-200">
+                            {g.plan_tier} Tier
+                          </span>
+                          {g.tier_upgrade_status === 'pending' && (
+                            <span className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-100 text-amber-900 border border-amber-300 animate-pulse">
+                              Pending: {g.requested_plan_tier?.toUpperCase()}
+                            </span>
+                          )}
+                        </div>
                         <div className="font-bold text-slate-700 mt-1 text-xs">
                           {g.plan_tier === 'pro' ? '₹2,499/mo' : g.plan_tier === 'business' ? '₹5,999/mo' : '₹0/mo Free'}
                         </div>
-                        <div className="text-[10px] text-emerald-600 font-semibold">● Paid & Verified</div>
+                        {g.tier_upgrade_status === 'pending' ? (
+                          <button
+                            onClick={() => handleApproveTierUpgrade(g.id, g.name, g.requested_plan_tier)}
+                            disabled={isActionLoading}
+                            className="mt-1 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-[10px] shadow-xs flex items-center gap-1 transition-all"
+                          >
+                            <CheckCircle2 className="w-3 h-3" />
+                            Verify & Upgrade
+                          </button>
+                        ) : (
+                          <div className="text-[10px] text-emerald-600 font-semibold">● Paid & Verified</div>
+                        )}
                       </td>
 
                       {/* Approval Status Badge */}

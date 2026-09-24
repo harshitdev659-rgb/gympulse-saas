@@ -22,14 +22,19 @@ def get_current_user(
         )
     user_id = payload.get("sub")
     gym_id = payload.get("gym_id")
-    if user_id is None or gym_id is None:
+    is_superadmin = payload.get("is_superadmin", False)
+    if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token payload",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    user = db.query(User).filter(User.id == int(user_id), User.gym_id == int(gym_id)).first()
+    if is_superadmin or gym_id is None:
+        user = db.query(User).filter(User.id == int(user_id)).first()
+    else:
+        user = db.query(User).filter(User.id == int(user_id), User.gym_id == int(gym_id)).first()
+        
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -46,8 +51,10 @@ def get_current_user(
 def get_current_gym(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
-) -> Gym:
+) -> Optional[Gym]:
     """Ensure the user's gym exists and is active, enforcing tenant boundary."""
+    if current_user.gym_id is None and (current_user.is_superadmin or current_user.role == "superadmin"):
+        return None
     gym = db.query(Gym).filter(Gym.id == current_user.gym_id).first()
     if not gym:
         raise HTTPException(

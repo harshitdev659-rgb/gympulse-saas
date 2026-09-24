@@ -444,6 +444,21 @@ export function handleMockRequest(endpoint, options = {}) {
 
   // 9. Payments (scoped to current gym)
   if (endpoint.startsWith('/payments')) {
+    const matchPay = endpoint.match(/^\/payments\/([^/?]+)$/);
+    if (matchPay && method === 'GET') {
+      const payId = matchPay[1];
+      const pay = db.payments.find((p) => p.id == payId || String(p.id) === String(payId));
+      if (pay) {
+        const mem = db.members.find((m) => m.id === pay.member_id);
+        return {
+          ...pay,
+          receipt_number: pay.invoice_number || `INV-${pay.id}`,
+          member_name: mem?.full_name || pay.member_name || 'Member',
+          member_phone: mem?.phone || 'N/A',
+          member_email: mem?.email || 'N/A'
+        };
+      }
+    }
     if (method === 'POST') {
       const member = db.members.find((m) => m.id === body.member_id) || { full_name: 'Member' };
       const newPayment = {
@@ -535,7 +550,24 @@ export function handleMockRequest(endpoint, options = {}) {
   // 14. Public Website & Leads
   if (endpoint.startsWith('/gym/website')) {
     if (method === 'PUT') {
+      if (body.website_subdomain) {
+        const sub = body.website_subdomain.trim().toLowerCase();
+        const conflict = db.gyms.find(
+          (g) => (g.id !== currentGymId && String(g.id) !== String(currentGymId)) &&
+                 ((g.website_subdomain && g.website_subdomain.toLowerCase() === sub) || (g.slug && g.slug.toLowerCase() === sub))
+        );
+        if (conflict) {
+          throw new Error(`The website domain/subdomain "${sub}" is already taken by another gym facility. Please choose a different subdomain.`);
+        }
+      }
       db.website = { ...db.website, ...body };
+      if (currentGym) {
+        if (body.website_subdomain) {
+          currentGym.website_subdomain = body.website_subdomain;
+          currentGym.slug = body.website_subdomain;
+        }
+        currentGym.website = { ...(currentGym.website || {}), ...body };
+      }
       saveDb(db);
       return db.website;
     }
@@ -543,6 +575,94 @@ export function handleMockRequest(endpoint, options = {}) {
   }
   if (endpoint.startsWith('/gym/inquiries')) {
     return db.inquiries.filter((inq) => inq.gym_id === currentGymId);
+  }
+
+  // 14b. Dedicated Public Facility Website Handler (/public/facility/:slug)
+  const matchPublicFacility = endpoint.match(/^\/public\/facility\/([^/?]+)/);
+  if (matchPublicFacility) {
+    const slug = decodeURIComponent(matchPublicFacility[1]).toLowerCase();
+    const facilityGym = db.gyms.find(
+      (g) => (g.slug && g.slug.toLowerCase() === slug) || 
+             (g.website_subdomain && g.website_subdomain.toLowerCase() === slug) || 
+             String(g.id) === slug
+    ) || db.gyms[0];
+
+    if (endpoint.includes('/inquire') && method === 'POST') {
+      const inq = {
+        id: Date.now(),
+        gym_id: facilityGym ? facilityGym.id : currentGymId,
+        full_name: body.full_name || 'Prospective Athlete',
+        phone: body.phone || '',
+        email: body.email || '',
+        plan_name: body.plan_name || 'Standard Pass',
+        message: body.message || '',
+        status: 'new',
+        created_at: new Date().toISOString()
+      };
+      db.inquiries.unshift(inq);
+      saveDb(db);
+      return { success: true, message: 'Your inquiry has been received! Facility staff will contact you shortly.' };
+    }
+
+    if (!facilityGym) {
+      throw new Error(`Facility with website link "${slug}" not found.`);
+    }
+
+    const facilityPlans = db.plans.filter((p) => p.gym_id === facilityGym.id);
+    const facilityTrainers = db.trainers.filter((t) => t.gym_id === facilityGym.id);
+    return {
+      gym: facilityGym,
+      plans: facilityPlans.length > 0 ? facilityPlans : [
+        { id: 1, gym_id: facilityGym.id, name: 'Monthly Flex Pass', duration_days: 30, price: 1500, description: 'Unlimited gym floor access & locker usage' },
+        { id: 2, gym_id: facilityGym.id, name: 'Quarterly Power Plan', duration_days: 90, price: 4000, description: '3 months access with initial fitness assessment' }
+      ],
+      trainers: facilityTrainers,
+      website: facilityGym.website || db.website || {
+        website_subdomain: facilityGym.website_subdomain || facilityGym.slug,
+        website_headline: `Welcome to ${facilityGym.name}`,
+        website_tagline: 'World-Class Fitness, Strength & Conditioning',
+        website_about: `${facilityGym.name} provides premier fitness equipment, certified coaching, and a supportive community.`,
+        website_cover_image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&auto=format&fit=crop&q=80',
+        website_amenities: 'Olympic Free Weights, Cardio Theatre, Strength Machines, Certified Trainers, Steam & Sauna, Lockers'
+      }
+    };
+  }
+
+  // 14c. SaaS Billing & Subscriptions
+  if (endpoint.startsWith('/billing/status')) {
+    const gymMembers = db.members.filter((m) => m.gym_id === currentGymId);
+    const tier = currentGym?.plan_tier || 'free';
+    return {
+      plan_tier: tier,
+      tier_name: tier === 'free' ? 'Free Starter' : tier === 'business' ? 'Business Enterprise' : 'Pro Growth',
+      subscription_status: currentGym?.subscription_status || 'active',
+      member_count: gymMembers.length,
+      max_members: currentGym?.member_capacity || (tier === 'free' ? 25 : tier === 'business' ? 10000 : 250),
+      usage_percentage: Math.min(100, Math.round((gymMembers.length / 250) * 100)),
+      can_add_member: true,
+      ai_enabled: tier !== 'free',
+      features: ['Unlimited Check-ins', 'Digital Invoicing', 'AI Assistant', 'CSV Exports'],
+      requested_plan_tier: currentGym?.requested_plan_tier || null,
+      tier_upgrade_status: currentGym?.tier_upgrade_status || 'none',
+      tier_upgrade_requested_at: currentGym?.tier_upgrade_requested_at || null
+    };
+  }
+
+  if (endpoint.startsWith('/billing/upgrade') && method === 'POST') {
+    const targetTier = (body.target_tier || 'pro').toLowerCase();
+    if (currentGym) {
+      currentGym.requested_plan_tier = targetTier;
+      currentGym.tier_upgrade_status = 'pending';
+      currentGym.tier_upgrade_requested_at = new Date().toISOString();
+      saveDb(db);
+    }
+    return {
+      message: `Upgrade request to ${targetTier.toUpperCase()} tier submitted! Payment pending Admin verification.`,
+      requested_tier: targetTier,
+      current_tier: currentGym?.plan_tier || 'free',
+      upgrade_status: 'pending',
+      status: currentGym?.subscription_status || 'active'
+    };
   }
 
   // 15. AI Assistant
@@ -587,43 +707,55 @@ export function handleMockRequest(endpoint, options = {}) {
     };
   }
 
-  // Delete Gym as Super Admin
-  const matchGymDelete = endpoint.match(/^\/platform\/gyms\/(\d+)$/);
+  // Super Admin: Approve Tier Upgrade
+  const matchApproveUpgrade = endpoint.match(/^\/platform\/gyms\/([^/?]+)\/approve-upgrade$/);
+  if (matchApproveUpgrade && method === 'POST') {
+    const gymId = matchApproveUpgrade[1];
+    const g = db.gyms.find((item) => item.id == gymId || String(item.id) === String(gymId));
+    if (!g) throw new Error('Gym facility not found');
+    g.plan_tier = g.requested_plan_tier || 'pro';
+    g.tier_upgrade_status = 'approved';
+    g.subscription_status = 'active';
+    saveDb(db);
+    return g;
+  }
+
+  // Delete Gym as Super Admin (Loose Matching on ID)
+  const matchGymDelete = endpoint.match(/^\/platform\/gyms\/([^/?]+)$/);
   if (matchGymDelete && method === 'DELETE') {
-    const gymId = parseInt(matchGymDelete[1], 10);
-    const targetGym = db.gyms.find((g) => g.id === gymId);
+    const gymId = matchGymDelete[1];
+    const targetGym = db.gyms.find((g) => g.id == gymId || String(g.id) === String(gymId));
     if (!targetGym) {
       return { success: false, message: 'Gym not found' };
     }
 
     // Permanently purge gym and all associated tenant records
-    db.gyms = db.gyms.filter((g) => g.id !== gymId);
-    db.members = db.members.filter((m) => m.gym_id !== gymId);
-    db.attendance = db.attendance.filter((a) => a.gym_id !== gymId);
-    db.payments = db.payments.filter((p) => p.gym_id !== gymId);
-    db.plans = db.plans.filter((p) => p.gym_id !== gymId);
-    db.trainers = db.trainers.filter((t) => t.gym_id !== gymId);
-    db.inquiries = db.inquiries.filter((inq) => inq.gym_id !== gymId);
-    db.users = db.users.filter((u) => u.gym_id !== gymId || u.is_superadmin);
+    db.gyms = db.gyms.filter((g) => g.id != gymId && String(g.id) !== String(gymId));
+    db.members = db.members.filter((m) => m.gym_id != gymId && String(m.gym_id) !== String(gymId));
+    db.attendance = db.attendance.filter((a) => a.gym_id != gymId && String(a.gym_id) !== String(gymId));
+    db.payments = db.payments.filter((p) => p.gym_id != gymId && String(p.gym_id) !== String(gymId));
+    db.plans = db.plans.filter((p) => p.gym_id != gymId && String(p.gym_id) !== String(gymId));
+    db.trainers = db.trainers.filter((t) => t.gym_id != gymId && String(t.gym_id) !== String(gymId));
+    db.inquiries = db.inquiries.filter((inq) => inq.gym_id != gymId && String(inq.gym_id) !== String(gymId));
+    db.users = db.users.filter((u) => (u.gym_id != gymId && String(u.gym_id) !== String(gymId)) || u.is_superadmin);
 
-    // If the active viewed gym was deleted, switch to first available gym or default
-    if (db.currentGymId === gymId) {
-      db.currentGymId = db.gyms[0]?.id || 1;
+    if (db.currentGymId == gymId || String(db.currentGymId) === String(gymId)) {
+      db.currentGymId = db.gyms[0]?.id || null;
     }
     saveDb(db);
 
     return {
       success: true,
       message: `Facility "${targetGym.name}" and its records have been permanently deleted.`,
-      deleted_id: gymId
+      deleted_id: targetGym.id
     };
   }
 
   // Approve / Reject Gym as Super Admin
-  const matchGymApprove = endpoint.match(/^\/platform\/gyms\/(\d+)\/approve$/);
+  const matchGymApprove = endpoint.match(/^\/platform\/gyms\/([^/?]+)\/approve$/);
   if (matchGymApprove && method === 'POST') {
-    const gymId = parseInt(matchGymApprove[1], 10);
-    const g = db.gyms.find((item) => item.id === gymId);
+    const gymId = matchGymApprove[1];
+    const g = db.gyms.find((item) => item.id == gymId || String(item.id) === String(gymId));
     if (g) {
       g.is_approved = true;
       g.approval_status = 'approved';
@@ -632,10 +764,10 @@ export function handleMockRequest(endpoint, options = {}) {
     }
   }
 
-  const matchGymReject = endpoint.match(/^\/platform\/gyms\/(\d+)\/reject$/);
+  const matchGymReject = endpoint.match(/^\/platform\/gyms\/([^/?]+)\/reject$/);
   if (matchGymReject && method === 'POST') {
-    const gymId = parseInt(matchGymReject[1], 10);
-    const g = db.gyms.find((item) => item.id === gymId);
+    const gymId = matchGymReject[1];
+    const g = db.gyms.find((item) => item.id == gymId || String(item.id) === String(gymId));
     if (g) {
       g.is_approved = false;
       g.approval_status = 'rejected';

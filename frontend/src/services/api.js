@@ -251,6 +251,10 @@ class ApiService {
     });
   }
 
+  getPayment(paymentId) {
+    return this.request(`/payments/${paymentId}`);
+  }
+
   getReceiptHtml(paymentId) {
     return `${API_BASE}/payments/${paymentId}/receipt`;
   }
@@ -385,6 +389,12 @@ class ApiService {
 
   approveGym(gymId) {
     return this.request(`/platform/gyms/${gymId}/approve`, {
+      method: 'POST'
+    });
+  }
+
+  approveUpgrade(gymId) {
+    return this.request(`/platform/gyms/${gymId}/approve-upgrade`, {
       method: 'POST'
     });
   }

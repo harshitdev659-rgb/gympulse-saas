@@ -56,6 +56,9 @@ def list_all_platform_gyms(
                 approval_status=g.approval_status,
                 is_approved=g.is_approved,
                 payment_verified=g.payment_verified,
+                requested_plan_tier=g.requested_plan_tier,
+                tier_upgrade_status=g.tier_upgrade_status or "none",
+                tier_upgrade_requested_at=g.tier_upgrade_requested_at,
                 website_subdomain=g.website_subdomain,
                 owner_name=owner.full_name if owner else "N/A",
                 owner_email=owner.email if owner else g.email,
@@ -64,6 +67,34 @@ def list_all_platform_gyms(
             )
         )
     return results
+
+@router.post("/gyms/{gym_id}/approve-upgrade", response_model=GymResponse)
+def approve_tier_upgrade(
+    gym_id: int,
+    current_admin: User = Depends(require_superadmin),
+    db: Session = Depends(get_db)
+):
+    """
+    Super Admin confirms receipt of offline/online payment and approves SaaS tier upgrade.
+    """
+    gym = db.query(Gym).filter(Gym.id == gym_id).first()
+    if not gym:
+        raise HTTPException(status_code=404, detail="Gym facility not found")
+    
+    from app.services.billing_service import BillingService
+    approved_gym = BillingService.approve_upgrade(gym, db)
+
+    notif = Notification(
+        gym_id=gym.id,
+        title="Subscription Tier Upgraded!",
+        message=f"Payment verified! Your facility plan has been upgraded to {approved_gym.plan_tier.upper()} tier.",
+        type="system"
+    )
+    db.add(notif)
+    db.commit()
+    db.refresh(approved_gym)
+
+    return GymResponse.model_validate(approved_gym)
 
 @router.post("/gyms/{gym_id}/approve", response_model=GymResponse)
 def approve_gym_facility(

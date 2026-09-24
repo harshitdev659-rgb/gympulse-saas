@@ -40,12 +40,23 @@ function AppContent() {
   const [previewFacilitySlug, setPreviewFacilitySlug] = useState(null);
   const [publicFacilitySlug, setPublicFacilitySlug] = useState(() => {
     try {
-      const path = window.location.pathname;
-      if (path.startsWith('/facility/')) {
-        return path.replace('/facility/', '').split('/')[0] || null;
-      }
-      if (path.startsWith('/gym/')) {
-        return path.replace('/gym/', '').split('/')[0] || null;
+      if (typeof window !== 'undefined') {
+        const searchParams = new URLSearchParams(window.location.search);
+        if (searchParams.get('facility')) return searchParams.get('facility');
+        if (searchParams.get('gym')) return searchParams.get('gym');
+
+        const hash = window.location.hash || '';
+        if (hash.includes('/facility/')) {
+          return hash.split('/facility/')[1]?.split('?')[0]?.split('/')[0] || null;
+        }
+
+        const path = window.location.pathname;
+        if (path.includes('/facility/')) {
+          return path.split('/facility/')[1]?.split('?')[0]?.split('/')[0] || null;
+        }
+        if (path.includes('/gym/')) {
+          return path.split('/gym/')[1]?.split('?')[0]?.split('/')[0] || null;
+        }
       }
     } catch (e) {
       // fallback

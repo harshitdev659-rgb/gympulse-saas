@@ -12,6 +12,12 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="GymPulse">
   <meta name="theme-color" content="#4f46e5">
+  <script>
+    // If opened from an installed app icon (Home Screen / Standalone PWA), load the full GymPulse software directly
+    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true || document.referrer.includes('android-app://')) {
+      window.location.replace('./app.html');
+    }
+  </script>
   <!-- Tailwind CSS via CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>

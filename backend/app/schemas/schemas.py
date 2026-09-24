@@ -160,6 +160,12 @@ class MemberCreate(BaseModel):
     initial_plan_id: Optional[int] = None
     initial_start_date: Optional[datetime.date] = None
 
+    # Manual Membership support
+    manual_plan_name: Optional[str] = None
+    manual_duration_days: Optional[int] = None
+    manual_price: Optional[float] = None
+    manual_payment_method: Optional[str] = None
+
 class MemberUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None

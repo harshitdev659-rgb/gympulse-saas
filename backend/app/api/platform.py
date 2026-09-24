@@ -141,16 +141,25 @@ def delete_gym_facility(
         GymInquiry, Notification, Payment, Attendance,
         MemberMembership, Member, MembershipPlan, Trainer, GymSetting, User
     )
-    db.query(GymInquiry).filter(GymInquiry.gym_id == gym_id).delete()
-    db.query(Notification).filter(Notification.gym_id == gym_id).delete()
-    db.query(Payment).filter(Payment.gym_id == gym_id).delete()
-    db.query(Attendance).filter(Attendance.gym_id == gym_id).delete()
-    db.query(MemberMembership).filter(MemberMembership.gym_id == gym_id).delete()
-    db.query(Member).filter(Member.gym_id == gym_id).delete()
-    db.query(MembershipPlan).filter(MembershipPlan.gym_id == gym_id).delete()
-    db.query(Trainer).filter(Trainer.gym_id == gym_id).delete()
-    db.query(GymSetting).filter(GymSetting.gym_id == gym_id).delete()
-    db.query(User).filter(User.gym_id == gym_id).delete()
+    # If the operating superadmin was associated with this gym, detach them first
+    if current_admin.gym_id == gym_id:
+        current_admin.gym_id = None
+        db.add(current_admin)
+        db.flush()
+
+    # Reassign or detach any other superadmin users before cascade
+    db.query(User).filter(User.gym_id == gym_id, User.is_superadmin == True).update({"gym_id": None}, synchronize_session=False)
+
+    db.query(GymInquiry).filter(GymInquiry.gym_id == gym_id).delete(synchronize_session=False)
+    db.query(Notification).filter(Notification.gym_id == gym_id).delete(synchronize_session=False)
+    db.query(Payment).filter(Payment.gym_id == gym_id).delete(synchronize_session=False)
+    db.query(Attendance).filter(Attendance.gym_id == gym_id).delete(synchronize_session=False)
+    db.query(MemberMembership).filter(MemberMembership.gym_id == gym_id).delete(synchronize_session=False)
+    db.query(Member).filter(Member.gym_id == gym_id).delete(synchronize_session=False)
+    db.query(MembershipPlan).filter(MembershipPlan.gym_id == gym_id).delete(synchronize_session=False)
+    db.query(Trainer).filter(Trainer.gym_id == gym_id).delete(synchronize_session=False)
+    db.query(GymSetting).filter(GymSetting.gym_id == gym_id).delete(synchronize_session=False)
+    db.query(User).filter(User.gym_id == gym_id, User.is_superadmin == False).delete(synchronize_session=False)
     db.delete(gym)
     db.commit()
 

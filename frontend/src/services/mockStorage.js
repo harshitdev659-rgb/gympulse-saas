@@ -2,23 +2,29 @@
 // Allows GymPulse on Android, Apple iPhone & iPad to run the exact same full app ditto as Windows
 
 const STORAGE_KEY = 'gympulse_standalone_db';
+const DB_VERSION = 2;
 
 const defaultDb = {
-  gym: {
-    id: 1,
-    name: 'Apex Fitness Club',
-    slug: 'apex-fitness-club',
-    email: 'owner@apexfitness.com',
-    phone: '+91 98765 43210',
-    address: '402 Fitness Boulevard, Cyber City',
-    currency: 'INR',
-    logo_url: '/gympulse.png',
-    plan_tier: 'pro',
-    is_approved: true,
-    approval_status: 'approved',
-    member_capacity: 150,
-    website_subdomain: 'apex-fitness-club'
-  },
+  version: DB_VERSION,
+  currentGymId: 1,
+  currentUserId: 1,
+  gyms: [
+    {
+      id: 1,
+      name: 'Apex Fitness Club',
+      slug: 'apex-fitness-club',
+      email: 'owner@apexfitness.com',
+      phone: '+91 98765 43210',
+      address: '402 Fitness Boulevard, Cyber City',
+      currency: 'INR',
+      logo_url: '/gympulse.png',
+      plan_tier: 'pro',
+      is_approved: true,
+      approval_status: 'approved',
+      member_capacity: 150,
+      website_subdomain: 'apex-fitness-club'
+    }
+  ],
   users: [
     {
       id: 1,
@@ -110,7 +116,12 @@ function getDb() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultDb));
       return defaultDb;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (!parsed.version || parsed.version < DB_VERSION || !Array.isArray(parsed.gyms)) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultDb));
+      return defaultDb;
+    }
+    return parsed;
   } catch (e) {
     return defaultDb;
   }
@@ -136,51 +147,100 @@ export function handleMockRequest(endpoint, options = {}) {
     }
   }
 
+  // Current active tenant & user resolver
+  let currentGymId = db.currentGymId || 1;
+  let currentUser = db.users.find((u) => u.id === db.currentUserId) || db.users[0];
+  let currentGym = db.gyms.find((g) => g.id === currentGymId) || db.gyms[0];
+
   // 1. Auth: Login
   if (endpoint.startsWith('/auth/login') && method === 'POST') {
     const email = (body.email || '').toLowerCase().trim();
-    const user = db.users.find((u) => u.email.toLowerCase() === email) || {
-      id: 99,
-      gym_id: 1,
-      email: email || 'owner@apexfitness.com',
-      name: email.split('@')[0] || 'Gym Owner',
-      role: email.includes('admin') ? 'superadmin' : 'owner',
-      is_superadmin: email.includes('admin')
-    };
+    let user = db.users.find((u) => u.email.toLowerCase() === email);
+
+    if (!user) {
+      if (email.includes('admin')) {
+        user = db.users.find((u) => u.is_superadmin) || {
+          id: Date.now(),
+          gym_id: null,
+          email,
+          name: 'Platform Super Admin',
+          role: 'superadmin',
+          is_superadmin: true
+        };
+      } else {
+        user = {
+          id: Date.now(),
+          gym_id: currentGymId,
+          email: email || 'owner@apexfitness.com',
+          name: email.split('@')[0] || 'Gym Owner',
+          role: 'owner',
+          is_superadmin: false
+        };
+        db.users.push(user);
+      }
+    }
+
+    db.currentUserId = user.id;
+    if (user.gym_id) {
+      db.currentGymId = user.gym_id;
+      currentGymId = user.gym_id;
+    }
+    currentGym = db.gyms.find((g) => g.id === currentGymId) || db.gyms[0];
+    saveDb(db);
 
     return {
       access_token: 'mock-standalone-token-' + Date.now(),
       token_type: 'bearer',
       user,
-      gym: db.gym
+      gym: currentGym
     };
   }
 
-  // 2. Auth: Register
+  // 2. Auth: Register New Gym
   if (endpoint.startsWith('/auth/register-gym') && method === 'POST') {
-    const gymName = body.gym_name || 'My Fitness Center';
+    const gymName = (body.gym_name || 'My Fitness Center').trim();
     const slug = gymName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const newGymId = Math.max(...db.gyms.map((g) => g.id), 0) + 1;
+
     const newGym = {
-      ...db.gym,
+      id: newGymId,
       name: gymName,
       slug,
       website_subdomain: slug,
-      email: body.email || db.gym.email,
-      phone: body.phone || db.gym.phone,
+      email: body.email || 'owner@newgym.com',
+      phone: body.phone || '+91 90000 00000',
+      address: 'Fitness Boulevard Suite 100',
       currency: body.currency || 'INR',
-      plan_tier: 'pro'
+      plan_tier: 'pro',
+      is_approved: true,
+      approval_status: 'approved',
+      member_capacity: 150,
+      logo_url: '/gympulse.png'
     };
+    db.gyms.push(newGym);
+
+    const newUserId = Math.max(...db.users.map((u) => u.id), 0) + 1;
     const newUser = {
-      id: Date.now(),
-      gym_id: newGym.id,
+      id: newUserId,
+      gym_id: newGymId,
       email: body.email,
-      name: body.owner_name || 'Owner',
+      name: body.owner_name || 'Gym Owner',
       role: 'owner',
       is_superadmin: false
     };
-    db.gym = newGym;
     db.users.push(newUser);
+
+    // Initial default membership plans for this newly registered gym
+    db.plans.push(
+      { id: Date.now() + 1, gym_id: newGymId, name: 'Monthly Flex Pass', duration_days: 30, price: 1500, description: 'Standard monthly gym floor access' },
+      { id: Date.now() + 2, gym_id: newGymId, name: 'Quarterly Power Plan', duration_days: 90, price: 4000, description: '3 months access with trainer consult' }
+    );
+
+    // NOTE: db.members has 0 members for newGymId! It starts completely clean with 0 names.
+    db.currentGymId = newGymId;
+    db.currentUserId = newUserId;
     saveDb(db);
+
     return {
       access_token: 'mock-standalone-token-' + Date.now(),
       token_type: 'bearer',
@@ -191,25 +251,37 @@ export function handleMockRequest(endpoint, options = {}) {
 
   // 3. Auth: Current User (/auth/me)
   if (endpoint.startsWith('/auth/me')) {
+    const user = db.users.find((u) => u.id === db.currentUserId) || db.users[0];
+    const gym = db.gyms.find((g) => g.id === (user.gym_id || db.currentGymId)) || db.gyms[0];
     return {
-      user: db.users[0],
-      gym: db.gym
+      user,
+      gym
     };
   }
 
-  // 4. Dashboard Stats
+  // 4. Dashboard Stats (strictly scoped to active gym)
   if (endpoint.startsWith('/dashboard/stats')) {
-    const total_members = db.members.length;
-    const active_members = db.members.filter((m) => m.status === 'active').length;
-    const expired_members = db.members.filter((m) => m.status === 'expired').length;
-    const expiring_soon_members = db.members.filter((m) => m.is_expiring_soon).length;
-    const today_attendance = db.attendance.length;
-    const active_now = db.attendance.filter((a) => !a.check_out_time).length;
-    const monthly_revenue = db.payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    const gymMembers = db.members.filter((m) => m.gym_id === currentGymId);
+    const gymAttendance = db.attendance.filter((a) => a.gym_id === currentGymId);
+    const gymPayments = db.payments.filter((p) => p.gym_id === currentGymId);
+
+    const total_members = gymMembers.length;
+    const active_members = gymMembers.filter((m) => m.status === 'active').length;
+    const expired_members = gymMembers.filter((m) => m.status === 'expired').length;
+    const expiring_soon_members = gymMembers.filter((m) => m.is_expiring_soon).length;
+    const today_attendance = gymAttendance.length;
+    const active_now = gymAttendance.filter((a) => !a.check_out_time).length;
+    const monthly_revenue = gymPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
 
     const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Today'];
-    const attendance_chart_data = labels.map((l, i) => ({ label: l, count: 20 + (i * 3) % 15 }));
-    const revenue_chart_data = labels.map((l, i) => ({ label: l, revenue: 3000 + (i * 1200) % 5000 }));
+    const attendance_chart_data = labels.map((l, i) => ({
+      label: l,
+      count: total_members > 0 ? Math.max(1, Math.round((total_members * 0.3) + (i % 3))) : 0
+    }));
+    const revenue_chart_data = labels.map((l, i) => ({
+      label: l,
+      revenue: monthly_revenue > 0 ? Math.round((monthly_revenue / 7) * (0.8 + (i * 0.05))) : 0
+    }));
 
     return {
       total_members,
@@ -219,30 +291,82 @@ export function handleMockRequest(endpoint, options = {}) {
       today_attendance,
       active_now,
       monthly_revenue,
-      last_month_revenue: Math.round(monthly_revenue * 0.88),
-      pending_payments_count: 2,
-      pending_payments_amount: 3000,
-      new_members_this_month: db.members.length,
-      recent_checkins: db.attendance.slice(0, 6),
+      last_month_revenue: Math.round(monthly_revenue * 0.85),
+      pending_payments_count: total_members > 0 ? 1 : 0,
+      pending_payments_amount: total_members > 0 ? 1500 : 0,
+      new_members_this_month: total_members,
+      recent_checkins: gymAttendance.slice(0, 6),
       attendance_chart_data,
       revenue_chart_data
     };
   }
 
-  // 5. Members List & Detail
+  // 5. Members: Seed 5 Sample Members for testing current gym
+  if (endpoint.startsWith('/members/seed-test-members') && method === 'POST') {
+    const sampleNames = [
+      { first: 'Aarav', last: 'Sharma', plan: 'Monthly Flex Pass', days: 30, amount: 1500, phone: '+91 98000 11001' },
+      { first: 'Diya', last: 'Mehta', plan: 'Quarterly Power Plan', days: 90, amount: 4000, phone: '+91 98000 11002' },
+      { first: 'Kabir', last: 'Kapoor', plan: 'Monthly Flex Pass', days: 30, amount: 1500, phone: '+91 98000 11003' },
+      { first: 'Ishita', last: 'Bose', plan: 'Quarterly Power Plan', days: 90, amount: 4000, phone: '+91 98000 11004' },
+      { first: 'Arjun', last: 'Rao', plan: 'Annual VIP Pass', days: 365, amount: 12000, phone: '+91 98000 11005' }
+    ];
+    const created = [];
+    sampleNames.forEach((s, idx) => {
+      const memId = Date.now() + idx;
+      const mem = {
+        id: memId,
+        gym_id: currentGymId,
+        first_name: s.first,
+        last_name: s.last,
+        full_name: `${s.first} ${s.last}`,
+        email: `${s.first.toLowerCase()}@example.com`,
+        phone: s.phone,
+        status: 'active',
+        join_date: new Date().toISOString().split('T')[0],
+        current_plan_name: s.plan,
+        membership_expiry_date: new Date(Date.now() + s.days * 86400000).toISOString().split('T')[0],
+        is_expiring_soon: false,
+        assigned_trainer_id: null
+      };
+      db.members.unshift(mem);
+      db.payments.unshift({
+        id: Date.now() + idx + 100,
+        gym_id: currentGymId,
+        member_id: memId,
+        member_name: mem.full_name,
+        plan_name: s.plan,
+        amount: s.amount,
+        payment_method: 'upi',
+        status: 'completed',
+        payment_date: mem.join_date,
+        invoice_number: `INV-${Date.now()}-${memId}`
+      });
+      created.push(mem);
+    });
+    saveDb(db);
+    return { success: true, count: created.length, members: created };
+  }
+
+  // 6. Members List, Detail, Create & Delete
   if (endpoint.startsWith('/members')) {
     const matchDetail = endpoint.match(/^\/members\/(\d+)$/);
     if (matchDetail) {
       const id = parseInt(matchDetail[1], 10);
       if (method === 'DELETE') {
         db.members = db.members.filter((m) => m.id !== id);
+        db.attendance = db.attendance.filter((a) => a.member_id !== id);
+        db.payments = db.payments.filter((p) => p.member_id !== id);
         saveDb(db);
         return { success: true };
       }
       if (method === 'PUT') {
         const idx = db.members.findIndex((m) => m.id === id);
         if (idx !== -1) {
-          db.members[idx] = { ...db.members[idx], ...body, full_name: `${body.first_name || db.members[idx].first_name} ${body.last_name || db.members[idx].last_name}` };
+          db.members[idx] = {
+            ...db.members[idx],
+            ...body,
+            full_name: `${body.first_name || db.members[idx].first_name} ${body.last_name || db.members[idx].last_name}`
+          };
           saveDb(db);
           return db.members[idx];
         }
@@ -255,12 +379,12 @@ export function handleMockRequest(endpoint, options = {}) {
         memberships: [
           {
             id: 1,
-            gym_id: 1,
+            gym_id: currentGymId,
             member_id: member.id,
-            plan_id: 2,
-            plan_name: member.current_plan_name || 'Quarterly Pro',
+            plan_id: 1,
+            plan_name: member.current_plan_name || 'Standard Membership',
             start_date: member.join_date,
-            end_date: member.membership_expiry_date || '2026-11-20',
+            end_date: member.membership_expiry_date || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
             status: member.status
           }
         ],
@@ -273,42 +397,49 @@ export function handleMockRequest(endpoint, options = {}) {
 
     if (method === 'POST') {
       const newId = Date.now();
-      const plan = db.plans.find((p) => p.id === body.initial_plan_id) || db.plans[0];
+      const planName = body.manual_plan_name
+        ? body.manual_plan_name.trim()
+        : (body.initial_plan_id ? (db.plans.find((p) => p.id === body.initial_plan_id)?.name || 'Custom Plan') : 'Standard Pass');
+      const durationDays = body.manual_duration_days ? Number(body.manual_duration_days) : 30;
+      const price = body.manual_price !== undefined ? Number(body.manual_price) : (body.initial_plan_id ? (db.plans.find((p) => p.id === body.initial_plan_id)?.price || 1500) : 1500);
+
       const newMember = {
         id: newId,
-        gym_id: 1,
-        first_name: body.first_name || 'New',
-        last_name: body.last_name || 'Member',
-        full_name: `${body.first_name || 'New'} ${body.last_name || 'Member'}`,
+        gym_id: currentGymId,
+        first_name: (body.first_name || 'New').trim(),
+        last_name: (body.last_name || 'Member').trim(),
+        full_name: `${(body.first_name || 'New').trim()} ${(body.last_name || 'Member').trim()}`,
         email: body.email || '',
-        phone: body.phone || '+91 90000 00000',
-        status: 'active',
-        join_date: new Date().toISOString().split('T')[0],
-        current_plan_name: plan.name,
-        membership_expiry_date: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+        phone: (body.phone || '+91 90000 00000').trim(),
+        status: body.status || 'active',
+        join_date: body.join_date || new Date().toISOString().split('T')[0],
+        current_plan_name: planName,
+        membership_expiry_date: new Date(Date.now() + durationDays * 86400000).toISOString().split('T')[0],
         is_expiring_soon: false,
-        assigned_trainer_id: body.assigned_trainer_id || null
+        assigned_trainer_id: body.assigned_trainer_id ? Number(body.assigned_trainer_id) : null
       };
       db.members.unshift(newMember);
-      // Auto-record initial payment if plan assigned
+
+      // Auto-record initial payment / receipt
       db.payments.unshift({
         id: Date.now() + 1,
-        gym_id: 1,
+        gym_id: currentGymId,
         member_id: newId,
         member_name: newMember.full_name,
-        plan_name: plan.name,
-        amount: plan.price,
-        payment_method: 'upi',
+        plan_name: planName,
+        amount: price,
+        payment_method: body.manual_payment_method || 'upi',
         status: 'completed',
-        payment_date: new Date().toISOString().split('T')[0],
-        invoice_number: `INV-2026-${Math.floor(100 + Math.random() * 900)}`
+        payment_date: newMember.join_date,
+        invoice_number: `INV-2026-${Math.floor(100 + Math.random() * 900)}`,
+        notes: body.manual_plan_name ? `Manual membership: ${planName}` : 'Initial membership enrollment'
       });
       saveDb(db);
       return newMember;
     }
 
-    // GET /members list with search/status filters
-    let list = [...db.members];
+    // GET /members: Filter strictly by currentGymId!
+    let list = db.members.filter((m) => m.gym_id === currentGymId);
     const urlObj = new URL('http://local' + endpoint);
     const search = urlObj.searchParams.get('search');
     const status = urlObj.searchParams.get('status_filter');
@@ -322,26 +453,26 @@ export function handleMockRequest(endpoint, options = {}) {
     return list;
   }
 
-  // 6. Plans
+  // 7. Plans (scoped to current gym)
   if (endpoint.startsWith('/plans')) {
     if (method === 'POST') {
-      const newPlan = { id: Date.now(), gym_id: 1, ...body };
+      const newPlan = { id: Date.now(), gym_id: currentGymId, ...body };
       db.plans.push(newPlan);
       saveDb(db);
       return newPlan;
     }
-    return db.plans;
+    return db.plans.filter((p) => p.gym_id === currentGymId);
   }
 
-  // 7. Attendance
+  // 8. Attendance (scoped to current gym)
   if (endpoint.startsWith('/attendance/today')) {
-    return db.attendance;
+    return db.attendance.filter((a) => a.gym_id === currentGymId);
   }
   if (endpoint.startsWith('/attendance/check-in') && method === 'POST') {
     const member = db.members.find((m) => m.id === body.member_id) || { full_name: 'Gym Member' };
     const newRecord = {
       id: Date.now(),
-      gym_id: 1,
+      gym_id: currentGymId,
       member_id: body.member_id,
       member_name: member.full_name,
       check_in_time: new Date().toISOString(),
@@ -363,16 +494,16 @@ export function handleMockRequest(endpoint, options = {}) {
     return { success: true };
   }
   if (endpoint.startsWith('/attendance/history')) {
-    return db.attendance;
+    return db.attendance.filter((a) => a.gym_id === currentGymId);
   }
 
-  // 8. Payments
+  // 9. Payments (scoped to current gym)
   if (endpoint.startsWith('/payments')) {
     if (method === 'POST') {
       const member = db.members.find((m) => m.id === body.member_id) || { full_name: 'Member' };
       const newPayment = {
         id: Date.now(),
-        gym_id: 1,
+        gym_id: currentGymId,
         member_id: body.member_id,
         member_name: member.full_name,
         plan_name: body.plan_name || 'Membership',
@@ -387,31 +518,34 @@ export function handleMockRequest(endpoint, options = {}) {
       saveDb(db);
       return newPayment;
     }
-    return db.payments;
+    return db.payments.filter((p) => p.gym_id === currentGymId);
   }
 
-  // 9. Trainers
+  // 10. Trainers (scoped to current gym)
   if (endpoint.startsWith('/trainers')) {
     if (method === 'POST') {
-      const newTrainer = { id: Date.now(), gym_id: 1, assigned_members_count: 0, is_active: true, ...body };
+      const newTrainer = { id: Date.now(), gym_id: currentGymId, assigned_members_count: 0, is_active: true, ...body };
       db.trainers.push(newTrainer);
       saveDb(db);
       return newTrainer;
     }
-    return db.trainers;
+    return db.trainers.filter((t) => t.gym_id === currentGymId);
   }
 
-  // 10. Reports
+  // 11. Reports (scoped to current gym)
   if (endpoint.startsWith('/reports/summary') || endpoint.startsWith('/reports/revenue')) {
+    const gymMembers = db.members.filter((m) => m.gym_id === currentGymId);
+    const gymPayments = db.payments.filter((p) => p.gym_id === currentGymId);
+    const gymAttendance = db.attendance.filter((a) => a.gym_id === currentGymId);
     return {
-      monthly_revenue: db.payments.reduce((s, p) => s + (p.amount || 0), 0),
-      total_checkins: db.attendance.length * 15,
-      active_members: db.members.filter((m) => m.status === 'active').length,
-      revenue_growth_pct: 14.5
+      monthly_revenue: gymPayments.reduce((s, p) => s + (p.amount || 0), 0),
+      total_checkins: gymAttendance.length,
+      active_members: gymMembers.filter((m) => m.status === 'active').length,
+      revenue_growth_pct: 12.0
     };
   }
 
-  // 11. Settings & Gym Profile
+  // 12. Settings & Gym Profile
   if (endpoint.startsWith('/settings/config')) {
     if (method === 'PUT') {
       db.settings = { ...db.settings, ...body };
@@ -421,15 +555,18 @@ export function handleMockRequest(endpoint, options = {}) {
     return db.settings;
   }
   if (endpoint.startsWith('/settings/gym')) {
-    if (method === 'PUT') {
-      db.gym = { ...db.gym, ...body };
-      saveDb(db);
-      return db.gym;
+    const idx = db.gyms.findIndex((g) => g.id === currentGymId);
+    if (idx !== -1) {
+      if (method === 'PUT') {
+        db.gyms[idx] = { ...db.gyms[idx], ...body };
+        saveDb(db);
+      }
+      return db.gyms[idx];
     }
-    return db.gym;
+    return db.gyms[0];
   }
 
-  // 12. Network Info
+  // 13. Network Info
   if (endpoint.startsWith('/settings/network-info')) {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://harshitdev659-rgb.github.io/gympulse-saas';
     const isLocal = origin.includes('localhost') || origin.includes('127.0.0.1');
@@ -450,7 +587,7 @@ export function handleMockRequest(endpoint, options = {}) {
     };
   }
 
-  // 13. Public Website & Leads
+  // 14. Public Website & Leads
   if (endpoint.startsWith('/gym/website')) {
     if (method === 'PUT') {
       db.website = { ...db.website, ...body };
@@ -460,20 +597,21 @@ export function handleMockRequest(endpoint, options = {}) {
     return db.website;
   }
   if (endpoint.startsWith('/gym/inquiries')) {
-    return db.inquiries;
+    return db.inquiries.filter((inq) => inq.gym_id === currentGymId);
   }
 
-  // 14. AI Assistant
+  // 15. AI Assistant
   if (endpoint.startsWith('/ai/query') && method === 'POST') {
     const q = (body.query || '').toLowerCase();
-    const activeCount = db.members.filter((m) => m.status === 'active').length;
-    const expiringSoon = db.members.filter((m) => m.is_expiring_soon).map((m) => m.full_name).join(', ') || 'None';
-    const totalRev = db.payments.reduce((s, p) => s + (p.amount || 0), 0);
-    const checkedInToday = db.attendance.length;
+    const gymMembers = db.members.filter((m) => m.gym_id === currentGymId);
+    const activeCount = gymMembers.filter((m) => m.status === 'active').length;
+    const expiringSoon = gymMembers.filter((m) => m.is_expiring_soon).map((m) => m.full_name).join(', ') || 'None';
+    const totalRev = db.payments.filter((p) => p.gym_id === currentGymId).reduce((s, p) => s + (p.amount || 0), 0);
+    const checkedInToday = db.attendance.filter((a) => a.gym_id === currentGymId).length;
 
-    let reply = `Here is your gym update for ${db.gym.name}:\n`;
+    let reply = `Here is your gym update for ${currentGym.name}:\n`;
     if (q.includes('member') || q.includes('who') || q.includes('active')) {
-      reply += `• Active Members: ${activeCount} / ${db.gym.member_capacity} capacity.\n`;
+      reply += `• Active Members: ${activeCount} / ${currentGym.member_capacity} capacity.\n`;
     }
     if (q.includes('revenue') || q.includes('money') || q.includes('earn') || q.includes('collection')) {
       reply += `• Monthly Revenue: ₹${totalRev.toLocaleString('en-IN')}.\n`;
@@ -485,7 +623,7 @@ export function handleMockRequest(endpoint, options = {}) {
       reply += `• Expiring Soon: ${expiringSoon}.\n`;
     }
     if (reply.length <= 40) {
-      reply = `Hello! I am your AI GymPulse Assistant. Your facility "${db.gym.name}" has ${activeCount} active members, ${checkedInToday} check-ins today, and ₹${totalRev.toLocaleString('en-IN')} total revenue collected. What would you like to check?`;
+      reply = `Hello! I am your AI GymPulse Assistant. Your facility "${currentGym.name}" has ${activeCount} active members, ${checkedInToday} check-ins today, and ₹${totalRev.toLocaleString('en-IN')} total revenue collected. What would you like to check?`;
     }
     return {
       query: body.query,
@@ -494,24 +632,84 @@ export function handleMockRequest(endpoint, options = {}) {
     };
   }
 
-  // 15. Super Admin Platform
+  // 16. Super Admin: Platform Operations & Gym Deletion
   if (endpoint.startsWith('/platform/metrics')) {
     return {
-      total_gyms: 1,
-      active_gyms: 1,
+      total_gyms: db.gyms.length,
+      active_gyms: db.gyms.filter((g) => g.is_approved).length,
       total_platform_members: db.members.length,
-      monthly_platform_revenue: 12500
+      monthly_platform_revenue: db.payments.reduce((s, p) => s + (p.amount || 0), 0)
     };
   }
-  if (endpoint.startsWith('/platform/gyms')) {
-    return [
-      {
-        ...db.gym,
-        owner_name: 'Vikram Malhotra',
-        owner_email: 'owner@apexfitness.com',
-        members_count: db.members.length
-      }
-    ];
+
+  // Delete Gym as Super Admin
+  const matchGymDelete = endpoint.match(/^\/platform\/gyms\/(\d+)$/);
+  if (matchGymDelete && method === 'DELETE') {
+    const gymId = parseInt(matchGymDelete[1], 10);
+    const targetGym = db.gyms.find((g) => g.id === gymId);
+    if (!targetGym) {
+      return { success: false, message: 'Gym not found' };
+    }
+
+    // Permanently purge gym and all associated tenant records
+    db.gyms = db.gyms.filter((g) => g.id !== gymId);
+    db.members = db.members.filter((m) => m.gym_id !== gymId);
+    db.attendance = db.attendance.filter((a) => a.gym_id !== gymId);
+    db.payments = db.payments.filter((p) => p.gym_id !== gymId);
+    db.plans = db.plans.filter((p) => p.gym_id !== gymId);
+    db.trainers = db.trainers.filter((t) => t.gym_id !== gymId);
+    db.inquiries = db.inquiries.filter((inq) => inq.gym_id !== gymId);
+    db.users = db.users.filter((u) => u.gym_id !== gymId || u.is_superadmin);
+
+    // If the active viewed gym was deleted, switch to first available gym or default
+    if (db.currentGymId === gymId) {
+      db.currentGymId = db.gyms[0]?.id || 1;
+    }
+    saveDb(db);
+
+    return {
+      success: true,
+      message: `Facility "${targetGym.name}" and its records have been permanently deleted.`,
+      deleted_id: gymId
+    };
+  }
+
+  // Approve / Reject Gym as Super Admin
+  const matchGymApprove = endpoint.match(/^\/platform\/gyms\/(\d+)\/approve$/);
+  if (matchGymApprove && method === 'POST') {
+    const gymId = parseInt(matchGymApprove[1], 10);
+    const g = db.gyms.find((item) => item.id === gymId);
+    if (g) {
+      g.is_approved = true;
+      g.approval_status = 'approved';
+      saveDb(db);
+      return g;
+    }
+  }
+
+  const matchGymReject = endpoint.match(/^\/platform\/gyms\/(\d+)\/reject$/);
+  if (matchGymReject && method === 'POST') {
+    const gymId = parseInt(matchGymReject[1], 10);
+    const g = db.gyms.find((item) => item.id === gymId);
+    if (g) {
+      g.is_approved = false;
+      g.approval_status = 'rejected';
+      saveDb(db);
+      return g;
+    }
+  }
+
+  // List all gyms for Super Admin
+  if (endpoint.startsWith('/platform/gyms') && method === 'GET') {
+    return db.gyms.map((g) => {
+      const owner = db.users.find((u) => u.gym_id === g.id && u.role === 'owner') || db.users.find((u) => u.gym_id === g.id);
+      return {
+        ...g,
+        owner_name: owner ? owner.name : 'Gym Owner',
+        owner_email: owner ? owner.email : g.email,
+        members_count: db.members.filter((m) => m.gym_id === g.id).length
+      };
+    });
   }
 
   // Fallback default response

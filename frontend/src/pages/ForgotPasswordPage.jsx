@@ -87,7 +87,7 @@ export const ForgotPasswordPage = ({ onNavigateLogin }) => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="user@example.com"
-                    className="block w-full pl-10 pr-4 py-2.5 sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    className="block w-full pl-10 pr-4 py-3 text-base sm:text-sm font-semibold text-slate-900 bg-white rounded-xl border-2 border-slate-300 focus:outline-none focus:ring-4 focus:ring-brand-500/20 focus:border-brand-600 caret-brand-600 shadow-xs transition-all"
                   />
                 </div>
               </div>
@@ -95,7 +95,7 @@ export const ForgotPasswordPage = ({ onNavigateLogin }) => {
               <Button
                 type="submit"
                 isLoading={isLoading}
-                className="w-full mt-2 py-3 font-bold"
+                className="w-full mt-2 py-3 font-bold text-sm shadow-md"
               >
                 Generate Reset Token
               </Button>
@@ -103,7 +103,7 @@ export const ForgotPasswordPage = ({ onNavigateLogin }) => {
           ) : (
             <form onSubmit={handleResetPassword} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
                   Reset Token
                 </label>
                 <div className="relative rounded-xl shadow-xs">
@@ -116,13 +116,13 @@ export const ForgotPasswordPage = ({ onNavigateLogin }) => {
                     value={token}
                     onChange={(e) => setToken(e.target.value)}
                     placeholder="Security Token"
-                    className="block w-full pl-10 pr-4 py-2.5 sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 font-mono text-xs"
+                    className="block w-full pl-10 pr-4 py-3 text-base sm:text-sm font-mono font-bold text-slate-900 bg-white rounded-xl border-2 border-slate-300 focus:outline-none focus:ring-4 focus:ring-brand-500/20 focus:border-brand-600 caret-brand-600 shadow-xs transition-all"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
                   New Password
                 </label>
                 <div className="relative rounded-xl shadow-xs">
@@ -134,8 +134,7 @@ export const ForgotPasswordPage = ({ onNavigateLogin }) => {
                     required
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="At least 6 characters"
-                    className="block w-full pl-10 pr-4 py-2.5 sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    className="block w-full pl-10 pr-4 py-3 text-base sm:text-sm font-semibold text-slate-900 bg-white rounded-xl border-2 border-slate-300 focus:outline-none focus:ring-4 focus:ring-brand-500/20 focus:border-brand-600 caret-brand-600 shadow-xs transition-all"
                   />
                 </div>
               </div>

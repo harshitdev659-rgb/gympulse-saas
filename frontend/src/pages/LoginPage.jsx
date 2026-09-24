@@ -65,7 +65,7 @@ export const LoginPage = ({ onNavigateRegister, onNavigateForgotPassword, onBack
         <div className="bg-white py-8 px-6 sm:px-10 shadow-xl shadow-slate-200/50 rounded-3xl border border-slate-200/80">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
                 Work Email
               </label>
               <div className="relative rounded-xl shadow-xs">
@@ -78,14 +78,14 @@ export const LoginPage = ({ onNavigateRegister, onNavigateForgotPassword, onBack
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="owner@yourgym.com"
-                  className="block w-full pl-10 pr-4 py-2.5 sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                  className="block w-full pl-10 pr-4 py-3 text-base sm:text-sm font-semibold text-slate-900 bg-white rounded-xl border-2 border-slate-300 focus:outline-none focus:ring-4 focus:ring-brand-500/20 focus:border-brand-600 caret-brand-600 shadow-xs transition-all"
                 />
               </div>
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
                   Password
                 </label>
                 <button
@@ -105,8 +105,7 @@ export const LoginPage = ({ onNavigateRegister, onNavigateForgotPassword, onBack
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="block w-full pl-10 pr-4 py-2.5 sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                  className="block w-full pl-10 pr-4 py-3 text-base sm:text-sm font-semibold text-slate-900 bg-white rounded-xl border-2 border-slate-300 focus:outline-none focus:ring-4 focus:ring-brand-500/20 focus:border-brand-600 caret-brand-600 shadow-xs transition-all"
                 />
               </div>
             </div>
@@ -114,7 +113,7 @@ export const LoginPage = ({ onNavigateRegister, onNavigateForgotPassword, onBack
             <Button
               type="submit"
               isLoading={isLoading}
-              className="w-full mt-2 py-3 font-bold"
+              className="w-full mt-2 py-3 font-bold text-sm shadow-md"
             >
               Sign In
             </Button>
@@ -123,14 +122,14 @@ export const LoginPage = ({ onNavigateRegister, onNavigateForgotPassword, onBack
           {/* Quick Demo Logins Container */}
           <div className="mt-8 pt-6 border-t border-slate-100">
             <span className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-400 text-center mb-3">
-              One-Click Instant Demo Accounts
+              One-Click Testing Accounts (1 Test Gym)
             </span>
 
             <div className="space-y-2">
               <button
                 type="button"
                 onClick={() => handleQuickFill('admin@gympulse.com', 'SuperAdmin123!')}
-                className="w-full flex items-center justify-between p-3 rounded-xl border-2 border-indigo-500/80 bg-gradient-to-r from-indigo-900/5 to-brand-900/5 hover:border-brand-500 hover:bg-brand-50/50 text-left transition-all group"
+                className="w-full flex items-center justify-between p-3 rounded-xl border-2 border-indigo-500/80 bg-gradient-to-r from-indigo-900/5 to-brand-900/5 hover:border-brand-500 hover:bg-brand-50/50 text-left transition-all group cursor-pointer"
               >
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-indigo-600 text-white shadow-sm group-hover:scale-105 transition-transform">
@@ -141,7 +140,7 @@ export const LoginPage = ({ onNavigateRegister, onNavigateForgotPassword, onBack
                       Platform Super Admin (Owner)
                       <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-indigo-600 text-white">OWNER</span>
                     </div>
-                    <div className="text-[10px] text-indigo-700 font-semibold">Platform-Wide Authority • Review & Approve Gyms</div>
+                    <div className="text-[10px] text-indigo-700 font-semibold">Platform-Wide Authority • Delete &amp; Review Gyms</div>
                   </div>
                 </div>
                 <span className="text-xs font-black text-indigo-600 group-hover:translate-x-0.5 transition-transform">
@@ -152,15 +151,15 @@ export const LoginPage = ({ onNavigateRegister, onNavigateForgotPassword, onBack
               <button
                 type="button"
                 onClick={() => handleQuickFill('owner@apexfitness.com', 'ApexAdmin123!')}
-                className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-brand-400 hover:bg-brand-50/40 text-left transition-all group"
+                className="w-full flex items-center justify-between p-3 rounded-xl border-2 border-slate-200 hover:border-brand-500 hover:bg-brand-50/40 text-left transition-all group cursor-pointer"
               >
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-brand-100 text-brand-700 group-hover:scale-105 transition-transform">
                     <Building2 className="w-4 h-4" />
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-slate-900">Apex Fitness Club (Owner)</div>
-                    <div className="text-[10px] text-slate-500">Pro Tier • 20+ Members • Full Access</div>
+                    <div className="text-xs font-bold text-slate-900">Apex Fitness Club (Testing Gym)</div>
+                    <div className="text-[10px] text-slate-500">Owner Access • Test Facility Operations</div>
                   </div>
                 </div>
                 <span className="text-xs font-bold text-brand-600 group-hover:translate-x-0.5 transition-transform">
@@ -171,7 +170,7 @@ export const LoginPage = ({ onNavigateRegister, onNavigateForgotPassword, onBack
               <button
                 type="button"
                 onClick={() => handleQuickFill('staff@apexfitness.com', 'Staff123!')}
-                className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/40 text-left transition-all group"
+                className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/40 text-left transition-all group cursor-pointer"
               >
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-indigo-100 text-indigo-700 group-hover:scale-105 transition-transform">
@@ -179,51 +178,10 @@ export const LoginPage = ({ onNavigateRegister, onNavigateForgotPassword, onBack
                   </div>
                   <div>
                     <div className="text-xs font-bold text-slate-900">Apex Front Desk (Staff)</div>
-                    <div className="text-[10px] text-slate-500">Attendance & Check-in Operator</div>
+                    <div className="text-[10px] text-slate-500">Attendance &amp; Check-in Operator</div>
                   </div>
                 </div>
                 <span className="text-xs font-bold text-indigo-600 group-hover:translate-x-0.5 transition-transform">
-                  Login &rarr;
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickFill('admin@ironforge.com', 'IronAdmin123!')}
-                className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-rose-400 hover:bg-rose-50/40 text-left transition-all group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-rose-100 text-rose-700 group-hover:scale-105 transition-transform">
-                    <ShieldCheck className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-900">IronForge Studio (Separate Tenant)</div>
-                    <div className="text-[10px] text-slate-500">Free Tier • Test Tenant Isolation</div>
-                  </div>
-                </div>
-                <span className="text-xs font-bold text-rose-600 group-hover:translate-x-0.5 transition-transform">
-                  Login &rarr;
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickFill('owner@olympusgold.com', 'Olympus123!')}
-                className="w-full flex items-center justify-between p-3 rounded-xl border border-amber-200 bg-amber-50/30 hover:border-amber-400 hover:bg-amber-50 text-left transition-all group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-amber-100 text-amber-700 group-hover:scale-105 transition-transform">
-                    <Clock className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
-                      Olympus Gold Gym (Pending Approval)
-                      <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-amber-200 text-amber-900">PENDING</span>
-                    </div>
-                    <div className="text-[10px] text-amber-700">Test Owner Gate • Awaiting Platform Approval</div>
-                  </div>
-                </div>
-                <span className="text-xs font-bold text-amber-700 group-hover:translate-x-0.5 transition-transform">
                   Login &rarr;
                 </span>
               </button>

@@ -160,6 +160,12 @@ class ApiService {
     });
   }
 
+  seedTestMembers() {
+    return this.request('/members/seed-test-members', {
+      method: 'POST'
+    });
+  }
+
   // Plans
   getPlans() {
     return this.request('/plans');

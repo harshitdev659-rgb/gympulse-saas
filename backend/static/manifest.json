@@ -4,20 +4,20 @@
   "description": "Intelligent Gym & Fitness Facility Management Platform",
   "icons": [
     {
-      "src": "gympulse.png",
+      "src": "/gympulse.png",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "any maskable"
     },
     {
-      "src": "gympulse.png",
+      "src": "/gympulse.png",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "any maskable"
     }
   ],
-  "start_url": "./app.html",
-  "scope": "./",
+  "start_url": "/",
+  "scope": "/",
   "background_color": "#0f172a",
   "theme_color": "#0270c7",
   "display": "standalone",

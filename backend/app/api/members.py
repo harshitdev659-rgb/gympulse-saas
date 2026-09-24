@@ -164,8 +164,59 @@ def create_member(
     db.add(member)
     db.flush()
 
-    # If initial plan is assigned
-    if req.initial_plan_id:
+    # If manual membership is specified
+    if req.manual_plan_name and req.manual_plan_name.strip():
+        plan_name = req.manual_plan_name.strip()
+        duration = req.manual_duration_days if req.manual_duration_days and req.manual_duration_days > 0 else 30
+        price = req.manual_price if req.manual_price is not None and req.manual_price >= 0 else 0.0
+
+        plan = db.query(MembershipPlan).filter(
+            MembershipPlan.gym_id == current_gym.id,
+            MembershipPlan.name == plan_name
+        ).first()
+        if not plan:
+            plan = MembershipPlan(
+                gym_id=current_gym.id,
+                name=plan_name,
+                description=f"Manual membership plan created for {member.full_name}",
+                duration_days=duration,
+                price=price,
+                billing_period="custom",
+                is_active=True
+            )
+            db.add(plan)
+            db.flush()
+
+        start = req.initial_start_date or req.join_date or datetime.date.today()
+        end = start + datetime.timedelta(days=duration)
+        membership = MemberMembership(
+            gym_id=current_gym.id,
+            member_id=member.id,
+            plan_id=plan.id,
+            start_date=start,
+            end_date=end,
+            price_paid=price,
+            status="active",
+            notes="Manual membership registration"
+        )
+        db.add(membership)
+        db.flush()
+
+        inv = f"INV-{datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d')}-{member.id}-{plan.id}"
+        payment = Payment(
+            gym_id=current_gym.id,
+            member_id=member.id,
+            membership_id=membership.id,
+            amount=price,
+            payment_date=start,
+            payment_method=req.manual_payment_method or "cash",
+            status="completed",
+            invoice_number=inv,
+            notes=f"Manual membership payment: {plan_name}"
+        )
+        db.add(payment)
+    # If initial predefined plan is assigned
+    elif req.initial_plan_id:
         plan = db.query(MembershipPlan).filter(
             MembershipPlan.id == req.initial_plan_id,
             MembershipPlan.gym_id == current_gym.id

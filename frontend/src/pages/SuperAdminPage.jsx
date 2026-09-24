@@ -18,11 +18,13 @@ import {
 import { api } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { formatCurrency } from '../utils/currency';
+import { ConfirmDialog } from '../components/common/ConfirmDialog';
 
 export const SuperAdminPage = ({ onPreviewWebsite }) => {
   const toast = useToast();
   const [metrics, setMetrics] = useState(null);
   const [gyms, setGyms] = useState([]);
+  const [deletingGym, setDeletingGym] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -75,16 +77,17 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
     }
   };
 
-  const handleDeleteFacility = async (gymId, gymName) => {
-    const promptConfirm = window.prompt(`CRITICAL WARNING: This will permanently delete gym "${gymName}" and its dedicated HTTPS public website.\n\nType DELETE to confirm:`);
-    if (promptConfirm !== 'DELETE') {
-      if (promptConfirm !== null) toast.info('Deletion cancelled (did not type DELETE).');
-      return;
-    }
-    setActionLoadingId(gymId);
+  const handleDeleteFacility = (gym) => {
+    setDeletingGym(gym);
+  };
+
+  const handleConfirmDeleteFacility = async () => {
+    if (!deletingGym) return;
+    setActionLoadingId(deletingGym.id);
     try {
-      const res = await api.deletePlatformGym(gymId);
-      toast.success(res.message || `Facility "${gymName}" and its website permanently deleted.`);
+      const res = await api.deletePlatformGym(deletingGym.id);
+      toast.success(res.message || `Facility "${deletingGym.name}" and its website permanently deleted.`);
+      setDeletingGym(null);
       await fetchData();
     } catch (err) {
       toast.error(err.message || 'Deletion failed.');
@@ -342,7 +345,7 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
                           )}
 
                           <button
-                            onClick={() => handleDeleteFacility(g.id, g.name)}
+                            onClick={() => handleDeleteFacility(g)}
                             disabled={isActionLoading}
                             title="Permanently Delete Facility & Public Website"
                             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-50"
@@ -359,6 +362,19 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
           </table>
         </div>
       </div>
+
+      {/* Permanently Delete Facility Modal */}
+      <ConfirmDialog
+        isOpen={!!deletingGym}
+        onClose={() => setDeletingGym(null)}
+        onConfirm={handleConfirmDeleteFacility}
+        title={`Permanently Delete "${deletingGym?.name}"?`}
+        message={`CRITICAL ACTION: This will permanently delete gym "${deletingGym?.name}", its dedicated public website, and all its members, attendance records, and payment logs immediately.`}
+        confirmText="Delete Facility"
+        cancelText="Cancel"
+        isDanger={true}
+        isLoading={actionLoadingId === deletingGym?.id}
+      />
     </div>
   );
 };

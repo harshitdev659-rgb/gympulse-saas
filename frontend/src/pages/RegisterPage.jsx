@@ -57,7 +57,7 @@ export const RegisterPage = ({ onNavigateLogin, onBackToLanding }) => {
         <div className="bg-white py-8 px-6 sm:px-10 shadow-xl shadow-slate-200/50 rounded-3xl border border-slate-200/80">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
                 Gym / Facility Name *
               </label>
               <div className="relative rounded-xl shadow-xs">
@@ -70,13 +70,13 @@ export const RegisterPage = ({ onNavigateLogin, onBackToLanding }) => {
                   value={formData.gym_name}
                   onChange={(e) => setFormData({ ...formData, gym_name: e.target.value })}
                   placeholder="e.g. Iron & Steel Fitness"
-                  className="block w-full pl-10 pr-4 py-2.5 sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="block w-full pl-10 pr-4 py-3 text-base sm:text-sm font-semibold text-slate-900 bg-white rounded-xl border-2 border-slate-300 focus:outline-none focus:ring-4 focus:ring-brand-500/20 focus:border-brand-600 caret-brand-600 shadow-xs transition-all"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
                 Owner Full Name *
               </label>
               <div className="relative rounded-xl shadow-xs">
@@ -89,13 +89,13 @@ export const RegisterPage = ({ onNavigateLogin, onBackToLanding }) => {
                   value={formData.owner_name}
                   onChange={(e) => setFormData({ ...formData, owner_name: e.target.value })}
                   placeholder="e.g. Sarah Connor"
-                  className="block w-full pl-10 pr-4 py-2.5 sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="block w-full pl-10 pr-4 py-3 text-base sm:text-sm font-semibold text-slate-900 bg-white rounded-xl border-2 border-slate-300 focus:outline-none focus:ring-4 focus:ring-brand-500/20 focus:border-brand-600 caret-brand-600 shadow-xs transition-all"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
                 Admin Work Email *
               </label>
               <div className="relative rounded-xl shadow-xs">
@@ -108,14 +108,14 @@ export const RegisterPage = ({ onNavigateLogin, onBackToLanding }) => {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="sarah@ironandsteel.com"
-                  className="block w-full pl-10 pr-4 py-2.5 sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="block w-full pl-10 pr-4 py-3 text-base sm:text-sm font-semibold text-slate-900 bg-white rounded-xl border-2 border-slate-300 focus:outline-none focus:ring-4 focus:ring-brand-500/20 focus:border-brand-600 caret-brand-600 shadow-xs transition-all"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
                   Phone Number
                 </label>
                 <div className="relative rounded-xl shadow-xs">
@@ -127,19 +127,19 @@ export const RegisterPage = ({ onNavigateLogin, onBackToLanding }) => {
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     placeholder="+1 555-0199"
-                    className="block w-full pl-10 pr-4 py-2.5 sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    className="block w-full pl-10 pr-4 py-3 text-base sm:text-sm font-semibold text-slate-900 bg-white rounded-xl border-2 border-slate-300 focus:outline-none focus:ring-4 focus:ring-brand-500/20 focus:border-brand-600 caret-brand-600 shadow-xs transition-all"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
                   Currency
                 </label>
                 <select
                   value={formData.currency}
                   onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                  className="block w-full px-3 py-2.5 sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white font-semibold"
+                  className="block w-full px-3 py-3 text-base sm:text-sm font-semibold text-slate-900 bg-white rounded-xl border-2 border-slate-300 focus:outline-none focus:ring-4 focus:ring-brand-500/20 focus:border-brand-600 shadow-xs transition-all"
                 >
                   <option value="INR">INR (₹) - Indian Rupee</option>
                   <option value="USD">USD ($)</option>
@@ -156,9 +156,8 @@ export const RegisterPage = ({ onNavigateLogin, onBackToLanding }) => {
               <span>Includes free dedicated public gym website (<strong>/facility/...</strong>) &amp; member lead capture portal.</span>
             </div>
 
-
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
                 Password *
               </label>
               <div className="relative rounded-xl shadow-xs">
@@ -170,8 +169,7 @@ export const RegisterPage = ({ onNavigateLogin, onBackToLanding }) => {
                   required
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  placeholder="At least 6 characters"
-                  className="block w-full pl-10 pr-4 py-2.5 sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="block w-full pl-10 pr-4 py-3 text-base sm:text-sm font-semibold text-slate-900 bg-white rounded-xl border-2 border-slate-300 focus:outline-none focus:ring-4 focus:ring-brand-500/20 focus:border-brand-600 caret-brand-600 shadow-xs transition-all"
                 />
               </div>
             </div>

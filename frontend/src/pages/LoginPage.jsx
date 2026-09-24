@@ -28,20 +28,6 @@ export const LoginPage = ({ onNavigateRegister, onNavigateForgotPassword, onBack
     }
   };
 
-  const handleQuickFill = async (demoEmail, demoPassword) => {
-    setEmail(demoEmail);
-    setPassword(demoPassword);
-    setIsLoading(true);
-    try {
-      await login(demoEmail, demoPassword);
-      toast.success(`Logged in as ${demoEmail}`);
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-radial from-slate-100 via-slate-50 to-slate-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
@@ -57,7 +43,7 @@ export const LoginPage = ({ onNavigateRegister, onNavigateForgotPassword, onBack
 
         <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Sign in to your facility</h2>
         <p className="mt-1 text-sm text-slate-500">
-          Enter your credentials or test with one-click demo accounts below.
+          Enter your verified credentials to access the operations console.
         </p>
       </div>
 
@@ -118,75 +104,6 @@ export const LoginPage = ({ onNavigateRegister, onNavigateForgotPassword, onBack
               Sign In
             </Button>
           </form>
-
-          {/* Quick Demo Logins Container */}
-          <div className="mt-8 pt-6 border-t border-slate-100">
-            <span className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-400 text-center mb-3">
-              One-Click Testing Accounts (1 Test Gym)
-            </span>
-
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => handleQuickFill('admin@gympulse.com', 'SuperAdmin123!')}
-                className="w-full flex items-center justify-between p-3 rounded-xl border-2 border-indigo-500/80 bg-gradient-to-r from-indigo-900/5 to-brand-900/5 hover:border-brand-500 hover:bg-brand-50/50 text-left transition-all group cursor-pointer"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-indigo-600 text-white shadow-sm group-hover:scale-105 transition-transform">
-                    <ShieldCheck className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-black text-slate-900 flex items-center gap-1.5">
-                      Platform Super Admin (Owner)
-                      <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-indigo-600 text-white">OWNER</span>
-                    </div>
-                    <div className="text-[10px] text-indigo-700 font-semibold">Platform-Wide Authority • Delete &amp; Review Gyms</div>
-                  </div>
-                </div>
-                <span className="text-xs font-black text-indigo-600 group-hover:translate-x-0.5 transition-transform">
-                  Login &rarr;
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickFill('owner@apexfitness.com', 'ApexAdmin123!')}
-                className="w-full flex items-center justify-between p-3 rounded-xl border-2 border-slate-200 hover:border-brand-500 hover:bg-brand-50/40 text-left transition-all group cursor-pointer"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-brand-100 text-brand-700 group-hover:scale-105 transition-transform">
-                    <Building2 className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-900">Apex Fitness Club (Testing Gym)</div>
-                    <div className="text-[10px] text-slate-500">Owner Access • Test Facility Operations</div>
-                  </div>
-                </div>
-                <span className="text-xs font-bold text-brand-600 group-hover:translate-x-0.5 transition-transform">
-                  Login &rarr;
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickFill('staff@apexfitness.com', 'Staff123!')}
-                className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/40 text-left transition-all group cursor-pointer"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-indigo-100 text-indigo-700 group-hover:scale-105 transition-transform">
-                    <User className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-900">Apex Front Desk (Staff)</div>
-                    <div className="text-[10px] text-slate-500">Attendance &amp; Check-in Operator</div>
-                  </div>
-                </div>
-                <span className="text-xs font-bold text-indigo-600 group-hover:translate-x-0.5 transition-transform">
-                  Login &rarr;
-                </span>
-              </button>
-            </div>
-          </div>
 
           <div className="mt-6 text-center text-xs text-slate-500">
             Don't have a gym account?{' '}

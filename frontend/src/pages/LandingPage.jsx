@@ -19,7 +19,7 @@ import {
 import { Button } from '../components/common/Button';
 import { DownloadAppModal } from '../components/common/DownloadAppModal';
 
-export const LandingPage = ({ onNavigateLogin, onNavigateRegister, onQuickDemo }) => {
+export const LandingPage = ({ onNavigateLogin, onNavigateRegister }) => {
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [networkInfo, setNetworkInfo] = useState(null);
   const [billingCycle, setBillingCycle] = useState('monthly'); // monthly, yearly
@@ -55,8 +55,8 @@ export const LandingPage = ({ onNavigateLogin, onNavigateRegister, onQuickDemo }
       a: "Yes! GymPulse generates branded electronic receipts and tax-compliant invoice slips that can be printed or saved as PDFs with one click."
     },
     {
-      q: "Can I try GymPulse without entering credit card details?",
-      a: "Absolutely. We offer a 1-click live demo and a generous Free Starter tier so you can test all core features immediately."
+      q: "Can I register my gym without entering credit card details?",
+      a: "Absolutely. You can start your facility's 14-day free trial immediately without requiring any credit card information."
     }
   ];
 
@@ -99,12 +99,11 @@ export const LandingPage = ({ onNavigateLogin, onNavigateRegister, onQuickDemo }
               Sign In
             </button>
             <Button
-              onClick={() => onQuickDemo('owner@apexfitness.com', 'ApexAdmin123!')}
+              onClick={onNavigateRegister}
               variant="primary"
               size="md"
-              icon={Play}
             >
-              Instant Demo
+              Start Free Trial
             </Button>
           </div>
         </div>
@@ -145,11 +144,10 @@ export const LandingPage = ({ onNavigateLogin, onNavigateRegister, onQuickDemo }
             </button>
 
             <button
-              onClick={() => onQuickDemo('owner@apexfitness.com', 'ApexAdmin123!')}
+              onClick={onNavigateLogin}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 text-base font-bold text-slate-800 bg-white border border-slate-200 hover:border-brand-500 hover:bg-brand-50/30 rounded-xl shadow-sm transition-all"
             >
-              <Play className="w-4 h-4 text-brand-600 fill-brand-600" />
-              Test Live Dashboard
+              Sign In to Your Facility
             </button>
           </div>
 
@@ -167,64 +165,46 @@ export const LandingPage = ({ onNavigateLogin, onNavigateRegister, onQuickDemo }
         </div>
       </section>
 
-      {/* Product Preview / Screenshot Showcase */}
-      <section id="demo" className="py-12 bg-slate-900 text-white relative">
+      {/* Product Architecture & Privacy Showcase */}
+      <section id="demo" className="py-16 bg-slate-900 text-white relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-12">
-            <span className="text-xs font-bold uppercase tracking-widest text-brand-400">Live Interactive Application</span>
-            <h2 className="text-3xl font-bold text-white mt-2">Engineered for Daily Gym Operations</h2>
+            <span className="text-xs font-bold uppercase tracking-widest text-brand-400">Strict Data Privacy & Security</span>
+            <h2 className="text-3xl font-bold text-white mt-2">Private, Isolated Facility Management</h2>
             <p className="text-slate-400 text-sm mt-3">
-              Switch between pre-configured isolated demo facilities to inspect real-time attendance, billing, and automated expiry workflows.
+              Every fitness club operates inside an encrypted, isolated environment. Only your authorized administrators and front-desk staff can view your members, financials, and attendance.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            <div className="p-6 rounded-2xl bg-slate-800/90 border border-slate-700 flex flex-col justify-between hover:border-brand-500 transition-colors">
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="px-3 py-1 text-xs font-bold bg-brand-500/20 text-brand-300 border border-brand-500/30 rounded-lg">
-                    TENANT 1: PRO TIER
-                  </span>
-                  <span className="text-xs text-slate-400">Full Access</span>
-                </div>
-                <h3 className="text-xl font-bold text-white">Apex Fitness Club</h3>
-                <p className="text-slate-400 text-sm mt-2">
-                  Full-scale fitness center with 20+ active members, multi-tier plans, trainer rosters, check-in history, and AI analytics.
-                </p>
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            <div className="p-6 rounded-2xl bg-slate-800/80 border border-slate-700 space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-brand-500/20 text-brand-400 flex items-center justify-center font-bold">
+                <Users className="w-5 h-5" />
               </div>
-              <div className="mt-6 pt-4 border-t border-slate-700/80 flex items-center justify-between">
-                <span className="text-xs text-slate-400">Email: owner@apexfitness.com</span>
-                <button
-                  onClick={() => onQuickDemo('owner@apexfitness.com', 'ApexAdmin123!')}
-                  className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold flex items-center gap-1.5 transition-all"
-                >
-                  Launch Apex <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
+              <h3 className="text-lg font-bold text-white">Private Member Directory</h3>
+              <p className="text-slate-400 text-xs leading-relaxed">
+                Zero data leakage between clubs. Your member records, contact information, and medical notes are 100% confidential.
+              </p>
             </div>
 
-            <div className="p-6 rounded-2xl bg-slate-800/90 border border-slate-700 flex flex-col justify-between hover:border-brand-500 transition-colors">
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="px-3 py-1 text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-lg">
-                    TENANT 2: FREE STARTER
-                  </span>
-                  <span className="text-xs text-slate-400">Strictly Isolated</span>
-                </div>
-                <h3 className="text-xl font-bold text-white">IronForge Strength Studio</h3>
-                <p className="text-slate-400 text-sm mt-2">
-                  Dedicated powerlifting facility demonstrating complete tenant separation: zero shared member data or records.
-                </p>
+            <div className="p-6 rounded-2xl bg-slate-800/80 border border-slate-700 space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                <CreditCard className="w-5 h-5" />
               </div>
-              <div className="mt-6 pt-4 border-t border-slate-700/80 flex items-center justify-between">
-                <span className="text-xs text-slate-400">Email: admin@ironforge.com</span>
-                <button
-                  onClick={() => onQuickDemo('admin@ironforge.com', 'IronAdmin123!')}
-                  className="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold flex items-center gap-1.5 transition-all"
-                >
-                  Launch IronForge <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+              <h3 className="text-lg font-bold text-white">Protected Revenue & Invoicing</h3>
+              <p className="text-slate-400 text-xs leading-relaxed">
+                Track payments, issue custom invoices, and monitor financial performance with complete privacy and tax compliance.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-slate-800/80 border border-slate-700 space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold">
+                <Shield className="w-5 h-5" />
               </div>
+              <h3 className="text-lg font-bold text-white">Admin-Verified Access</h3>
+              <p className="text-slate-400 text-xs leading-relaxed">
+                Only authenticated gym owners and approved operators can access the operations console and check-in floor tools.
+              </p>
             </div>
           </div>
         </div>
@@ -545,10 +525,10 @@ export const LandingPage = ({ onNavigateLogin, onNavigateRegister, onQuickDemo }
               Get Started Now
             </Button>
             <button
-              onClick={() => onQuickDemo('owner@apexfitness.com', 'ApexAdmin123!')}
+              onClick={onNavigateLogin}
               className="w-full sm:w-auto px-6 py-3.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-sm font-bold text-white transition-colors"
             >
-              Open Instant Demo
+              Sign In to Your Facility
             </button>
           </div>
         </div>

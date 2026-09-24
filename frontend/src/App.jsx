@@ -157,13 +157,6 @@ function AppContent() {
       <LandingPage
         onNavigateLogin={() => setPublicView('login')}
         onNavigateRegister={() => setPublicView('register')}
-        onQuickDemo={async (demoEmail, demoPassword) => {
-          try {
-            await login(demoEmail, demoPassword);
-          } catch (e) {
-            console.error(e);
-          }
-        }}
       />
     );
   }

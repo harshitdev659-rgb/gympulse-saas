@@ -1,112 +1,39 @@
 // In-browser mock and offline storage engine for standalone/mobile PWA deployment
-// Allows GymPulse on Android, Apple iPhone & iPad to run the exact same full app ditto as Windows
+// Allows GymPulse on Android, Apple iPhone & iPad to run with strict data privacy and zero dummy data
 
 const STORAGE_KEY = 'gympulse_standalone_db';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 const defaultDb = {
   version: DB_VERSION,
-  currentGymId: 1,
-  currentUserId: 1,
-  gyms: [
-    {
-      id: 1,
-      name: 'Apex Fitness Club',
-      slug: 'apex-fitness-club',
-      email: 'owner@apexfitness.com',
-      phone: '+91 98765 43210',
-      address: '402 Fitness Boulevard, Cyber City',
-      currency: 'INR',
-      logo_url: '/gympulse.png',
-      plan_tier: 'pro',
-      is_approved: true,
-      approval_status: 'approved',
-      member_capacity: 150,
-      website_subdomain: 'apex-fitness-club'
-    }
-  ],
+  currentGymId: null,
+  currentUserId: null,
+  gyms: [],
   users: [
     {
       id: 1,
-      gym_id: 1,
-      email: 'owner@apexfitness.com',
-      name: 'Vikram Malhotra',
-      role: 'owner',
-      is_superadmin: false
-    },
-    {
-      id: 2,
       gym_id: null,
       email: 'admin@gympulse.com',
-      name: 'Harshit (Super Admin)',
+      password: 'SuperAdmin123!',
+      name: 'Platform Super Admin',
       role: 'superadmin',
       is_superadmin: true
-    },
-    {
-      id: 3,
-      gym_id: 1,
-      email: 'trainer@apexfitness.com',
-      name: 'Karan Mehra',
-      role: 'trainer',
-      is_superadmin: false
     }
   ],
-  plans: [
-    { id: 1, gym_id: 1, name: 'Monthly Standard', duration_days: 30, price: 1500, description: 'Full gym access, lockers, cardio zone' },
-    { id: 2, gym_id: 1, name: 'Quarterly Pro', duration_days: 90, price: 4000, description: 'Gym access, sauna, trainer consult' },
-    { id: 3, gym_id: 1, name: 'Annual Elite VIP', duration_days: 365, price: 12000, description: 'All-inclusive VIP access + personal trainer credits' }
-  ],
-  trainers: [
-    { id: 1, gym_id: 1, name: 'Karan Mehra', email: 'karan@apexfitness.com', phone: '+91 98765 00001', specialty: 'Strength & Conditioning', hourly_rate: 1200, is_active: true, assigned_members_count: 3 },
-    { id: 2, gym_id: 1, name: 'Simran Kaur', email: 'simran@apexfitness.com', phone: '+91 98765 00002', specialty: 'HIIT & CrossFit', hourly_rate: 1000, is_active: true, assigned_members_count: 2 },
-    { id: 3, gym_id: 1, name: 'Rohit Verma', email: 'rohit@apexfitness.com', phone: '+91 98765 00003', specialty: 'Yoga & Mobility', hourly_rate: 800, is_active: true, assigned_members_count: 1 }
-  ],
-  members: [
-    { id: 1, gym_id: 1, first_name: 'Rahul', last_name: 'Sharma', full_name: 'Rahul Sharma', email: 'rahul.s@example.com', phone: '+91 98765 11111', status: 'active', join_date: '2026-08-01', current_plan_name: 'Quarterly Pro', membership_expiry_date: '2026-10-30', is_expiring_soon: false, assigned_trainer_id: 1 },
-    { id: 2, gym_id: 1, first_name: 'Priya', last_name: 'Patel', full_name: 'Priya Patel', email: 'priya.p@example.com', phone: '+91 98765 22222', status: 'active', join_date: '2026-08-15', current_plan_name: 'Monthly Standard', membership_expiry_date: '2026-09-28', is_expiring_soon: true, assigned_trainer_id: 2 },
-    { id: 3, gym_id: 1, first_name: 'Amit', last_name: 'Kumar', full_name: 'Amit Kumar', email: 'amit.k@example.com', phone: '+91 98765 33333', status: 'active', join_date: '2026-07-10', current_plan_name: 'Annual Elite VIP', membership_expiry_date: '2027-07-10', is_expiring_soon: false, assigned_trainer_id: 1 },
-    { id: 4, gym_id: 1, first_name: 'Sneha', last_name: 'Reddy', full_name: 'Sneha Reddy', email: 'sneha.r@example.com', phone: '+91 98765 44444', status: 'active', join_date: '2026-09-01', current_plan_name: 'Monthly Standard', membership_expiry_date: '2026-10-01', is_expiring_soon: false, assigned_trainer_id: 2 },
-    { id: 5, gym_id: 1, first_name: 'Rohan', last_name: 'Verma', full_name: 'Rohan Verma', email: 'rohan.v@example.com', phone: '+91 98765 55555', status: 'active', join_date: '2026-08-20', current_plan_name: 'Quarterly Pro', membership_expiry_date: '2026-11-20', is_expiring_soon: false, assigned_trainer_id: 3 },
-    { id: 6, gym_id: 1, first_name: 'Ananya', last_name: 'Sen', full_name: 'Ananya Sen', email: 'ananya.s@example.com', phone: '+91 98765 66666', status: 'active', join_date: '2026-09-05', current_plan_name: 'Monthly Standard', membership_expiry_date: '2026-10-05', is_expiring_soon: false, assigned_trainer_id: null },
-    { id: 7, gym_id: 1, first_name: 'Deepak', last_name: 'Joshi', full_name: 'Deepak Joshi', email: 'deepak.j@example.com', phone: '+91 98765 77777', status: 'expired', join_date: '2026-06-01', current_plan_name: 'Monthly Standard', membership_expiry_date: '2026-08-01', is_expiring_soon: false, assigned_trainer_id: null },
-    { id: 8, gym_id: 1, first_name: 'Pooja', last_name: 'Nair', full_name: 'Pooja Nair', email: 'pooja.n@example.com', phone: '+91 98765 88888', status: 'active', join_date: '2026-07-25', current_plan_name: 'Annual Elite VIP', membership_expiry_date: '2027-07-25', is_expiring_soon: false, assigned_trainer_id: 1 }
-  ],
-  attendance: [
-    { id: 1, gym_id: 1, member_id: 1, member_name: 'Rahul Sharma', check_in_time: new Date(Date.now() - 3600000 * 2).toISOString(), check_out_time: null, method: 'manual', notes: 'Leg day workout' },
-    { id: 2, gym_id: 1, member_id: 2, member_name: 'Priya Patel', check_in_time: new Date(Date.now() - 3600000 * 1.5).toISOString(), check_out_time: null, method: 'qr_scan', notes: 'Cardio interval' },
-    { id: 3, gym_id: 1, member_id: 3, member_name: 'Amit Kumar', check_in_time: new Date(Date.now() - 3600000 * 1).toISOString(), check_out_time: null, method: 'manual', notes: 'Personal trainer session' },
-    { id: 4, gym_id: 1, member_id: 4, member_name: 'Sneha Reddy', check_in_time: new Date(Date.now() - 3600000 * 0.5).toISOString(), check_out_time: null, method: 'qr_scan', notes: 'Upper body' }
-  ],
-  payments: [
-    { id: 1, gym_id: 1, member_id: 1, member_name: 'Rahul Sharma', plan_name: 'Quarterly Pro', amount: 4000, payment_method: 'upi', status: 'completed', payment_date: '2026-08-01', invoice_number: 'INV-2026-001' },
-    { id: 2, gym_id: 1, member_id: 2, member_name: 'Priya Patel', plan_name: 'Monthly Standard', amount: 1500, payment_method: 'card', status: 'completed', payment_date: '2026-08-28', invoice_number: 'INV-2026-002' },
-    { id: 3, gym_id: 1, member_id: 3, member_name: 'Amit Kumar', plan_name: 'Annual Elite VIP', amount: 12000, payment_method: 'bank_transfer', status: 'completed', payment_date: '2026-07-10', invoice_number: 'INV-2026-003' },
-    { id: 4, gym_id: 1, member_id: 4, member_name: 'Sneha Reddy', plan_name: 'Monthly Standard', amount: 1500, payment_method: 'upi', status: 'completed', payment_date: '2026-09-01', invoice_number: 'INV-2026-004' },
-    { id: 5, gym_id: 1, member_id: 5, member_name: 'Rohan Verma', plan_name: 'Quarterly Pro', amount: 4000, payment_method: 'cash', status: 'completed', payment_date: '2026-08-20', invoice_number: 'INV-2026-005' },
-    { id: 6, gym_id: 1, member_id: 8, member_name: 'Pooja Nair', plan_name: 'Annual Elite VIP', amount: 12000, payment_method: 'upi', status: 'completed', payment_date: '2026-07-25', invoice_number: 'INV-2026-006' }
-  ],
+  plans: [],
+  trainers: [],
+  members: [],
+  attendance: [],
+  payments: [],
+  inquiries: [],
   settings: {
-    gym_id: 1,
     business_hours: '06:00 - 22:00',
     tax_percentage: 18.0,
     expiry_alert_days: 7,
-    receipt_footer_text: 'Thank you for training with Apex Fitness Club!',
+    receipt_footer_text: 'Thank you for training with us!',
     primary_color: '#4f46e5'
   },
-  website: {
-    website_subdomain: 'apex-fitness-club',
-    website_enabled: true,
-    website_headline: 'Welcome to Apex Fitness Club',
-    website_tagline: 'Elevate Your Fitness Journey With Us',
-    website_about: 'Premier fitness destination equipped with Olympic free weights, cutting-edge cardio, and certified coaches.',
-    website_amenities: 'Olympic Free Weights, Cardio Theatre, Strength Machines, Certified Trainers, Steam & Sauna, Lockers',
-    website_cover_image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&auto=format&fit=crop&q=80',
-    website_custom_domain: ''
-  },
-  inquiries: [
-    { id: 1, gym_id: 1, name: 'Kavita Roy', email: 'kavita@example.com', phone: '+91 98765 99991', message: 'Interested in annual membership and personal trainer options.', status: 'new', created_at: new Date(Date.now() - 86400000).toISOString() },
-    { id: 2, gym_id: 1, name: 'Rajiv Menon', email: 'rajiv@example.com', phone: '+91 98765 99992', message: 'What are your peak hours and steam room timings?', status: 'contacted', created_at: new Date(Date.now() - 172800000).toISOString() }
-  ]
+  website: {}
 };
 
 function getDb() {
@@ -118,6 +45,7 @@ function getDb() {
     }
     const parsed = JSON.parse(raw);
     if (!parsed.version || parsed.version < DB_VERSION || !Array.isArray(parsed.gyms)) {
+      // Purge old mock storage and reset to clean version 3
       localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultDb));
       return defaultDb;
     }
@@ -148,44 +76,45 @@ export function handleMockRequest(endpoint, options = {}) {
   }
 
   // Current active tenant & user resolver
-  let currentGymId = db.currentGymId || 1;
-  let currentUser = db.users.find((u) => u.id === db.currentUserId) || db.users[0];
-  let currentGym = db.gyms.find((g) => g.id === currentGymId) || db.gyms[0];
+  let currentGymId = db.currentGymId || null;
+  let currentUser = db.currentUserId ? db.users.find((u) => u.id === db.currentUserId) || null : null;
+  let currentGym = currentGymId ? db.gyms.find((g) => g.id === currentGymId) || null : null;
 
   // 1. Auth: Login
   if (endpoint.startsWith('/auth/login') && method === 'POST') {
     const email = (body.email || '').toLowerCase().trim();
-    let user = db.users.find((u) => u.email.toLowerCase() === email);
+    const password = body.password || '';
 
-    if (!user) {
-      if (email.includes('admin')) {
-        user = db.users.find((u) => u.is_superadmin) || {
-          id: Date.now(),
-          gym_id: null,
-          email,
-          name: 'Platform Super Admin',
-          role: 'superadmin',
-          is_superadmin: true
-        };
-      } else {
-        user = {
-          id: Date.now(),
-          gym_id: currentGymId,
-          email: email || 'owner@apexfitness.com',
-          name: email.split('@')[0] || 'Gym Owner',
-          role: 'owner',
-          is_superadmin: false
-        };
-        db.users.push(user);
+    // Super Admin login
+    if (email === 'admin@gympulse.com') {
+      if (password !== 'SuperAdmin123!') {
+        throw new Error('Invalid credentials for Platform Super Admin.');
       }
+      const adminUser = db.users.find((u) => u.is_superadmin) || defaultDb.users[0];
+      db.currentUserId = adminUser.id;
+      db.currentGymId = null;
+      saveDb(db);
+      return {
+        access_token: 'mock-standalone-admin-token-' + Date.now(),
+        token_type: 'bearer',
+        user: adminUser,
+        gym: null
+      };
+    }
+
+    // Registered Facility Owner login
+    const user = db.users.find((u) => (u.email || '').toLowerCase().trim() === email);
+    if (!user) {
+      throw new Error('No account found with this email. Please register your gym facility first.');
+    }
+
+    if (user.password && user.password !== password) {
+      throw new Error('Invalid password. Please check your credentials.');
     }
 
     db.currentUserId = user.id;
-    if (user.gym_id) {
-      db.currentGymId = user.gym_id;
-      currentGymId = user.gym_id;
-    }
-    currentGym = db.gyms.find((g) => g.id === currentGymId) || db.gyms[0];
+    db.currentGymId = user.gym_id;
+    currentGym = db.gyms.find((g) => g.id === user.gym_id) || null;
     saveDb(db);
 
     return {
@@ -207,15 +136,16 @@ export function handleMockRequest(endpoint, options = {}) {
       name: gymName,
       slug,
       website_subdomain: slug,
-      email: body.email || 'owner@newgym.com',
+      email: (body.email || 'owner@newgym.com').toLowerCase().trim(),
       phone: body.phone || '+91 90000 00000',
-      address: 'Fitness Boulevard Suite 100',
+      address: 'Fitness Facility Address',
       currency: body.currency || 'INR',
       plan_tier: 'pro',
-      is_approved: true,
-      approval_status: 'approved',
+      is_approved: false, // Requires Super Admin approval
+      approval_status: 'pending',
       member_capacity: 150,
-      logo_url: '/gympulse.png'
+      logo_url: '/gympulse.png',
+      created_at: new Date().toISOString()
     };
     db.gyms.push(newGym);
 
@@ -223,7 +153,8 @@ export function handleMockRequest(endpoint, options = {}) {
     const newUser = {
       id: newUserId,
       gym_id: newGymId,
-      email: body.email,
+      email: (body.email || '').toLowerCase().trim(),
+      password: body.password || '',
       name: body.owner_name || 'Gym Owner',
       role: 'owner',
       is_superadmin: false
@@ -236,7 +167,7 @@ export function handleMockRequest(endpoint, options = {}) {
       { id: Date.now() + 2, gym_id: newGymId, name: 'Quarterly Power Plan', duration_days: 90, price: 4000, description: '3 months access with trainer consult' }
     );
 
-    // NOTE: db.members has 0 members for newGymId! It starts completely clean with 0 names.
+    // Newly registered gym starts with strictly 0 members and 0 invoices
     db.currentGymId = newGymId;
     db.currentUserId = newUserId;
     saveDb(db);
@@ -251,12 +182,26 @@ export function handleMockRequest(endpoint, options = {}) {
 
   // 3. Auth: Current User (/auth/me)
   if (endpoint.startsWith('/auth/me')) {
-    const user = db.users.find((u) => u.id === db.currentUserId) || db.users[0];
-    const gym = db.gyms.find((g) => g.id === (user.gym_id || db.currentGymId)) || db.gyms[0];
+    if (!db.currentUserId) {
+      throw new Error('Not authenticated');
+    }
+    const user = db.users.find((u) => u.id === db.currentUserId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    const gym = user.gym_id ? db.gyms.find((g) => g.id === user.gym_id) || null : null;
     return {
       user,
       gym
     };
+  }
+
+  // Auth: Logout
+  if (endpoint.startsWith('/auth/logout')) {
+    db.currentUserId = null;
+    db.currentGymId = null;
+    saveDb(db);
+    return { success: true };
   }
 
   // 4. Dashboard Stats (strictly scoped to active gym)
@@ -609,9 +554,9 @@ export function handleMockRequest(endpoint, options = {}) {
     const totalRev = db.payments.filter((p) => p.gym_id === currentGymId).reduce((s, p) => s + (p.amount || 0), 0);
     const checkedInToday = db.attendance.filter((a) => a.gym_id === currentGymId).length;
 
-    let reply = `Here is your gym update for ${currentGym.name}:\n`;
+    let reply = `Here is your gym update for ${currentGym?.name || 'Your Facility'}:\n`;
     if (q.includes('member') || q.includes('who') || q.includes('active')) {
-      reply += `• Active Members: ${activeCount} / ${currentGym.member_capacity} capacity.\n`;
+      reply += `• Active Members: ${activeCount} / ${currentGym?.member_capacity || 150} capacity.\n`;
     }
     if (q.includes('revenue') || q.includes('money') || q.includes('earn') || q.includes('collection')) {
       reply += `• Monthly Revenue: ₹${totalRev.toLocaleString('en-IN')}.\n`;
@@ -623,7 +568,7 @@ export function handleMockRequest(endpoint, options = {}) {
       reply += `• Expiring Soon: ${expiringSoon}.\n`;
     }
     if (reply.length <= 40) {
-      reply = `Hello! I am your AI GymPulse Assistant. Your facility "${currentGym.name}" has ${activeCount} active members, ${checkedInToday} check-ins today, and ₹${totalRev.toLocaleString('en-IN')} total revenue collected. What would you like to check?`;
+      reply = `Hello! I am your AI GymPulse Assistant. Your facility "${currentGym?.name || 'Your Facility'}" has ${activeCount} active members, ${checkedInToday} check-ins today, and ₹${totalRev.toLocaleString('en-IN')} total revenue collected. What would you like to check?`;
     }
     return {
       query: body.query,

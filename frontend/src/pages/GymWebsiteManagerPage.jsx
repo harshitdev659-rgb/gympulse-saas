@@ -242,7 +242,7 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
                 type="text"
                 value={form.website_custom_domain}
                 onChange={(e) => setForm({ ...form, website_custom_domain: e.target.value })}
-                placeholder="e.g. www.apexfitnessclub.com"
+                placeholder="e.g. www.yourgymname.com"
                 className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
               <p className="text-[11px] text-slate-400 mt-1">Point your custom domain CNAME to GymPulse.</p>
@@ -259,7 +259,7 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
                 required
                 value={form.website_headline}
                 onChange={(e) => setForm({ ...form, website_headline: e.target.value })}
-                placeholder="Welcome to Apex Fitness Club"
+                placeholder="Welcome to Our Fitness Facility"
                 className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
             </div>

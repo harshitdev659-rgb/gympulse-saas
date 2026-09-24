@@ -15,6 +15,8 @@ def list_plans(
     db: Session = Depends(get_db)
 ):
     """List all membership plans created for this gym."""
+    if not current_gym:
+        return []
     return db.query(MembershipPlan).filter(
         MembershipPlan.gym_id == current_gym.id
     ).order_by(MembershipPlan.price.asc()).all()

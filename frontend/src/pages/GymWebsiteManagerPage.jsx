@@ -47,9 +47,10 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
   const fetchWebsiteData = async () => {
     setLoading(true);
     try {
-      const data = await api.getGymWebsite();
+      const res = await api.getGymWebsite();
+      const data = res || {};
       setForm({
-        website_subdomain: data.website_subdomain || gym?.slug || '',
+        website_subdomain: data.website_subdomain || gym?.website_subdomain || gym?.slug || '',
         website_enabled: data.website_enabled ?? true,
         website_headline: data.website_headline || `Welcome to ${gym?.name || 'Our Gym'}`,
         website_tagline: data.website_tagline || 'Elevate Your Fitness Journey With Us',
@@ -59,7 +60,7 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
         website_custom_domain: data.website_custom_domain || ''
       });
     } catch (err) {
-      toast.error('Could not load website settings.');
+      console.debug('Could not load website settings, falling back to defaults:', err);
     } finally {
       setLoading(false);
     }
@@ -221,7 +222,7 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
               </label>
               <div className="flex rounded-xl shadow-xs">
                 <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-slate-200 bg-slate-50 text-slate-500 text-xs font-mono">
-                  {activeBaseUrl.replace(/^https?:\/\//, '')}/facility/
+                  {windowOrigin.replace(/^https?:\/\//, '')}{baseSubpath}/app.html?facility=
                 </span>
                 <input
                   type="text"

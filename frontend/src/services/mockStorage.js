@@ -741,9 +741,21 @@ export function handleMockRequest(endpoint, options = {}) {
         currentGym.website = { ...(currentGym.website || {}), ...body };
       }
       saveDb(db);
-      return db.website;
+      return { ...db.website, ...(currentGym?.website || {}) };
     }
-    return db.website;
+    const activeGym = currentGym || db.gyms[0];
+    return {
+      website_subdomain: activeGym?.website_subdomain || activeGym?.slug || 'my-gym',
+      website_enabled: activeGym?.website_enabled ?? true,
+      website_headline: activeGym?.website_headline || `Welcome to ${activeGym?.name || 'GymPulse Facility'}`,
+      website_tagline: activeGym?.website_tagline || 'World-Class Fitness, Strength & Conditioning',
+      website_about: activeGym?.website_about || `${activeGym?.name || 'Our facility'} offers world-class training equipment and certified coaches.`,
+      website_cover_image: activeGym?.website_cover_image || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&auto=format&fit=crop&q=80',
+      website_amenities: activeGym?.website_amenities || 'Olympic Free Weights, Cardio Theatre, Strength Machines, Certified Trainers, Steam & Sauna, Lockers',
+      website_custom_domain: activeGym?.website_custom_domain || '',
+      ...db.website,
+      ...(activeGym?.website || {})
+    };
   }
   if (endpoint.startsWith('/gym/inquiries')) {
     return db.inquiries.filter((inq) => inq.gym_id === currentGymId);
@@ -752,12 +764,37 @@ export function handleMockRequest(endpoint, options = {}) {
   // 14b. Dedicated Public Facility Website Handler (/public/facility/:slug)
   const matchPublicFacility = endpoint.match(/^\/public\/facility\/([^/?]+)/);
   if (matchPublicFacility) {
-    const slug = decodeURIComponent(matchPublicFacility[1]).toLowerCase();
-    const facilityGym = db.gyms.find(
+    const rawSlug = decodeURIComponent(matchPublicFacility[1]).toLowerCase().trim();
+    const slug = rawSlug.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || rawSlug;
+
+    // Search facility by slug, subdomain, or ID
+    let facilityGym = db.gyms.find(
       (g) => (g.slug && g.slug.toLowerCase() === slug) || 
              (g.website_subdomain && g.website_subdomain.toLowerCase() === slug) || 
-             String(g.id) === slug
-    ) || db.gyms[0];
+             String(g.id) === slug ||
+             (g.name && g.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') === slug)
+    );
+
+    // If not found directly, check active user's gym or fallback to first gym or auto-constructed profile
+    if (!facilityGym) {
+      if (currentGym) {
+        facilityGym = currentGym;
+      } else if (db.gyms.length > 0) {
+        facilityGym = db.gyms[0];
+      } else {
+        const prettyName = slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') || 'Fitness Facility';
+        facilityGym = {
+          id: 1,
+          name: prettyName,
+          slug: slug,
+          website_subdomain: slug,
+          email: `contact@${slug}.com`,
+          phone: '+91 90000 00000',
+          address: 'Central Fitness Boulevard',
+          currency: 'INR'
+        };
+      }
+    }
 
     if (endpoint.includes('/inquire') && method === 'POST') {
       const inq = {
@@ -776,26 +813,58 @@ export function handleMockRequest(endpoint, options = {}) {
       return { success: true, message: 'Your inquiry has been received! Facility staff will contact you shortly.' };
     }
 
-    if (!facilityGym) {
-      throw new Error(`Facility with website link "${slug}" not found.`);
-    }
-
     const facilityPlans = db.plans.filter((p) => p.gym_id === facilityGym.id);
     const facilityTrainers = db.trainers.filter((t) => t.gym_id === facilityGym.id);
+    const web = facilityGym.website || db.website || {};
+
+    const amenitiesList = Array.isArray(web.website_amenities)
+      ? web.website_amenities
+      : (web.website_amenities || facilityGym.website_amenities || 'Olympic Free Weights, Cardio Theatre, Strength Machines, Certified Trainers, Steam & Sauna, Lockers')
+          .split(',')
+          .map((a) => a.trim())
+          .filter(Boolean);
+
+    const plansList = facilityPlans.length > 0 ? facilityPlans : [
+      { id: 1, gym_id: facilityGym.id, name: 'Monthly Flex Pass', duration_days: 30, price: 1499, description: 'Unlimited gym floor access & locker usage' },
+      { id: 2, gym_id: facilityGym.id, name: 'Quarterly Power Plan', duration_days: 90, price: 3999, description: '3 months access with initial fitness assessment' },
+      { id: 3, gym_id: facilityGym.id, name: 'Annual Elite Pass', duration_days: 365, price: 11999, description: '365 days unlimited access + VIP coach check-ins' }
+    ];
+
+    const trainersList = facilityTrainers.length > 0 ? facilityTrainers : [
+      { id: 1, name: 'Coach Alex Rivera', specialty: 'Strength & Conditioning', specialization: 'Strength & Conditioning', bio: 'Certified CSCS coach with 8+ years elite athlete training experience.' },
+      { id: 2, name: 'Elena Rostova', specialty: 'Functional Fitness & Mobility', specialization: 'Functional Fitness & Mobility', bio: 'Specialist in functional biomechanics, mobility restoration, and HIIT.' }
+    ];
+
     return {
+      // Direct flattened properties expected by GymPublicWebsitePage:
+      id: facilityGym.id,
+      name: facilityGym.name,
+      slug: facilityGym.slug || slug,
+      website_subdomain: facilityGym.website_subdomain || facilityGym.slug || slug,
+      headline: web.website_headline || facilityGym.website_headline || `Welcome to ${facilityGym.name}`,
+      tagline: web.website_tagline || facilityGym.website_tagline || 'World-Class Fitness, Strength & Conditioning',
+      about: web.website_about || facilityGym.website_about || `${facilityGym.name} provides premier fitness equipment, certified coaching, and a supportive community.`,
+      cover_image: web.website_cover_image || facilityGym.website_cover_image || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&auto=format&fit=crop&q=80',
+      amenities: amenitiesList,
+      currency: facilityGym.currency || 'INR',
+      logo_url: facilityGym.logo_url || '/gympulse.png',
+      phone: facilityGym.phone || '+91 90000 00000',
+      email: facilityGym.email || 'contact@gympulse.com',
+      address: facilityGym.address || 'Central Fitness Complex',
+      business_hours: 'Mon-Sat: 6:00 AM - 10:00 PM',
+      primary_color: '#0270c7',
+      plans: plansList,
+      trainers: trainersList,
+
+      // Nested properties for backward compatibility:
       gym: facilityGym,
-      plans: facilityPlans.length > 0 ? facilityPlans : [
-        { id: 1, gym_id: facilityGym.id, name: 'Monthly Flex Pass', duration_days: 30, price: 1500, description: 'Unlimited gym floor access & locker usage' },
-        { id: 2, gym_id: facilityGym.id, name: 'Quarterly Power Plan', duration_days: 90, price: 4000, description: '3 months access with initial fitness assessment' }
-      ],
-      trainers: facilityTrainers,
-      website: facilityGym.website || db.website || {
-        website_subdomain: facilityGym.website_subdomain || facilityGym.slug,
-        website_headline: `Welcome to ${facilityGym.name}`,
-        website_tagline: 'World-Class Fitness, Strength & Conditioning',
-        website_about: `${facilityGym.name} provides premier fitness equipment, certified coaching, and a supportive community.`,
-        website_cover_image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&auto=format&fit=crop&q=80',
-        website_amenities: 'Olympic Free Weights, Cardio Theatre, Strength Machines, Certified Trainers, Steam & Sauna, Lockers'
+      website: {
+        website_subdomain: facilityGym.website_subdomain || facilityGym.slug || slug,
+        website_headline: web.website_headline || facilityGym.website_headline || `Welcome to ${facilityGym.name}`,
+        website_tagline: web.website_tagline || facilityGym.website_tagline || 'World-Class Fitness, Strength & Conditioning',
+        website_about: web.website_about || facilityGym.website_about || `${facilityGym.name} provides premier fitness equipment, certified coaching, and a supportive community.`,
+        website_cover_image: web.website_cover_image || facilityGym.website_cover_image || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&auto=format&fit=crop&q=80',
+        website_amenities: amenitiesList.join(', ')
       }
     };
   }

@@ -18,6 +18,8 @@ def get_gym_profile(
     current_gym: Gym = Depends(get_current_gym)
 ):
     """Get gym business profile and branding."""
+    if not current_gym:
+        raise HTTPException(status_code=400, detail="Gym context required")
     return current_gym
 
 @router.put("/gym", response_model=GymResponse)
@@ -28,6 +30,8 @@ def update_gym_profile(
     db: Session = Depends(get_db)
 ):
     """Update gym business profile, currency, or branding."""
+    if not current_gym:
+        raise HTTPException(status_code=400, detail="Gym context required")
     if req.name is not None:
         current_gym.name = req.name.strip()
     if req.phone is not None:
@@ -50,6 +54,8 @@ def get_gym_settings(
     db: Session = Depends(get_db)
 ):
     """Get gym operational configurations."""
+    if not current_gym:
+        raise HTTPException(status_code=400, detail="Gym context required")
     settings_obj = db.query(GymSetting).filter(GymSetting.gym_id == current_gym.id).first()
     if not settings_obj:
         # Create default if missing

@@ -34,7 +34,7 @@ import { Button } from '../components/common/Button';
 import { DownloadAppModal } from '../components/common/DownloadAppModal';
 import { formatCurrency } from '../utils/currency';
 
-export const DashboardPage = ({ setActiveTab, onQuickCheckIn, onOpenAi, refreshTrigger }) => {
+export const DashboardPage = ({ setActiveTab, onQuickCheckIn, onOpenAi, refreshTrigger, onPreviewWebsite }) => {
   const { gym } = useAuth();
   const toast = useToast();
   const [stats, setStats] = useState(null);
@@ -196,15 +196,21 @@ export const DashboardPage = ({ setActiveTab, onQuickCheckIn, onOpenAi, refreshT
                 {copiedWebsite ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>{copiedWebsite ? 'Copied' : 'Copy Website Link'}</span>
               </button>
-              <a
-                href={publicWebsiteUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition-colors border border-slate-200"
+              <button
+                type="button"
+                onClick={() => {
+                  if (onPreviewWebsite) {
+                    onPreviewWebsite(gymSlug);
+                  } else {
+                    window.open(publicWebsiteUrl, '_blank');
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition-colors border border-slate-200 cursor-pointer"
+                title="Preview dedicated gym website"
               >
-                <ExternalLink className="w-3.5 h-3.5 text-indigo-600" />
+                <Globe className="w-3.5 h-3.5 text-indigo-600" />
                 <span>Visit Live Website</span>
-              </a>
+              </button>
               <button
                 type="button"
                 onClick={() => setActiveTab('website')}

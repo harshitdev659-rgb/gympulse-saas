@@ -19,6 +19,23 @@ def get_dashboard_stats(
     db: Session = Depends(get_db)
 ):
     """Aggregate real-time dashboard KPIs and charts data for the authenticated gym."""
+    if not current_gym:
+        return DashboardStatsResponse(
+            total_members=0,
+            active_members=0,
+            expired_members=0,
+            expiring_soon_members=0,
+            today_attendance=0,
+            active_now=0,
+            monthly_revenue=0.0,
+            last_month_revenue=0.0,
+            pending_payments_count=0,
+            pending_payments_amount=0.0,
+            new_members_this_month=0,
+            recent_checkins=[],
+            attendance_chart_data=[],
+            revenue_chart_data=[]
+        )
     today = datetime.date.today()
     today_start = datetime.datetime.combine(today, datetime.time.min)
     today_end = datetime.datetime.combine(today, datetime.time.max)

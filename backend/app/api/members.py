@@ -85,6 +85,8 @@ def list_members(
     db: Session = Depends(get_db)
 ):
     """List members strictly for current gym with search, filters, and pagination."""
+    if not current_gym:
+        return []
     query = db.query(Member).filter(Member.gym_id == current_gym.id)
 
     if search:

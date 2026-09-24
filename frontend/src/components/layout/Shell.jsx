@@ -14,7 +14,8 @@ export const Shell = ({
   isQuickCheckInOpen,
   setIsQuickCheckInOpen,
   onQuickAddMember,
-  onCheckInSuccess
+  onCheckInSuccess,
+  onPreviewWebsite
 }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -27,6 +28,7 @@ export const Shell = ({
         onOpenAi={() => setIsAiOpen(true)}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        onPreviewWebsite={onPreviewWebsite}
       />
 
       {/* Main Content Area */}

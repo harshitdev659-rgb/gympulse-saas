@@ -19,6 +19,16 @@ def get_reports_summary(
     db: Session = Depends(get_db)
 ):
     """Overall analytical summary for reports dashboard."""
+    if not current_gym:
+        return {
+            "total_revenue": 0.0,
+            "this_month_revenue": 0.0,
+            "total_members": 0,
+            "active_members": 0,
+            "expired_members": 0,
+            "total_visits": 0,
+            "currency": "INR"
+        }
     today = datetime.date.today()
     this_month_start = today.replace(day=1)
     
@@ -57,6 +67,13 @@ def get_revenue_report(
     db: Session = Depends(get_db)
 ):
     """Detailed revenue breakdown by plan and payment method."""
+    if not current_gym:
+        return {
+            "total_amount": 0.0,
+            "count": 0,
+            "by_method": {},
+            "records": []
+        }
     query = (
         db.query(Payment, Member)
         .join(Member, Payment.member_id == Member.id)

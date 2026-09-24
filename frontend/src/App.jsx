@@ -2,6 +2,7 @@ import React, { useState, Suspense, lazy } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { Shell } from './components/layout/Shell';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -286,75 +287,81 @@ function AppContent() {
       onCheckInSuccess={() => {
         setDashboardRefreshTrigger((prev) => prev + 1);
       }}
+      onPreviewWebsite={(slug) => setPreviewFacilitySlug(slug || gym?.website_subdomain || gym?.slug)}
     >
-      <Suspense fallback={<LoadingFallback />}>
-        {activeTab === 'superadmin' && (
-          <SuperAdminPage onPreviewWebsite={(slug) => setPreviewFacilitySlug(slug)} />
-        )}
+      <ErrorBoundary onReset={() => setActiveTab('dashboard')}>
+        <Suspense fallback={<LoadingFallback />}>
+          {activeTab === 'superadmin' && (
+            <SuperAdminPage onPreviewWebsite={(slug) => setPreviewFacilitySlug(slug)} />
+          )}
 
-        {activeTab === 'website' && (
-          <GymWebsiteManagerPage onPreviewWebsite={(slug) => setPreviewFacilitySlug(slug)} />
-        )}
+          {activeTab === 'website' && (
+            <GymWebsiteManagerPage onPreviewWebsite={(slug) => setPreviewFacilitySlug(slug)} />
+          )}
 
-        {activeTab === 'dashboard' && (
-          <DashboardPage
-            setActiveTab={setActiveTab}
-            onQuickCheckIn={() => setIsQuickCheckInOpen(true)}
-            onOpenAi={handleOpenAi}
-            refreshTrigger={dashboardRefreshTrigger}
-          />
-        )}
-
-        {activeTab === 'members' && (
-          selectedMemberId ? (
-            <MemberDetailPage
-              memberId={selectedMemberId}
-              onBack={() => setSelectedMemberId(null)}
+          {activeTab === 'dashboard' && (
+            <DashboardPage
+              setActiveTab={setActiveTab}
+              onQuickCheckIn={() => setIsQuickCheckInOpen(true)}
+              onOpenAi={handleOpenAi}
+              refreshTrigger={dashboardRefreshTrigger}
+              onPreviewWebsite={(slug) => setPreviewFacilitySlug(slug || gym?.website_subdomain || gym?.slug)}
             />
-          ) : (
-            <MembersPage
-              onSelectMember={(id) => setSelectedMemberId(id)}
-              isAddModalOpen={isQuickAddMemberOpen}
-              setIsAddModalOpen={setIsQuickAddMemberOpen}
+          )}
+
+          {activeTab === 'members' && (
+            selectedMemberId ? (
+              <MemberDetailPage
+                memberId={selectedMemberId}
+                onBack={() => setSelectedMemberId(null)}
+              />
+            ) : (
+              <MembersPage
+                onSelectMember={(id) => setSelectedMemberId(id)}
+                isAddModalOpen={isQuickAddMemberOpen}
+                setIsAddModalOpen={setIsQuickAddMemberOpen}
+              />
+            )
+          )}
+
+          {activeTab === 'memberships' && <PlansPage />}
+
+          {activeTab === 'attendance' && (
+            <AttendancePage
+              isCheckInModalOpen={isQuickCheckInOpen}
+              setIsCheckInModalOpen={setIsQuickCheckInOpen}
+              refreshTrigger={dashboardRefreshTrigger}
             />
-          )
-        )}
+          )}
 
-        {activeTab === 'memberships' && <PlansPage />}
+          {activeTab === 'payments' && <PaymentsPage />}
 
-        {activeTab === 'attendance' && (
-          <AttendancePage
-            isCheckInModalOpen={isQuickCheckInOpen}
-            setIsCheckInModalOpen={setIsQuickCheckInOpen}
-            refreshTrigger={dashboardRefreshTrigger}
-          />
-        )}
+          {activeTab === 'trainers' && (
+            <TrainersPage
+              onSelectMember={(id) => {
+                setActiveTab('members');
+                setSelectedMemberId(id);
+              }}
+            />
+          )}
 
-        {activeTab === 'payments' && <PaymentsPage />}
+          {activeTab === 'reports' && <ReportsPage />}
 
-        {activeTab === 'trainers' && (
-          <TrainersPage
-            onSelectMember={(id) => {
-              setActiveTab('members');
-              setSelectedMemberId(id);
-            }}
-          />
-        )}
-
-        {activeTab === 'reports' && <ReportsPage />}
-
-        {activeTab === 'settings' && <SettingsPage />}
-      </Suspense>
+          {activeTab === 'settings' && <SettingsPage />}
+        </Suspense>
+      </ErrorBoundary>
     </Shell>
   );
 }
 
 export default function App() {
   return (
-    <AuthProvider>
-      <ToastProvider>
-        <AppContent />
-      </ToastProvider>
-    </AuthProvider>
+    <ErrorBoundary onReset={() => window.location.reload()}>
+      <AuthProvider>
+        <ToastProvider>
+          <AppContent />
+        </ToastProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

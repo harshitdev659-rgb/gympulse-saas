@@ -17,6 +17,8 @@ def list_trainers(
     db: Session = Depends(get_db)
 ):
     """List all trainers in current gym with member count."""
+    if not current_gym:
+        return []
     trainers = db.query(Trainer).filter(Trainer.gym_id == current_gym.id).all()
     res = []
     for t in trainers:

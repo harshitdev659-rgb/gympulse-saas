@@ -17,6 +17,8 @@ def get_today_attendance(
     db: Session = Depends(get_db)
 ):
     """Retrieve all check-ins for today with member details and duration."""
+    if not current_gym:
+        return []
     today = datetime.date.today()
     today_start = datetime.datetime.combine(today, datetime.time.min)
     today_end = datetime.datetime.combine(today, datetime.time.max)
@@ -153,6 +155,8 @@ def get_attendance_history(
     db: Session = Depends(get_db)
 ):
     """Retrieve searchable attendance history with date filters."""
+    if not current_gym:
+        return []
     query = (
         db.query(Attendance, Member)
         .join(Member, Attendance.member_id == Member.id)

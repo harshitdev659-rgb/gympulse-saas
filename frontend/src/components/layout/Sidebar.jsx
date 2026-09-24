@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
-export const Sidebar = ({ activeTab, setActiveTab, onOpenAi, isOpen, onClose }) => {
+export const Sidebar = ({ activeTab, setActiveTab, onOpenAi, isOpen, onClose, onPreviewWebsite }) => {
   const { user, gym, logout } = useAuth();
   const isSuperAdmin = user?.is_superadmin || user?.role === 'superadmin';
 
@@ -129,19 +129,33 @@ export const Sidebar = ({ activeTab, setActiveTab, onOpenAi, isOpen, onClose }) 
         {/* Dedicated Live Gym Website Quick Link */}
         {!isSuperAdmin && websiteUrl && (
           <div className="px-4 py-2 border-t border-slate-800/80">
-            <a
-              href={websiteUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-between p-2.5 rounded-xl bg-indigo-950/40 hover:bg-indigo-900/50 border border-indigo-500/30 text-xs text-indigo-200 hover:text-white transition-all group"
-              title={`Visit Live Website: ${websiteUrl}`}
-            >
-              <div className="flex items-center gap-2 truncate">
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-indigo-950/40 hover:bg-indigo-900/50 border border-indigo-500/30 text-xs text-indigo-200 hover:text-white transition-all group">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onPreviewWebsite) {
+                    onPreviewWebsite(gymSlug);
+                  } else {
+                    window.open(websiteUrl, '_blank');
+                  }
+                  if (onClose) onClose();
+                }}
+                className="flex items-center gap-2 truncate flex-1 text-left cursor-pointer"
+                title="Preview facility public website"
+              >
                 <Globe className="w-4 h-4 text-indigo-400 shrink-0" />
                 <span className="truncate font-bold">Live Gym Website</span>
-              </div>
-              <ExternalLink className="w-3.5 h-3.5 text-indigo-400 group-hover:scale-110 transition-transform shrink-0" />
-            </a>
+              </button>
+              <a
+                href={websiteUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Open in new tab: ${websiteUrl}`}
+                className="p-1 text-indigo-400 hover:text-white hover:bg-indigo-800/40 rounded-lg transition-colors ml-1"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
           </div>
         )}
 

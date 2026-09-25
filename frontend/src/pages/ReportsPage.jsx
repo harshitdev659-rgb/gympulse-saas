@@ -114,8 +114,8 @@ export const ReportsPage = () => {
       const rev = await api.getRevenueReport(startDate || null, endDate || null);
       const breakdown = rev?.daily_breakdown || [];
       const total = rev?.total_revenue ?? (summary?.total_revenue || 0);
-      exportRevenueCsv(breakdown, total, currency);
-      toast.success('Revenue report downloaded!');
+      await exportRevenueCsv(breakdown, total, currency);
+      toast.success('Revenue report ready — choose where to save it!');
     } catch (e) {
       toast.error('Failed to export revenue CSV.');
     }
@@ -124,8 +124,8 @@ export const ReportsPage = () => {
   const handleExportMembers = async () => {
     try {
       const members = await api.getMembers();
-      exportMembersListCsv(members);
-      toast.success('Members roster exported!');
+      await exportMembersListCsv(members);
+      toast.success('Members roster ready — choose where to save it!');
     } catch (e) {
       toast.error('Failed to export members CSV.');
     }
@@ -134,8 +134,8 @@ export const ReportsPage = () => {
   const handleExportAttendance = async () => {
     try {
       const att = await api.getAttendanceHistory({ start_date: startDate || null, end_date: endDate || null });
-      exportAttendanceLogCsv(att);
-      toast.success('Attendance history exported!');
+      await exportAttendanceLogCsv(att);
+      toast.success('Attendance log ready — choose where to save it!');
     } catch (e) {
       toast.error('Failed to export attendance CSV.');
     }

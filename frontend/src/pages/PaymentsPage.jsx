@@ -109,13 +109,13 @@ export const PaymentsPage = () => {
     }
   };
 
-  const handleExportCsv = () => {
+  const handleExportCsv = async () => {
     if (payments.length === 0) {
       toast.error('No payments found in current filter to export.');
       return;
     }
-    exportPaymentsLedgerCsv(payments, currency);
-    toast.success('Payments ledger exported successfully!');
+    await exportPaymentsLedgerCsv(payments, currency);
+    toast.success('Payments ledger ready — choose where to save it!');
   };
 
   const currency = gym?.currency || 'INR';

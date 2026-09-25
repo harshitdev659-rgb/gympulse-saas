@@ -315,7 +315,7 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search by name, phone, or email..."
-            className="block w-full pl-10 pr-4 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className="block w-full pl-10 pr-4 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 text-slate-900 font-semibold placeholder:text-slate-400 placeholder:font-normal"
           />
         </div>
 
@@ -324,7 +324,7 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+            className="px-3 py-2 text-xs font-bold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white text-slate-900"
           >
             <option value="all">All Statuses</option>
             <option value="active">Active</option>

@@ -668,8 +668,33 @@ export function handleMockRequest(endpoint, options = {}) {
 
   // 7. Plans (scoped to current gym)
   if (endpoint.startsWith('/plans')) {
+    const matchPlan = endpoint.match(/^\/plans\/(\d+)$/);
+    if (matchPlan) {
+      const planId = parseInt(matchPlan[1], 10);
+      if (method === 'PUT') {
+        const idx = db.plans.findIndex((p) => p.id === planId);
+        if (idx !== -1) {
+          db.plans[idx] = { ...db.plans[idx], ...body };
+          saveDb(db);
+          return db.plans[idx];
+        }
+        throw new Error('Plan not found');
+      }
+      if (method === 'DELETE') {
+        const planInUse = db.members.some((m) => m.plan_id === planId);
+        if (planInUse) {
+          // Safely deactivate instead of hard-delete when members use this plan
+          const idx = db.plans.findIndex((p) => p.id === planId);
+          if (idx !== -1) { db.plans[idx].is_active = false; saveDb(db); }
+          return { success: true, deactivated: true };
+        }
+        db.plans = db.plans.filter((p) => p.id !== planId);
+        saveDb(db);
+        return { success: true };
+      }
+    }
     if (method === 'POST') {
-      const newPlan = { id: Date.now(), gym_id: currentGymId, ...body };
+      const newPlan = { id: Date.now(), gym_id: currentGymId, is_active: true, ...body };
       db.plans.push(newPlan);
       saveDb(db);
       return newPlan;

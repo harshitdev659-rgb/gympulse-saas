@@ -299,7 +299,7 @@ export const PlansPage = () => {
             <select
               value={planForm.billing_period}
               onChange={(e) => setPlanForm({ ...planForm, billing_period: e.target.value })}
-              className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+              className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white text-slate-900 font-semibold"
             >
               <option value="monthly">Monthly</option>
               <option value="quarterly">Quarterly (3 Months)</option>

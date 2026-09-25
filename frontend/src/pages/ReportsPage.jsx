@@ -8,7 +8,12 @@ import {
   ClipboardCheck,
   TrendingUp,
   FileSpreadsheet,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle,
+  MessageCircle,
+  CheckCircle2,
+  Clock,
+  UserX
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -21,6 +26,7 @@ export const ReportsPage = () => {
   const toast = useToast();
   const [summary, setSummary] = useState(null);
   const [revenueData, setRevenueData] = useState(null);
+  const [atRiskMembers, setAtRiskMembers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Date filters
@@ -30,12 +36,52 @@ export const ReportsPage = () => {
   const fetchReports = async () => {
     try {
       setIsLoading(true);
-      const [sum, rev] = await Promise.all([
-        api.getReportsSummary(),
-        api.getRevenueReport(startDate || null, endDate || null)
+      const [sum, rev, members, attendance] = await Promise.all([
+        api.getReportsSummary().catch(() => null),
+        api.getRevenueReport(startDate || null, endDate || null).catch(() => null),
+        api.getMembers().catch(() => []),
+        api.getAttendanceHistory().catch(() => [])
       ]);
       setSummary(sum);
       setRevenueData(rev);
+
+      // Compute At-Risk Members (Active members with no check-in in last 7+ days)
+      const now = new Date();
+      const lastCheckInMap = {};
+      if (Array.isArray(attendance)) {
+        attendance.forEach((att) => {
+          const mId = att.member_id;
+          const attTime = new Date(att.check_in_time).getTime();
+          if (!isNaN(attTime) && (!lastCheckInMap[mId] || attTime > lastCheckInMap[mId])) {
+            lastCheckInMap[mId] = attTime;
+          }
+        });
+      }
+
+      if (Array.isArray(members)) {
+        const atRisk = members
+          .filter((m) => m.status === 'active' || m.status === 'expiring')
+          .map((m) => {
+            const lastTime = lastCheckInMap[m.id];
+            let daysInactive = 999;
+            let lastVisitText = 'Never checked in';
+            if (lastTime) {
+              const diffMs = now.getTime() - lastTime;
+              daysInactive = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+              lastVisitText = daysInactive === 0 ? 'Today' : `${daysInactive} day${daysInactive > 1 ? 's' : ''} ago`;
+            }
+            return {
+              ...m,
+              daysInactive,
+              lastVisitText,
+              lastCheckInTimestamp: lastTime || 0
+            };
+          })
+          .filter((m) => m.daysInactive >= 7)
+          .sort((a, b) => b.daysInactive - a.daysInactive);
+
+        setAtRiskMembers(atRisk);
+      }
     } catch (err) {
       toast.error('Failed to load reports analytics.');
     } finally {
@@ -46,6 +92,22 @@ export const ReportsPage = () => {
   useEffect(() => {
     fetchReports();
   }, [startDate, endDate]);
+
+  const handleReEngageWhatsApp = (member) => {
+    if (!member.phone) {
+      toast.error('No phone number recorded for this athlete.');
+      return;
+    }
+    const cleanPhone = member.phone.replace(/[^0-9]/g, '');
+    const gymName = gym?.name || 'our fitness facility';
+    const memberName = member.first_name || member.full_name || 'Champion';
+    const daysText = member.daysInactive >= 900 ? 'a while' : `${member.daysInactive} days`;
+    
+    const message = `Hello ${memberName}! 🏋️\n\nWe noticed you haven't visited *${gymName}* in ${daysText}. We miss seeing you crushing your workouts!\n\nConsistency is key to hitting your goals, and your fitness team is here to support you. Let us know if your schedule changed or if you'd like a quick workout refresh with one of our trainers! 💪🔥\n\nSee you on the gym floor soon!`;
+    
+    const targetPhone = cleanPhone.startsWith('91') || cleanPhone.length > 10 ? cleanPhone : `91${cleanPhone}`;
+    window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`, '_blank');
+  };
 
   const handleExportRevenue = async () => {
     try {
@@ -154,6 +216,119 @@ export const ReportsPage = () => {
           </div>
           <span className="text-xs text-slate-400 mt-0.5 block">Facility footfall</span>
         </div>
+      </div>
+
+      {/* Athlete Retention & At-Risk Churn Alerts */}
+      <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shadow-xs">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-slate-900">Athlete Retention & Churn Prevention</h3>
+                {atRiskMembers.length > 0 ? (
+                  <span className="px-2.5 py-0.5 text-xs font-black rounded-full bg-rose-100 text-rose-700 border border-rose-200">
+                    {atRiskMembers.length} At-Risk
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-0.5 text-xs font-black rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
+                    Optimal
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Active paying members who haven't checked into your gym in 7+ days. Re-engage them directly before they drop out.
+              </p>
+            </div>
+          </div>
+          {atRiskMembers.length > 0 && (
+            <span className="text-xs text-slate-400 font-medium">
+              Showing top inactive athletes
+            </span>
+          )}
+        </div>
+
+        {isLoading ? (
+          <div className="py-8 text-center text-xs text-slate-400">
+            <RefreshCw className="w-4 h-4 animate-spin mx-auto text-brand-600 mb-2" />
+            Evaluating member attendance records...
+          </div>
+        ) : atRiskMembers.length === 0 ? (
+          <div className="p-6 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-emerald-900 uppercase tracking-wider">High Member Engagement!</h4>
+              <p className="text-xs text-emerald-700 mt-0.5">
+                All currently active members have checked into the facility within the last 7 days. Athlete retention is looking great!
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-2xl border border-slate-200">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
+                <tr>
+                  <th className="py-3 px-4">Athlete</th>
+                  <th className="py-3 px-4">Membership Pass</th>
+                  <th className="py-3 px-4">Last Gym Check-In</th>
+                  <th className="py-3 px-4">Risk Level</th>
+                  <th className="py-3 px-4 text-right">Instant Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium">
+                {atRiskMembers.slice(0, 10).map((member) => (
+                  <tr key={member.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="py-3 px-4">
+                      <div className="font-bold text-slate-900">{member.full_name || `${member.first_name} ${member.last_name}`}</div>
+                      <div className="text-[11px] text-slate-400">{member.phone || 'No phone'}</div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="font-semibold text-slate-800">{member.current_plan_name || 'Standard Pass'}</div>
+                      <div className="text-[11px] text-slate-400">
+                        {member.membership_expiry_date ? `Expires ${member.membership_expiry_date}` : 'Ongoing'}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-1.5 text-slate-700">
+                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{member.lastVisitText}</span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      {member.daysInactive >= 21 ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                          Critical ({member.daysInactive >= 900 ? 'Never' : `${member.daysInactive}d`})
+                        </span>
+                      ) : member.daysInactive >= 14 ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                          High ({member.daysInactive}d)
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-yellow-100 text-yellow-800 border border-yellow-200">
+                          Moderate ({member.daysInactive}d)
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <button
+                        onClick={() => handleReEngageWhatsApp(member)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors"
+                        title="Open WhatsApp chat with pre-written re-engagement message"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        <span>Re-Engage on WhatsApp</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Export Center Cards */}

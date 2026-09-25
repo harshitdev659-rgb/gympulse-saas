@@ -19,7 +19,8 @@ import {
   FileText,
   Sparkles,
   PlusCircle,
-  Check
+  Check,
+  MessageCircle
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -243,6 +244,23 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
     window.open(url, '_blank');
   };
 
+  const handleSendWhatsApp = (member) => {
+    if (!member.phone) {
+      toast.error('No phone number recorded for this member.');
+      return;
+    }
+    const cleanPhone = member.phone.replace(/[^0-9]/g, '');
+    const gymName = gym?.name || 'GymPulse Fitness Facility';
+    let message = '';
+    if (member.status === 'expired' || member.is_expiring_soon) {
+      message = `Hello ${member.first_name || member.full_name}! 🏋️\n\nThis is a friendly reminder from *${gymName}*:\nYour *${member.current_plan_name || 'Membership'}* pass ${member.status === 'expired' ? 'has expired' : `expires on ${member.membership_expiry_date}`}.\n\nRenew your pass today to keep your fitness momentum uninterrupted! 💪\nVisit the front desk or contact us to renew immediately.`;
+    } else {
+      message = `Hello ${member.first_name || member.full_name}! 🏋️\n\nHope your workouts are going strong at *${gymName}*! If you need personal coaching, workout adjustments, or assistance with your pass, feel free to reach out. See you at the gym! 💪`;
+    }
+    const targetPhone = cleanPhone.startsWith('91') || cleanPhone.length > 10 ? cleanPhone : `91${cleanPhone}`;
+    window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -462,6 +480,19 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
 
                       <td className="py-4 px-6 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
+                          {member.phone && (
+                            <button
+                              onClick={() => handleSendWhatsApp(member)}
+                              className={`p-1.5 rounded-lg transition-all ${
+                                member.is_expiring_soon || member.status === 'expired'
+                                  ? 'text-emerald-700 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100 ring-1 ring-emerald-300'
+                                  : 'text-slate-600 hover:text-emerald-700 hover:bg-emerald-50'
+                              }`}
+                              title={member.is_expiring_soon || member.status === 'expired' ? "⚡ Send WhatsApp Renewal Alert" : "Send WhatsApp Message"}
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                            </button>
+                          )}
                           <button
                             onClick={() => onSelectMember(member.id)}
                             className="p-1.5 text-slate-600 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"

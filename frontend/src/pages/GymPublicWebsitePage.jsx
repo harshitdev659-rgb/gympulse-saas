@@ -15,11 +15,23 @@ import {
   Star,
   Users,
   Award,
-  Download
+  Download,
+  QrCode,
+  CreditCard,
+  Flame,
+  Check,
+  Printer,
+  Calendar,
+  RefreshCw,
+  X,
+  Zap,
+  UserCheck,
+  Search
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { formatCurrency } from '../utils/currency';
+import { Modal } from '../components/common/Modal';
 import { DownloadAppModal } from '../components/common/DownloadAppModal';
 
 export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
@@ -51,6 +63,161 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  // Athlete Mobile Check-In State (Auto-opened if URL has action=checkin)
+  const [isCheckInModalOpen, setIsCheckInModalOpen] = useState(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('action') === 'checkin' || window.location.hash.includes('action=checkin');
+      }
+    } catch (e) {}
+    return false;
+  });
+  const [checkInPhone, setCheckInPhone] = useState(() => {
+    try {
+      return localStorage.getItem('gympulse_athlete_phone') || '';
+    } catch (e) {
+      return '';
+    }
+  });
+  const [isCheckingIn, setIsCheckingIn] = useState(false);
+  const [checkInSuccessData, setCheckInSuccessData] = useState(null);
+
+  // Direct Membership Pass Checkout State
+  const [isBuyPassModalOpen, setIsBuyPassModalOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  const [buyPassForm, setBuyPassForm] = useState({
+    first_name: '',
+    last_name: '',
+    phone: '',
+    email: '',
+    payment_method: 'upi',
+    payment_ref: ''
+  });
+  const [isSubmittingPass, setIsSubmittingPass] = useState(false);
+  const [activatedPass, setActivatedPass] = useState(null);
+
+  // Athlete Self-Service Portal State
+  const [isPortalModalOpen, setIsPortalModalOpen] = useState(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        return params.has('portal') || window.location.hash.includes('portal');
+      }
+    } catch (e) {}
+    return false;
+  });
+  const [portalQuery, setPortalQuery] = useState(() => {
+    try {
+      return localStorage.getItem('gympulse_athlete_phone') || '';
+    } catch (e) {
+      return '';
+    }
+  });
+  const [portalData, setPortalData] = useState(null);
+  const [isLoadingPortal, setIsLoadingPortal] = useState(false);
+
+  const playSuccessChime = () => {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+      osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.4);
+    } catch (e) {}
+  };
+
+  const handlePerformAthleteCheckIn = async (e) => {
+    if (e) e.preventDefault();
+    if (!checkInPhone.trim()) {
+      toast.error('Please enter your registered phone number or Member ID.');
+      return;
+    }
+    setIsCheckingIn(true);
+    try {
+      const res = await api.publicAthleteCheckIn(slug, checkInPhone.trim());
+      setCheckInSuccessData(res);
+      playSuccessChime();
+      try {
+        localStorage.setItem('gympulse_athlete_phone', checkInPhone.trim());
+      } catch (err) {}
+      toast.success(res?.message || 'Check-in confirmed!');
+    } catch (err) {
+      toast.error(err.message || 'Check-in failed. Please verify with front desk.');
+    } finally {
+      setIsCheckingIn(false);
+    }
+  };
+
+  const handleOpenBuyPass = (plan) => {
+    setSelectedPlan(plan);
+    setBuyPassForm((prev) => ({
+      ...prev,
+      phone: prev.phone || checkInPhone || ''
+    }));
+    setActivatedPass(null);
+    setIsBuyPassModalOpen(true);
+  };
+
+  const handleConfirmPassPurchase = async (e) => {
+    if (e) e.preventDefault();
+    if (!buyPassForm.first_name || !buyPassForm.phone) {
+      toast.error('Please provide your name and phone number.');
+      return;
+    }
+    if (!selectedPlan) return;
+
+    setIsSubmittingPass(true);
+    try {
+      const res = await api.joinPublicFacility(slug, {
+        first_name: buyPassForm.first_name.trim(),
+        last_name: buyPassForm.last_name.trim(),
+        phone: buyPassForm.phone.trim(),
+        email: buyPassForm.email.trim() || null,
+        plan_id: selectedPlan.id,
+        payment_method: buyPassForm.payment_method,
+        payment_ref: buyPassForm.payment_ref || `WEB-${Date.now().toString().slice(-6)}`
+      });
+      playSuccessChime();
+      setActivatedPass(res);
+      try {
+        localStorage.setItem('gympulse_athlete_phone', buyPassForm.phone.trim());
+      } catch (err) {}
+      toast.success(res.message || 'Membership pass activated successfully!');
+    } catch (err) {
+      toast.error(err.message || 'Failed to activate membership pass.');
+    } finally {
+      setIsSubmittingPass(false);
+    }
+  };
+
+  const handleFetchPortalData = async (queryVal) => {
+    const q = queryVal || portalQuery;
+    if (!q || !q.trim()) {
+      toast.error('Please enter your phone number or Member ID.');
+      return;
+    }
+    setIsLoadingPortal(true);
+    try {
+      const res = await api.getAthletePortalData(slug, q.trim());
+      setPortalData(res);
+      try {
+        localStorage.setItem('gympulse_athlete_phone', q.trim());
+      } catch (err) {}
+    } catch (err) {
+      toast.error(err.message || 'No athlete record found for this Phone or ID.');
+    } finally {
+      setIsLoadingPortal(false);
+    }
+  };
 
   useEffect(() => {
     const fetchWebsite = async () => {
@@ -380,29 +547,73 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            {/* Quick Check-in Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setCheckInSuccessData(null);
+                setIsCheckInModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all border cursor-pointer hover:scale-105 shadow-xs"
+              style={{ 
+                backgroundColor: `${gymPrimaryColor}20`, 
+                borderColor: `${gymPrimaryColor}60`,
+                color: gymPrimaryColor 
+              }}
+              title="Quick Athlete Entrance Check-In"
+            >
+              <Zap className="w-3.5 h-3.5 fill-current" />
+              <span>Check-In</span>
+            </button>
+
+            {/* Member Portal / My Pass Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsPortalModalOpen(true);
+                if (portalQuery) {
+                  handleFetchPortalData(portalQuery);
+                }
+              }}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/5 hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/20 text-xs font-bold transition-all border border-black/10 dark:border-white/15 cursor-pointer"
+              title="View Athlete Pass & Workout History"
+            >
+              <QrCode className="w-3.5 h-3.5" style={{ color: gymPrimaryColor }} />
+              <span>My Pass</span>
+            </button>
+
             <button
               onClick={handleDownloadClick}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/5 hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/20 text-xs font-bold transition-all border border-black/10 dark:border-white/15 cursor-pointer"
+              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/5 hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/20 text-xs font-bold transition-all border border-black/10 dark:border-white/15 cursor-pointer"
               title="Download & Install Gym App"
             >
               <Download className="w-3.5 h-3.5" style={{ color: gymPrimaryColor }} />
               <span>Download App</span>
             </button>
+
             {gymPhone && (
               <a
                 href={`tel:${gymPhone}`}
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-black/10 dark:border-white/20 text-xs font-semibold opacity-80 hover:opacity-100"
+                className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-black/10 dark:border-white/20 text-xs font-semibold opacity-80 hover:opacity-100"
               >
                 <Phone className="w-3.5 h-3.5" style={{ color: gymPrimaryColor }} /> {gymPhone}
               </a>
             )}
+
             <button
-              onClick={() => document.getElementById('inquiry-section')?.scrollIntoView({ behavior: 'smooth' })}
-              className="px-4 py-2 rounded-xl text-white text-xs font-bold transition-all shadow-md cursor-pointer hover:opacity-95"
+              onClick={() => {
+                if (gymPlans && gymPlans.length > 0) {
+                  handleOpenBuyPass(gymPlans[0]);
+                } else {
+                  document.getElementById('plans-section')?.scrollIntoView({ behavior: 'smooth' });
+                }
+              }}
+              className="px-4 py-2 rounded-xl text-white text-xs font-extrabold transition-all shadow-md cursor-pointer hover:opacity-95 flex items-center gap-1.5"
               style={{ backgroundColor: gymPrimaryColor }}
             >
-              Join Facility
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>Join Facility</span>
             </button>
           </div>
         </div>
@@ -674,14 +885,24 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
                   </ul>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleSelectPlan(p.name)}
-                  className="w-full py-2.5 rounded-xl font-bold text-xs transition-colors cursor-pointer text-white shadow-md hover:opacity-95"
-                  style={{ backgroundColor: gymPrimaryColor }}
-                >
-                  Choose This Plan
-                </button>
+                <div className="space-y-2 mt-4">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenBuyPass(p)}
+                    className="w-full py-2.5 rounded-xl font-extrabold text-xs transition-all cursor-pointer text-white shadow-md hover:opacity-95 flex items-center justify-center gap-1.5"
+                    style={{ backgroundColor: gymPrimaryColor }}
+                  >
+                    <CreditCard className="w-3.5 h-3.5" />
+                    <span>Join Now &bull; {formatCurrency(p.price, gymCurrency)}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectPlan(p.name)}
+                    className="w-full py-1.5 rounded-lg text-[11px] font-semibold opacity-75 hover:opacity-100 transition-opacity cursor-pointer text-center block"
+                  >
+                    or submit inquiry &rarr;
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -837,6 +1058,459 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
         isOpen={isDownloadModalOpen}
         onClose={() => setIsDownloadModalOpen(false)}
       />
+
+      {/* 1. Athlete Mobile Check-In Modal */}
+      <Modal
+        isOpen={isCheckInModalOpen}
+        onClose={() => {
+          setIsCheckInModalOpen(false);
+          setCheckInSuccessData(null);
+        }}
+        title="⚡ Athlete Entrance Check-In"
+        maxWidth="max-w-md"
+      >
+        <div className="space-y-4">
+          <div className="p-4 rounded-2xl bg-slate-900 text-white flex items-center justify-between shadow-xs">
+            <div>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Facility Front Desk</span>
+              <h4 className="text-base font-black text-white">{gymName}</h4>
+              <p className="text-xs text-slate-400 mt-0.5">{gymAddress || 'Official Complex'}</p>
+            </div>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white" style={{ backgroundColor: gymPrimaryColor }}>
+              <Zap className="w-5 h-5 fill-current" />
+            </div>
+          </div>
+
+          {checkInSuccessData ? (
+            <div className="p-6 rounded-2xl bg-emerald-50 border-2 border-emerald-400 text-center space-y-3">
+              <div className="w-14 h-14 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-md shadow-emerald-500/30">
+                <Check className="w-8 h-8 stroke-[3]" />
+              </div>
+              <div>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-200 text-emerald-950 border border-emerald-300">
+                  {checkInSuccessData.action === 'check_out' ? 'Session Completed' : 'Access Granted'}
+                </span>
+                <h3 className="text-xl font-black text-slate-950 mt-1.5">{checkInSuccessData.member_name}</h3>
+                <p className="text-xs text-slate-700 font-bold mt-1">
+                  Recorded at {checkInSuccessData.time} today
+                </p>
+              </div>
+
+              {checkInSuccessData.monthly_workouts && (
+                <div className="p-3 rounded-xl bg-white border border-emerald-200 flex items-center justify-center gap-2 text-xs font-black text-slate-900">
+                  <Flame className="w-4 h-4 text-orange-500 fill-current" />
+                  <span>{checkInSuccessData.monthly_workouts} Workouts Logged This Month!</span>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCheckInModalOpen(false);
+                    setPortalQuery(checkInPhone);
+                    handleFetchPortalData(checkInPhone);
+                    setIsPortalModalOpen(true);
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs shadow-xs transition-colors cursor-pointer"
+                >
+                  View Digital Pass
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCheckInModalOpen(false);
+                    setCheckInSuccessData(null);
+                  }}
+                  className="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs transition-colors cursor-pointer"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handlePerformAthleteCheckIn} className="space-y-4">
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                  Mobile Number or Member ID *
+                </label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  value={checkInPhone}
+                  onChange={(e) => setCheckInPhone(e.target.value)}
+                  placeholder="e.g. 9876543210 or Member ID"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-300 font-extrabold text-slate-950 focus:border-brand-500 focus:outline-none text-base"
+                />
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Enter your registered phone number or Member ID to mark entrance attendance.
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isCheckingIn}
+                className="w-full py-3.5 rounded-xl text-white font-black text-sm shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                style={{ backgroundColor: gymPrimaryColor }}
+              >
+                {isCheckingIn ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Verifying Athlete Pass...</span>
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-4 h-4 fill-current" />
+                    <span>Confirm Check-In</span>
+                  </>
+                )}
+              </button>
+            </form>
+          )}
+        </div>
+      </Modal>
+
+      {/* 2. Direct Membership Pass Checkout & Digital ID Card Modal */}
+      <Modal
+        isOpen={isBuyPassModalOpen}
+        onClose={() => {
+          setIsBuyPassModalOpen(false);
+          setActivatedPass(null);
+        }}
+        title={activatedPass ? "Official Digital Membership Pass" : "Instant Membership Registration"}
+        maxWidth="max-w-lg"
+      >
+        {activatedPass ? (
+          <div className="space-y-5">
+            <div className="p-6 rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-zinc-950 text-white border-2 border-amber-400/40 shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+              <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-white shadow-xs" style={{ backgroundColor: gymPrimaryColor }}>
+                    <Dumbbell className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-black text-sm text-white">{gymName}</h4>
+                    <span className="text-[10px] text-amber-300 font-extrabold uppercase tracking-widest">Verified Digital Pass</span>
+                  </div>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                  {activatedPass.member?.status?.toUpperCase() || 'ACTIVE'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                <div>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Athlete Name</span>
+                  <div className="text-lg font-black text-white mt-0.5">{activatedPass.member?.full_name}</div>
+                  
+                  <div className="mt-3">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Membership Plan</span>
+                    <div className="text-xs font-extrabold text-amber-300">{activatedPass.member?.plan_name}</div>
+                  </div>
+
+                  <div className="mt-3">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Valid Until</span>
+                    <div className="text-xs font-black text-slate-200">{activatedPass.member?.expiry_date}</div>
+                  </div>
+                </div>
+
+                <div className="text-center sm:text-right flex flex-col items-center sm:items-end">
+                  <div className="bg-white p-2.5 rounded-2xl border-2 border-slate-200 inline-block shadow-md">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`MEM-${activatedPass.member?.id || 'PASS'}`)}`}
+                      alt="Digital ID Pass QR"
+                      className="w-28 h-28 object-contain"
+                    />
+                  </div>
+                  <span className="text-[10px] font-mono font-black text-slate-400 mt-1.5 block">
+                    ID: #{String(activatedPass.member?.id).padStart(6, '0')}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-900 font-extrabold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Print Pass</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsBuyPassModalOpen(false);
+                  setPortalQuery(activatedPass.member?.phone || '');
+                  handleFetchPortalData(activatedPass.member?.phone || '');
+                  setIsPortalModalOpen(true);
+                }}
+                className="flex-1 py-2.5 rounded-xl text-white font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                style={{ backgroundColor: gymPrimaryColor }}
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>Open Athlete Portal</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleConfirmPassPurchase} className="space-y-4">
+            {selectedPlan && (
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Selected Plan</span>
+                  <div className="font-black text-slate-900 text-sm">{selectedPlan.name}</div>
+                  <div className="text-xs text-slate-500">{selectedPlan.duration_days} Days Full Floor Access</div>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Amount</span>
+                  <div className="font-black text-emerald-700 text-base">
+                    {formatCurrency(selectedPlan.price, gymCurrency)}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">First Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={buyPassForm.first_name}
+                  onChange={(e) => setBuyPassForm({ ...buyPassForm, first_name: e.target.value })}
+                  placeholder="e.g. Rahul"
+                  className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Last Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={buyPassForm.last_name}
+                  onChange={(e) => setBuyPassForm({ ...buyPassForm, last_name: e.target.value })}
+                  placeholder="e.g. Sharma"
+                  className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Phone Number *</label>
+                <input
+                  type="tel"
+                  required
+                  value={buyPassForm.phone}
+                  onChange={(e) => setBuyPassForm({ ...buyPassForm, phone: e.target.value })}
+                  placeholder="+91 98765 43210"
+                  className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Email Address</label>
+                <input
+                  type="email"
+                  value={buyPassForm.email}
+                  onChange={(e) => setBuyPassForm({ ...buyPassForm, email: e.target.value })}
+                  placeholder="rahul@example.com"
+                  className="w-full px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </div>
+            </div>
+
+            {/* Payment Options */}
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-slate-800 mb-1.5">Payment Method</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'upi', label: 'Instant UPI QR', icon: QrCode },
+                  { id: 'card', label: 'Card Payment', icon: CreditCard },
+                  { id: 'cash_at_desk', label: 'Pay at Desk', icon: Dumbbell }
+                ].map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setBuyPassForm({ ...buyPassForm, payment_method: m.id })}
+                    className={`py-2 px-2.5 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                      buyPassForm.payment_method === m.id
+                        ? 'border-brand-600 bg-brand-50 text-brand-700 font-black shadow-xs ring-1 ring-brand-500'
+                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <m.icon className="w-4 h-4" />
+                    <span className="text-[11px]">{m.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Dynamic UPI QR Display */}
+            {buyPassForm.payment_method === 'upi' && selectedPlan && (
+              <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-center space-y-2">
+                <div className="bg-white p-3 rounded-xl border border-emerald-200 inline-block shadow-xs">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=gympulse@okaxis&pn=${encodeURIComponent(gymName)}&am=${selectedPlan.price}&cu=INR`)}`}
+                    alt="UPI Payment QR Code"
+                    className="w-36 h-36 object-contain"
+                  />
+                </div>
+                <div className="text-xs text-slate-700 font-bold">
+                  Scan with GPay / PhonePe / Paytm / BHIM to pay <strong className="text-emerald-950 font-black">{formatCurrency(selectedPlan.price, gymCurrency)}</strong>
+                </div>
+                <input
+                  type="text"
+                  value={buyPassForm.payment_ref}
+                  onChange={(e) => setBuyPassForm({ ...buyPassForm, payment_ref: e.target.value })}
+                  placeholder="UPI Transaction ID / UTR (optional)"
+                  className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-300 bg-white text-slate-900"
+                />
+              </div>
+            )}
+
+            {buyPassForm.payment_method === 'cash_at_desk' && (
+              <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 font-medium leading-relaxed">
+                ℹ️ Your membership pass will be reserved instantly. Settle the fee in cash or card at the front desk upon your first workout.
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isSubmittingPass}
+              className="w-full py-3.5 rounded-xl text-white font-extrabold text-sm shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer hover:opacity-95 disabled:opacity-50"
+              style={{ backgroundColor: gymPrimaryColor }}
+            >
+              {isSubmittingPass ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Activating Digital Pass...</span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4" />
+                  <span>Activate Pass &bull; {selectedPlan ? formatCurrency(selectedPlan.price, gymCurrency) : ''}</span>
+                </>
+              )}
+            </button>
+          </form>
+        )}
+      </Modal>
+
+      {/* 3. Athlete Self-Service Portal Modal */}
+      <Modal
+        isOpen={isPortalModalOpen}
+        onClose={() => {
+          setIsPortalModalOpen(false);
+          setPortalData(null);
+        }}
+        title="Athlete Self-Service Portal"
+        maxWidth="max-w-xl"
+      >
+        <div className="space-y-5">
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={portalQuery}
+              onChange={(e) => setPortalQuery(e.target.value)}
+              placeholder="Enter Phone Number or Member ID..."
+              className="flex-1 px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+            <button
+              type="button"
+              onClick={() => handleFetchPortalData(portalQuery)}
+              disabled={isLoadingPortal}
+              className="px-4 py-2 rounded-xl text-white font-extrabold text-xs shadow-xs transition-all cursor-pointer hover:opacity-95 disabled:opacity-50 flex items-center gap-1.5"
+              style={{ backgroundColor: gymPrimaryColor }}
+            >
+              {isLoadingPortal ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+              <span>View Pass</span>
+            </button>
+          </div>
+
+          {portalData ? (
+            <div className="space-y-4">
+              <div className="p-5 rounded-2xl bg-slate-900 text-white border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-base font-black text-white">{portalData.member?.full_name}</h3>
+                    <div className="text-xs text-slate-400 font-semibold">{portalData.member?.phone}</div>
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    {portalData.member?.status?.toUpperCase()}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-white/10 text-xs">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Plan</span>
+                    <strong className="text-amber-300">{portalData.member?.plan_name}</strong>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Expiry</span>
+                    <strong className="text-slate-200">{portalData.member?.expiry_date || 'N/A'} ({portalData.member?.days_remaining || 0} days left)</strong>
+                  </div>
+                </div>
+
+                <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.min(100, Math.max(10, ((portalData.member?.days_remaining || 0) / 30) * 100))}%`,
+                      backgroundColor: gymPrimaryColor
+                    }}
+                  ></div>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 mb-2 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5" style={{ color: gymPrimaryColor }} />
+                  <span>Recent Workouts ({portalData.attendance_count || 0} Total)</span>
+                </h4>
+                <div className="max-h-36 overflow-y-auto space-y-1 rounded-xl border border-slate-200 divide-y divide-slate-100">
+                  {portalData.recent_attendances && portalData.recent_attendances.length > 0 ? (
+                    portalData.recent_attendances.map((a, i) => (
+                      <div key={i} className="p-2.5 px-3 flex items-center justify-between text-xs bg-white">
+                        <span className="font-bold text-slate-900">{a.date}</span>
+                        <span className="text-slate-600 font-semibold">{a.check_in}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-bold uppercase">{a.method}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-4 text-center text-xs text-slate-400 font-medium">No check-in records yet.</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsPortalModalOpen(false);
+                    if (gymPlans && gymPlans.length > 0) {
+                      handleOpenBuyPass(gymPlans[0]);
+                    }
+                  }}
+                  className="flex-1 py-2.5 rounded-xl text-white font-black text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  style={{ backgroundColor: gymPrimaryColor }}
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Renew Membership Pass</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-6 text-xs text-slate-500 font-medium">
+              Enter your mobile number above to inspect your workout streak, active pass, and receipts.
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 };

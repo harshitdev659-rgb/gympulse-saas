@@ -15,7 +15,12 @@ import {
   Copy,
   ExternalLink,
   Sparkles,
-  ShieldCheck
+  ShieldCheck,
+  Tv,
+  Flame,
+  Check,
+  Zap,
+  Maximize2
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -32,6 +37,13 @@ export const AttendancePage = ({ isCheckInModalOpen, setIsCheckInModalOpen, refr
   const [historyAttendance, setHistoryAttendance] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isQrKioskOpen, setIsQrKioskOpen] = useState(false);
+  const [isLiveKioskOpen, setIsLiveKioskOpen] = useState(false);
+  const [rotatingToken, setRotatingToken] = useState(() => Math.floor(Date.now() / 15000));
+  const [tokenTimeLeft, setTokenTimeLeft] = useState(15);
+  const [liveClock, setLiveClock] = useState(() => new Date().toLocaleTimeString());
+  const [kioskPhone, setKioskPhone] = useState('');
+  const [kioskCheckInSuccess, setKioskCheckInSuccess] = useState(null);
+  const [isKioskCheckingIn, setIsKioskCheckingIn] = useState(false);
 
   // Search & checkin
   const [memberSearch, setMemberSearch] = useState('');
@@ -129,6 +141,61 @@ export const AttendancePage = ({ isCheckInModalOpen, setIsCheckInModalOpen, refr
   const checkInUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/app.html?facility=${gymSlug}&action=checkin`;
   const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&margin=8&data=${encodeURIComponent(checkInUrl)}`;
 
+  useEffect(() => {
+    if (!isLiveKioskOpen) return;
+    const clockInterval = setInterval(() => {
+      setLiveClock(new Date().toLocaleTimeString());
+      const sec = 15 - (Math.floor(Date.now() / 1000) % 15);
+      setTokenTimeLeft(sec);
+      if (sec === 15) {
+        setRotatingToken(Math.floor(Date.now() / 15000));
+      }
+    }, 1000);
+    return () => clearInterval(clockInterval);
+  }, [isLiveKioskOpen]);
+
+  const dynamicKioskUrl = `${checkInUrl}&token=${rotatingToken}`;
+  const dynamicQrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=380x380&margin=8&data=${encodeURIComponent(dynamicKioskUrl)}`;
+
+  const playSuccessChime = () => {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+      osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.4);
+    } catch (e) {}
+  };
+
+  const handleKioskDirectCheckIn = async (e) => {
+    if (e) e.preventDefault();
+    if (!kioskPhone.trim()) {
+      toast.error('Please enter athlete Phone Number or Member ID.');
+      return;
+    }
+    setIsKioskCheckingIn(true);
+    try {
+      const res = await api.publicAthleteCheckIn(gymSlug, kioskPhone.trim());
+      setKioskCheckInSuccess(res);
+      playSuccessChime();
+      fetchToday();
+      setKioskPhone('');
+      toast.success(res?.message || 'Check-in confirmed!');
+      setTimeout(() => setKioskCheckInSuccess(null), 7000);
+    } catch (err) {
+      toast.error(err.message || 'Check-in failed. Please verify with front desk.');
+    } finally {
+      setIsKioskCheckingIn(false);
+    }
+  };
+
   const handleCopyCheckInUrl = () => {
     navigator.clipboard?.writeText(checkInUrl);
     toast.success('Check-in link copied to clipboard!');
@@ -223,13 +290,23 @@ export const AttendancePage = ({ isCheckInModalOpen, setIsCheckInModalOpen, refr
           )}
 
           <Button
+            onClick={() => setIsLiveKioskOpen(true)}
+            variant="secondary"
+            size="sm"
+            icon={Tv}
+            className="border-2 border-indigo-400 bg-indigo-50/50 text-indigo-950 font-black hover:bg-indigo-100 shadow-xs"
+          >
+            Launch Live Kiosk Screen
+          </Button>
+
+          <Button
             onClick={() => setIsQrKioskOpen(true)}
             variant="secondary"
             size="sm"
             icon={QrCode}
             className="border-2 border-slate-300 text-slate-950 font-extrabold hover:bg-slate-100 shadow-xs"
           >
-            Facility Attendance QR Kiosk
+            Print Kiosk Stand (A4)
           </Button>
 
           <Button
@@ -532,6 +609,137 @@ export const AttendancePage = ({ isCheckInModalOpen, setIsCheckInModalOpen, refr
               <span>Copy Direct Check-In Link</span>
             </button>
           </div>
+        </div>
+      </Modal>
+
+      {/* Live Digital Kiosk Screen Modal (Fullscreen / Tablet View) */}
+      <Modal
+        isOpen={isLiveKioskOpen}
+        onClose={() => {
+          setIsLiveKioskOpen(false);
+          setKioskCheckInSuccess(null);
+        }}
+        title="Front Desk Live Attendance Kiosk Screen"
+        maxWidth="max-w-2xl"
+      >
+        <div className="space-y-6 text-center">
+          {/* Top Kiosk Header */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-between shadow-md">
+            <div className="text-left">
+              <span className="text-[10px] font-bold text-amber-400 uppercase tracking-widest block">Live Kiosk Terminal</span>
+              <h3 className="text-lg font-black text-white">{gym?.name || 'GymPulse Fitness Facility'}</h3>
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] text-slate-400 uppercase font-mono block">Station Clock</span>
+              <span className="font-mono text-base font-black text-emerald-400">{liveClock}</span>
+            </div>
+          </div>
+
+          {kioskCheckInSuccess ? (
+            <div className="p-8 rounded-3xl bg-emerald-50 border-2 border-emerald-400 text-center space-y-3 animate-in zoom-in-95">
+              <div className="w-16 h-16 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/30">
+                <Check className="w-10 h-10 stroke-[3]" />
+              </div>
+              <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-200 text-emerald-950 border border-emerald-300">
+                {kioskCheckInSuccess.action === 'check_out' ? 'Session Completed' : 'Access Approved'}
+              </span>
+              <h2 className="text-2xl font-black text-slate-950">{kioskCheckInSuccess.member_name}</h2>
+              <p className="text-sm font-bold text-slate-700">
+                {kioskCheckInSuccess.time} &bull; Streak: {kioskCheckInSuccess.monthly_workouts || 1} Workouts This Month 🔥
+              </p>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setKioskCheckInSuccess(null)}
+                  className="px-6 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-xs cursor-pointer"
+                >
+                  Next Athlete &rarr;
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+              {/* Dynamic Rotating QR Code */}
+              <div className="flex flex-col items-center">
+                <div className="p-1 rounded-3xl bg-gradient-to-tr from-brand-600 via-indigo-600 to-brand-600 shadow-xl inline-block">
+                  <div className="bg-white p-3.5 rounded-2xl border border-slate-100 flex items-center justify-center">
+                    <img
+                      src={dynamicQrImageUrl}
+                      alt="Rotating Attendance QR"
+                      className="w-48 h-48 sm:w-56 sm:h-56 object-contain"
+                    />
+                  </div>
+                </div>
+
+                {/* Rotating Countdown Bar */}
+                <div className="w-full max-w-[220px] mt-3 space-y-1">
+                  <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-600">
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Anti-Fraud Rotating QR
+                    </span>
+                    <span>{tokenTimeLeft}s</span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="bg-brand-600 h-full rounded-full transition-all duration-1000 ease-linear"
+                      style={{ width: `${(tokenTimeLeft / 15) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Direct Tablet / Phone Entry */}
+              <div className="text-left space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                <div>
+                  <h4 className="font-black text-slate-900 text-sm">Scan with Phone or Enter Number</h4>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    Athletes can point their camera at the screen, or enter their registered phone/ID below.
+                  </p>
+                </div>
+
+                <form onSubmit={handleKioskDirectCheckIn} className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1">
+                      Phone Number or Member ID
+                    </label>
+                    <input
+                      type="text"
+                      value={kioskPhone}
+                      onChange={(e) => setKioskPhone(e.target.value)}
+                      placeholder="e.g. 9876543210"
+                      className="w-full px-3.5 py-2.5 rounded-xl border-2 border-slate-300 font-black text-slate-950 bg-white focus:border-brand-500 focus:outline-none text-sm"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isKioskCheckingIn}
+                    className="w-full py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-black text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    {isKioskCheckingIn ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Verifying...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-3.5 h-3.5 fill-current" />
+                        <span>Instant Check-In</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-600">Active Athletes on Floor:</span>
+                  <span className="font-black text-emerald-800 text-sm px-2 py-0.5 rounded-lg bg-emerald-50 border border-emerald-300">
+                    {onFloorCount} Active
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
 

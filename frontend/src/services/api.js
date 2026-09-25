@@ -512,6 +512,24 @@ class ApiService {
     });
   }
 
+  joinPublicFacility(slug, data) {
+    return this.request(`/public/facility/${slug}/join`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  publicAthleteCheckIn(slug, phoneOrId) {
+    return this.request(`/public/facility/${slug}/checkin`, {
+      method: 'POST',
+      body: JSON.stringify({ phone_or_id: phoneOrId })
+    });
+  }
+
+  getAthletePortalData(slug, query) {
+    return this.request(`/public/facility/${slug}/portal?query=${encodeURIComponent(query)}`);
+  }
+
   getGymWebsite() {
     return this.request('/gym/website');
   }

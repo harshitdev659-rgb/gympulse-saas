@@ -917,6 +917,196 @@ export function handleMockRequest(endpoint, options = {}) {
       return { success: true, message: 'Your inquiry has been received! Facility staff will contact you shortly.' };
     }
 
+    if (endpoint.includes('/join') && method === 'POST') {
+      const plan = db.plans.find((p) => p.id === body.plan_id) || {
+        id: body.plan_id || 1,
+        name: body.plan_name || 'Monthly Pass',
+        duration_days: 30,
+        price: 1499
+      };
+      const cleanPhone = (body.phone || '').trim();
+      let member = db.members.find(
+        (m) => m.gym_id === facilityGym.id && m.phone.replace(/[^0-9]/g, '') === cleanPhone.replace(/[^0-9]/g, '')
+      );
+
+      const duration = Number(plan.duration_days) || 30;
+      const expiry = new Date(Date.now() + duration * 86400000).toISOString().split('T')[0];
+      const today = new Date().toISOString().split('T')[0];
+
+      if (!member) {
+        member = {
+          id: Date.now(),
+          gym_id: facilityGym.id,
+          first_name: (body.first_name || 'Athlete').trim(),
+          last_name: (body.last_name || '').trim(),
+          full_name: `${(body.first_name || 'Athlete').trim()} ${(body.last_name || '').trim()}`.trim(),
+          phone: cleanPhone,
+          email: body.email || '',
+          status: 'active',
+          join_date: today,
+          current_plan_name: plan.name,
+          membership_expiry_date: expiry,
+          is_expiring_soon: false
+        };
+        db.members.unshift(member);
+      } else {
+        member.status = 'active';
+        member.current_plan_name = plan.name;
+        member.membership_expiry_date = expiry;
+        member.is_expiring_soon = false;
+        if (body.email && !member.email) member.email = body.email;
+      }
+
+      const invNum = `INV-${Date.now().toString().slice(-6)}`;
+      const paymentStatus = body.payment_method === 'cash_at_desk' ? 'pending' : 'completed';
+      db.payments.unshift({
+        id: Date.now() + 1,
+        gym_id: facilityGym.id,
+        member_id: member.id,
+        amount: Number(plan.price) || 1499,
+        status: paymentStatus,
+        payment_method: body.payment_method || 'upi',
+        payment_date: today,
+        receipt_number: invNum,
+        notes: `Online Website Pass - ${plan.name} (Ref: ${body.payment_ref || 'Online QR'})`
+      });
+
+      saveDb(db);
+      return {
+        success: true,
+        message: `Welcome to ${facilityGym.name}! Your membership pass is active.`,
+        member: {
+          id: member.id,
+          full_name: member.full_name,
+          phone: member.phone,
+          email: member.email,
+          plan_name: plan.name,
+          start_date: today,
+          expiry_date: expiry,
+          status: member.status
+        },
+        receipt_number: invNum,
+        amount: plan.price,
+        payment_status: paymentStatus
+      };
+    }
+
+    if (endpoint.includes('/checkin') && method === 'POST') {
+      const queryVal = (body.phone_or_id || '').trim();
+      const cleanDigits = queryVal.replace(/[^0-9]/g, '');
+      const member = db.members.find((m) => {
+        if (m.gym_id !== facilityGym.id) return false;
+        if (String(m.id) === queryVal) return true;
+        const mDigits = (m.phone || '').replace(/[^0-9]/g, '');
+        return mDigits.endsWith(cleanDigits) || cleanDigits.endsWith(mDigits);
+      });
+
+      if (!member) {
+        throw new Error('No registered athlete found with that Phone Number or Member ID. Please speak with front desk.');
+      }
+
+      if (member.status !== 'active') {
+        throw new Error(`Membership for ${member.full_name} is ${member.status.toUpperCase()}. Please renew at front desk.`);
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+      const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      
+      const existing = db.attendance.find((a) => a.gym_id === facilityGym.id && a.member_id === member.id && a.date === today);
+      if (existing && !existing.check_out_time) {
+        existing.check_out_time = nowTime;
+        saveDb(db);
+        return {
+          success: true,
+          action: 'check_out',
+          message: `Checked out! Great workout today, ${member.first_name || member.full_name}!`,
+          member_name: member.full_name,
+          time: nowTime
+        };
+      }
+
+      const newAtt = {
+        id: Date.now(),
+        gym_id: facilityGym.id,
+        member_id: member.id,
+        date: today,
+        check_in_time: nowTime,
+        check_out_time: null,
+        method: 'qr_kiosk',
+        status: 'present'
+      };
+      db.attendance.unshift(newAtt);
+      saveDb(db);
+
+      const pastWorkouts = db.attendance.filter((a) => a.gym_id === facilityGym.id && a.member_id === member.id).length;
+
+      return {
+        success: true,
+        action: 'check_in',
+        message: `Access Granted! Welcome to ${facilityGym.name}, ${member.first_name || member.full_name}!`,
+        member_name: member.full_name,
+        member_id: member.id,
+        time: nowTime,
+        monthly_workouts: pastWorkouts,
+        status: member.status
+      };
+    }
+
+    if (endpoint.includes('/portal')) {
+      const urlObj = new URL('http://dummy.com' + endpoint);
+      const queryVal = (urlObj.searchParams.get('query') || '').trim();
+      const cleanDigits = queryVal.replace(/[^0-9]/g, '');
+
+      const member = db.members.find((m) => {
+        if (m.gym_id !== facilityGym.id) return false;
+        if (String(m.id) === queryVal) return true;
+        const mDigits = (m.phone || '').replace(/[^0-9]/g, '');
+        return mDigits && (mDigits.endsWith(cleanDigits) || cleanDigits.endsWith(mDigits));
+      });
+
+      if (!member) {
+        throw new Error('No athlete account found matching this Phone Number or Member ID.');
+      }
+
+      const attendances = db.attendance.filter((a) => a.gym_id === facilityGym.id && a.member_id === member.id);
+      const payments = db.payments.filter((p) => p.gym_id === facilityGym.id && p.member_id === member.id);
+
+      const expiry = member.membership_expiry_date ? new Date(member.membership_expiry_date) : null;
+      const daysRemaining = expiry ? Math.max(0, Math.ceil((expiry - new Date()) / (1000 * 60 * 60 * 24))) : 0;
+
+      return {
+        gym_name: facilityGym.name,
+        gym_logo: facilityGym.logo_url,
+        gym_phone: facilityGym.phone,
+        gym_address: facilityGym.address,
+        member: {
+          id: member.id,
+          full_name: member.full_name,
+          phone: member.phone,
+          email: member.email,
+          status: member.status,
+          join_date: member.join_date,
+          plan_name: member.current_plan_name || 'Standard Pass',
+          expiry_date: member.membership_expiry_date,
+          days_remaining: daysRemaining
+        },
+        attendance_count: attendances.length,
+        recent_attendances: attendances.slice(0, 10).map((a) => ({
+          date: a.date,
+          check_in: a.check_in_time || 'Attended',
+          method: a.method
+        })),
+        payments: payments.slice(0, 10).map((p) => ({
+          id: p.id,
+          amount: p.amount,
+          receipt_number: p.receipt_number || `INV-${p.id}`,
+          payment_date: p.payment_date,
+          payment_method: p.payment_method,
+          status: p.status
+        }))
+      };
+    }
+
     const facilityPlans = db.plans.filter((p) => p.gym_id === facilityGym.id);
     const facilityTrainers = db.trainers.filter((t) => t.gym_id === facilityGym.id);
     const web = facilityGym.website || db.website || {};

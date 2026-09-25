@@ -426,6 +426,20 @@ class GymInquiryResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class PublicJoinRequest(BaseModel):
+    first_name: str
+    last_name: str
+    phone: str
+    email: Optional[str] = None
+    plan_id: int
+    payment_method: str = "upi"  # upi, card, cash_at_desk
+    payment_ref: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
+
+class PublicCheckInRequest(BaseModel):
+    phone_or_id: str
+    checkin_token: Optional[str] = None
+
 # ----------------- Super Admin Platform Schemas -----------------
 class PlatformGymApprovalRequest(BaseModel):
     action: str  # "approve" or "reject"

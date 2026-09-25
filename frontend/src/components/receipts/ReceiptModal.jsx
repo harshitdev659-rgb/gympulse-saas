@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
-import { Printer, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { Printer, ExternalLink, CheckCircle2, MessageCircle } from 'lucide-react';
 import { Button } from '../common/Button';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -54,6 +54,18 @@ export const ReceiptModal = ({ isOpen, onClose, paymentId, initialPayment = null
     ? new Date(payment.payment_date).toLocaleDateString() 
     : new Date().toLocaleDateString();
 
+  const handleShareWhatsApp = () => {
+    const memberPhone = payment?.member?.phone || payment?.member_phone;
+    const cleanPhone = (memberPhone || '').replace(/[^0-9]/g, '');
+    const memberName = payment?.member?.full_name || payment?.member_name || 'Valued Athlete';
+    const gymName = gym?.name || 'GymPulse Fitness Facility';
+    const amountStr = formatCurrency(payment?.amount || 0, currency);
+    const message = `Hello ${memberName}! 🏋️\n\nHere is your official payment receipt from *${gymName}*:\n\n📄 *Receipt No:* ${receiptNumber}\n💰 *Amount Paid:* ${amountStr}\n📅 *Date:* ${paymentDate}\n💳 *Payment Method:* ${(payment?.payment_method || 'Cash').toUpperCase()}\n\nThank you for choosing ${gymName}! Keep crushing your fitness goals. 💪`;
+    const targetPhone = cleanPhone ? (cleanPhone.startsWith('91') || cleanPhone.length > 10 ? cleanPhone : `91${cleanPhone}`) : '';
+    const waUrl = targetPhone ? `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}` : `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+    window.open(waUrl, '_blank');
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Invoice Receipt" maxWidth="max-w-2xl">
       <div className="space-y-4">
@@ -67,6 +79,15 @@ export const ReceiptModal = ({ isOpen, onClose, paymentId, initialPayment = null
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleShareWhatsApp}
+              type="button"
+              className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              title="Share receipt via WhatsApp"
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+              <span>Share WhatsApp</span>
+            </button>
             <Button
               onClick={handlePrint}
               variant="primary"

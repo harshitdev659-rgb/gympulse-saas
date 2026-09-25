@@ -541,6 +541,10 @@ class ApiService {
     });
   }
 
+  checkDomainAvailability(domain, type = 'custom') {
+    return this.request(`/gym/website/check-domain?domain=${encodeURIComponent(domain)}&type=${encodeURIComponent(type)}`);
+  }
+
   decommissionGym(data) {
     return this.request('/gym/decommission', {
       method: 'DELETE',

@@ -841,29 +841,102 @@ export function handleMockRequest(endpoint, options = {}) {
   }
 
   // 14. Public Website & Leads
+  if (endpoint.startsWith('/gym/website/check-domain')) {
+    const url = new URL('http://dummy.com' + endpoint);
+    const rawDomain = url.searchParams.get('domain') || '';
+    const domainType = url.searchParams.get('type') || 'custom';
+    const clean = rawDomain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+    
+    if (!clean) {
+      return { available: false, domain: '', message: 'Domain cannot be empty.' };
+    }
+    const reserved = ['api', 'admin', 'app', 'login', 'register', 'download', 'superadmin', 'dashboard', 'settings', 'facility', 'gym'];
+    if (reserved.includes(clean)) {
+      return { available: false, domain: clean, message: `'${clean}' is a reserved system keyword. Please choose another name.` };
+    }
+
+    if (domainType === 'subdomain') {
+      const cleanSub = clean.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      const conflict = db.gyms.find(
+        (g) => (g.id !== currentGymId && String(g.id) !== String(currentGymId)) &&
+               ((g.website_subdomain && g.website_subdomain.toLowerCase() === cleanSub) || (g.slug && g.slug.toLowerCase() === cleanSub))
+      );
+      if (conflict) {
+        return { available: false, domain: cleanSub, message: `Subdomain "${cleanSub}" is already taken by another gym.` };
+      }
+      return { available: true, domain: cleanSub, message: `Subdomain "${cleanSub}" is available!` };
+    }
+
+    const cleanCustom = clean.replace(/^www\./, '');
+    const conflict = db.gyms.find(
+      (g) => (g.id !== currentGymId && String(g.id) !== String(currentGymId)) &&
+             ((g.website_custom_domain && g.website_custom_domain.toLowerCase().replace(/^www\./, '') === cleanCustom) ||
+              (g.website_subdomain && g.website_subdomain.toLowerCase() === cleanCustom) ||
+              (g.slug && g.slug.toLowerCase() === cleanCustom))
+    );
+    if (conflict) {
+      return { available: false, domain: clean, message: `Custom domain "${clean}" is already registered to another facility.` };
+    }
+    return { available: true, domain: clean, message: `Custom domain "${clean}" is available to connect!` };
+  }
+
   if (endpoint.startsWith('/gym/website')) {
     if (method === 'PUT') {
       if (body.website_subdomain) {
-        const sub = body.website_subdomain.trim().toLowerCase();
+        const sub = body.website_subdomain.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
         const conflict = db.gyms.find(
           (g) => (g.id !== currentGymId && String(g.id) !== String(currentGymId)) &&
                  ((g.website_subdomain && g.website_subdomain.toLowerCase() === sub) || (g.slug && g.slug.toLowerCase() === sub))
         );
         if (conflict) {
-          throw new Error(`The website domain/subdomain "${sub}" is already taken by another gym facility. Please choose a different subdomain.`);
+          throw new Error(`The website subdomain "${sub}" is already taken by another gym facility. Please choose a different subdomain.`);
         }
       }
+
+      if (body.website_custom_domain) {
+        const cleanCustom = body.website_custom_domain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '').replace(/^www\./, '');
+        if (cleanCustom) {
+          const domConflict = db.gyms.find(
+            (g) => (g.id !== currentGymId && String(g.id) !== String(currentGymId)) &&
+                   ((g.website_custom_domain && g.website_custom_domain.toLowerCase().replace(/^www\./, '') === cleanCustom) ||
+                    (g.website_subdomain && g.website_subdomain.toLowerCase() === cleanCustom) ||
+                    (g.slug && g.slug.toLowerCase() === cleanCustom))
+          );
+          if (domConflict) {
+            throw new Error(`The custom domain "${body.website_custom_domain}" is already registered to another gym facility.`);
+          }
+        }
+      }
+
       db.website = { ...db.website, ...body };
       if (currentGym) {
         if (body.website_subdomain) {
-          currentGym.website_subdomain = body.website_subdomain;
-          currentGym.slug = body.website_subdomain;
+          const cleanSub = body.website_subdomain.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+          currentGym.website_subdomain = cleanSub;
+          currentGym.slug = cleanSub;
+        }
+        if (body.website_custom_domain !== undefined) {
+          currentGym.website_custom_domain = body.website_custom_domain ? body.website_custom_domain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '') : null;
         }
         currentGym.website = { ...(currentGym.website || {}), ...body };
         if (body.website_theme) currentGym.website_theme = body.website_theme;
         if (body.website_primary_color) currentGym.website_primary_color = body.website_primary_color;
         if (body.website_hero_style) currentGym.website_hero_style = body.website_hero_style;
         if (body.website_announcement !== undefined) currentGym.website_announcement = body.website_announcement;
+
+        // Sync localStorage
+        if (typeof localStorage !== 'undefined') {
+          try {
+            const savedGymStr = localStorage.getItem('gympulse_gym');
+            if (savedGymStr) {
+              const savedGym = JSON.parse(savedGymStr);
+              localStorage.setItem('gympulse_gym', JSON.stringify({
+                ...savedGym,
+                ...currentGym
+              }));
+            }
+          } catch (e) {}
+        }
       }
       saveDb(db);
       return { ...db.website, ...(currentGym?.website || {}) };
@@ -893,15 +966,20 @@ export function handleMockRequest(endpoint, options = {}) {
   // 14b. Dedicated Public Facility Website Handler (/public/facility/:slug)
   const matchPublicFacility = endpoint.match(/^\/public\/facility\/([^/?]+)/);
   if (matchPublicFacility) {
-    const rawSlug = decodeURIComponent(matchPublicFacility[1]).toLowerCase().trim();
-    const slug = rawSlug.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || rawSlug;
+    const rawSlug = decodeURIComponent(matchPublicFacility[1]).toLowerCase().trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
+    const cleanNoWww = rawSlug.replace(/^www\./, '');
+    const cleanDashed = rawSlug.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || rawSlug;
 
-    // Search facility by slug, subdomain, or ID
+    // Search facility by custom domain, subdomain, slug, or ID
     let facilityGym = db.gyms.find(
-      (g) => (g.slug && g.slug.toLowerCase() === slug) || 
-             (g.website_subdomain && g.website_subdomain.toLowerCase() === slug) || 
-             String(g.id) === slug ||
-             (g.name && g.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') === slug)
+      (g) => (g.website_custom_domain && g.website_custom_domain.toLowerCase() === rawSlug) ||
+             (g.website_custom_domain && g.website_custom_domain.toLowerCase().replace(/^www\./, '') === cleanNoWww) ||
+             (g.website_subdomain && g.website_subdomain.toLowerCase() === rawSlug) || 
+             (g.website_subdomain && g.website_subdomain.toLowerCase() === cleanDashed) || 
+             (g.slug && g.slug.toLowerCase() === rawSlug) || 
+             (g.slug && g.slug.toLowerCase() === cleanDashed) || 
+             String(g.id) === rawSlug ||
+             (g.name && g.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') === cleanDashed)
     );
 
     // If not found directly, check active user's gym or fallback to first gym or auto-constructed profile
@@ -911,13 +989,14 @@ export function handleMockRequest(endpoint, options = {}) {
       } else if (db.gyms.length > 0) {
         facilityGym = db.gyms[0];
       } else {
-        const prettyName = slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') || 'Fitness Facility';
+        const prettyName = cleanDashed.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') || 'Fitness Facility';
         facilityGym = {
           id: 1,
           name: prettyName,
-          slug: slug,
-          website_subdomain: slug,
-          email: `contact@${slug}.com`,
+          slug: cleanDashed,
+          website_subdomain: cleanDashed,
+          website_custom_domain: rawSlug.includes('.') ? rawSlug : null,
+          email: `contact@${cleanDashed}.com`,
           phone: '+91 90000 00000',
           address: 'Central Fitness Boulevard',
           currency: 'INR'

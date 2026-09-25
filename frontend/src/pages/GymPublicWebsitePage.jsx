@@ -404,7 +404,8 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
   }
 
   const gymName = data.name || data.gym?.name || 'Premier Fitness Facility';
-  const gymSlug = data.website_subdomain || data.slug || data.gym?.slug || slug || 'facility';
+  const gymCustomDomain = data.website_custom_domain || data.gym?.website_custom_domain || null;
+  const gymSlug = gymCustomDomain || data.website_subdomain || data.slug || data.gym?.slug || slug || 'facility';
   const gymHeadline = data.headline || data.website?.website_headline || `Welcome to ${gymName}`;
   const gymTagline = data.tagline || data.website?.website_tagline || 'World-Class Fitness, Strength & Conditioning';
   const gymAbout = data.about || data.website?.website_about || `${gymName} provides state-of-the-art strength equipment, certified coaching, and a supportive fitness community.`;
@@ -540,7 +541,7 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
         <div className="bg-slate-900 border-b border-white/10 px-4 py-2 flex items-center justify-between text-xs sticky top-0 z-50">
           <div className="flex items-center gap-2 text-slate-300">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>Live Branded Gym Website Preview: <strong>{typeof window !== 'undefined' ? `${window.location.origin}/facility/${gymSlug}` : `/facility/${gymSlug}`}</strong></span>
+            <span>Live Branded Gym Website Preview: <strong>{gymCustomDomain ? `https://${gymCustomDomain}` : (typeof window !== 'undefined' ? `${window.location.origin}/facility/${gymSlug}` : `/facility/${gymSlug}`)}</strong></span>
           </div>
           <button
             onClick={onBackToApp}

@@ -16,7 +16,10 @@ import {
   Edit3,
   Palette,
   Layout,
-  Megaphone
+  Megaphone,
+  X,
+  AlertCircle,
+  ShieldCheck
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -81,13 +84,17 @@ const COLOR_PRESETS = [
 ];
 
 export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
-  const { gym } = useAuth();
+  const { gym, refreshGymProfile } = useAuth();
   const toast = useToast();
   const [activeSubTab, setActiveSubTab] = useState('editor'); // 'editor' | 'leads'
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [networkInfo, setNetworkInfo] = useState(null);
+
+  // Availability states for Subdomain and Custom Domain
+  const [subdomainCheck, setSubdomainCheck] = useState({ status: 'idle', message: '' });
+  const [customDomainCheck, setCustomDomainCheck] = useState({ status: 'idle', message: '' });
 
   // Form state
   const [form, setForm] = useState({
@@ -122,7 +129,7 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
         website_about: data.website_about || `${gym?.name || 'Our facility'} offers world-class training equipment and certified coaches.`,
         website_cover_image: data.website_cover_image || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&auto=format&fit=crop&q=80',
         website_amenities: data.website_amenities || 'Olympic Free Weights, Cardio Theatre, Strength Machines, Certified Trainers, Steam & Sauna, Lockers',
-        website_custom_domain: data.website_custom_domain || '',
+        website_custom_domain: data.website_custom_domain || gym?.website_custom_domain || '',
         website_theme: data.website_theme || gym?.website_theme || 'dark_power',
         website_primary_color: data.website_primary_color || gym?.website_primary_color || '#10b981',
         website_hero_style: data.website_hero_style || gym?.website_hero_style || 'split',
@@ -153,12 +160,94 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
     api.getNetworkInfo().then((data) => setNetworkInfo(data)).catch(() => {});
   }, []);
 
+  // Real-time Subdomain availability check
+  useEffect(() => {
+    const raw = form.website_subdomain;
+    if (!raw || !raw.trim()) {
+      setSubdomainCheck({ status: 'idle', message: '' });
+      return;
+    }
+    const clean = raw.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    if (!clean) {
+      setSubdomainCheck({ status: 'error', message: 'Enter a valid subdomain name.' });
+      return;
+    }
+
+    setSubdomainCheck({ status: 'checking', message: 'Verifying availability...' });
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.checkDomainAvailability(clean, 'subdomain');
+        if (res.available) {
+          setSubdomainCheck({ status: 'available', message: `✓ "${clean}" is available!` });
+        } else {
+          setSubdomainCheck({ status: 'taken', message: `✕ ${res.message}` });
+        }
+      } catch (err) {
+        setSubdomainCheck({ status: 'idle', message: '' });
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [form.website_subdomain]);
+
+  // Real-time Custom Domain availability check
+  useEffect(() => {
+    const raw = form.website_custom_domain;
+    if (!raw || !raw.trim()) {
+      setCustomDomainCheck({ status: 'idle', message: '' });
+      return;
+    }
+    const clean = raw.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+    if (!clean.includes('.') || clean.length < 4) {
+      setCustomDomainCheck({ status: 'error', message: 'Enter a valid domain name (e.g. yourgym.com or www.mygym.in)' });
+      return;
+    }
+
+    setCustomDomainCheck({ status: 'checking', message: 'Checking domain availability...' });
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.checkDomainAvailability(clean, 'custom');
+        if (res.available) {
+          setCustomDomainCheck({ status: 'available', message: `✓ "${clean}" is available to connect!` });
+        } else {
+          setCustomDomainCheck({ status: 'taken', message: `✕ ${res.message}` });
+        }
+      } catch (err) {
+        setCustomDomainCheck({ status: 'idle', message: '' });
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [form.website_custom_domain]);
+
   const handleSave = async (e) => {
     e.preventDefault();
+
+    if (subdomainCheck.status === 'taken') {
+      toast.error('The subdomain is already taken by another gym. Please pick a different name.');
+      return;
+    }
+    if (customDomainCheck.status === 'taken') {
+      toast.error('The custom domain is already registered to another facility.');
+      return;
+    }
+
     setIsSaving(true);
     try {
-      await api.updateGymWebsite(form);
-      toast.success('Your gym website configuration has been saved and published live!');
+      const cleanCustom = form.website_custom_domain 
+        ? form.website_custom_domain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '') 
+        : '';
+
+      const payload = {
+        ...form,
+        website_custom_domain: cleanCustom || null
+      };
+
+      await api.updateGymWebsite(payload);
+      if (refreshGymProfile) {
+        await refreshGymProfile();
+      }
+      toast.success('Your gym website & domain have been saved and published live!');
     } catch (err) {
       toast.error(err.message || 'Failed to save website configuration.');
     } finally {
@@ -182,10 +271,20 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
   const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
   const isGitHubPages = windowOrigin.includes('github.io') || pathname.includes('/gympulse-saas');
   const baseSubpath = isGitHubPages ? '/gympulse-saas' : '';
-  const currentSlug = (form.website_subdomain || gym?.slug || 'my-gym').trim();
 
-  // Universal direct link that works reliably across all environments (GitHub Pages, localhost, mobile)
-  const fullPublicUrl = `${windowOrigin}${baseSubpath}/app.html?facility=${encodeURIComponent(currentSlug)}`;
+  const cleanCustomDomain = (form.website_custom_domain || gym?.website_custom_domain || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const subdomainSlug = (form.website_subdomain || gym?.website_subdomain || gym?.slug || 'my-gym').trim();
+  const currentSlug = cleanCustomDomain || subdomainSlug;
+
+  // Primary URL: If custom domain is specified, show that; otherwise use the facility URL
+  const subdomainPublicUrl = `${windowOrigin}${baseSubpath}/app.html?facility=${encodeURIComponent(subdomainSlug)}`;
+  const customDomainDirectUrl = cleanCustomDomain 
+    ? (windowOrigin.includes('localhost') || windowOrigin.includes('127.0.0.1')
+        ? `${windowOrigin}${baseSubpath}/app.html?facility=${encodeURIComponent(cleanCustomDomain)}`
+        : `https://${cleanCustomDomain}`)
+    : null;
+
+  const fullPublicUrl = customDomainDirectUrl || subdomainPublicUrl;
 
   const handleVisitWebsite = () => {
     if (onPreviewWebsite) {
@@ -198,7 +297,7 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
   const handleCopyLink = () => {
     navigator.clipboard.writeText(fullPublicUrl);
     setCopied(true);
-    toast.success('Direct website link copied to clipboard!');
+    toast.success('Live website link copied to clipboard!');
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -239,11 +338,36 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
       </div>
 
       {/* Live URL Pill Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span className="text-xs font-semibold text-slate-500">Live URL:</span>
-          <span className="font-mono text-xs font-bold text-brand-700 select-all">{fullPublicUrl}</span>
+      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className="text-xs font-bold text-slate-800">
+              {cleanCustomDomain ? 'Custom Domain Live URL:' : 'Dedicated Website URL:'}
+            </span>
+            <a
+              href={fullPublicUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono text-xs font-extrabold text-brand-700 hover:text-brand-800 hover:underline select-all flex items-center gap-1"
+            >
+              {fullPublicUrl} <ExternalLink className="w-3 h-3 inline" />
+            </a>
+          </div>
+
+          {cleanCustomDomain && (
+            <div className="flex items-center gap-2 text-[11px] text-slate-500 pl-5 flex-wrap">
+              <span className="font-semibold text-slate-700">Subdomain Link:</span>
+              <a
+                href={subdomainPublicUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-slate-600 hover:text-brand-600 select-all"
+              >
+                {subdomainPublicUrl}
+              </a>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -456,9 +580,26 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
-                Website Name / Subdomain Slug *
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-800">
+                  Website Name / Subdomain Slug *
+                </label>
+                {subdomainCheck.status === 'checking' && (
+                  <span className="text-[10px] font-bold text-brand-600 flex items-center gap-1">
+                    <RefreshCw className="w-3 h-3 animate-spin" /> Checking...
+                  </span>
+                )}
+                {subdomainCheck.status === 'available' && (
+                  <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                    <Check className="w-3 h-3 text-emerald-600" /> Available
+                  </span>
+                )}
+                {subdomainCheck.status === 'taken' && (
+                  <span className="text-[10px] font-extrabold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200 flex items-center gap-1">
+                    <X className="w-3 h-3 text-rose-600" /> Already Taken
+                  </span>
+                )}
+              </div>
               <div className="flex rounded-xl shadow-xs">
                 <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-slate-200 bg-slate-50 text-slate-600 text-xs font-mono font-bold">
                   {windowOrigin.replace(/^https?:\/\//, '')}{baseSubpath}/app.html?facility=
@@ -469,24 +610,57 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
                   value={form.website_subdomain}
                   onChange={(e) => setForm({ ...form, website_subdomain: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
                   placeholder="e.g. apex-fitness"
-                  className="flex-1 block w-full rounded-none rounded-r-xl border border-slate-300 px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 font-mono"
+                  className={`flex-1 block w-full rounded-none rounded-r-xl border px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 font-mono ${
+                    subdomainCheck.status === 'taken'
+                      ? 'border-rose-400 focus:ring-rose-400 bg-rose-50/20'
+                      : subdomainCheck.status === 'available'
+                      ? 'border-emerald-400 focus:ring-emerald-400 bg-emerald-50/20'
+                      : 'border-slate-300 focus:ring-brand-500'
+                  }`}
                 />
               </div>
-              <p className="text-[11px] text-slate-500 mt-1">This forms your unique public web address.</p>
+              <p className={`text-[11px] mt-1 ${subdomainCheck.status === 'taken' ? 'text-rose-600 font-bold' : subdomainCheck.status === 'available' ? 'text-emerald-700 font-bold' : 'text-slate-500'}`}>
+                {subdomainCheck.message || 'This forms your unique public web address.'}
+              </p>
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
-                Custom Domain (Optional)
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-800">
+                  Custom Domain (Optional)
+                </label>
+                {customDomainCheck.status === 'checking' && (
+                  <span className="text-[10px] font-bold text-brand-600 flex items-center gap-1">
+                    <RefreshCw className="w-3 h-3 animate-spin" /> Verifying...
+                  </span>
+                )}
+                {customDomainCheck.status === 'available' && (
+                  <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                    <Check className="w-3 h-3 text-emerald-600" /> Available to Connect
+                  </span>
+                )}
+                {customDomainCheck.status === 'taken' && (
+                  <span className="text-[10px] font-extrabold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200 flex items-center gap-1">
+                    <X className="w-3 h-3 text-rose-600" /> Already Registered
+                  </span>
+                )}
+              </div>
               <input
                 type="text"
                 value={form.website_custom_domain}
                 onChange={(e) => setForm({ ...form, website_custom_domain: e.target.value })}
-                placeholder="e.g. www.yourgymname.com"
-                className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                placeholder="e.g. www.yourgymname.com or apexfitness.in"
+                className={`w-full px-3 py-2 text-xs font-bold rounded-xl border text-slate-900 focus:outline-none focus:ring-2 ${
+                  customDomainCheck.status === 'taken'
+                    ? 'border-rose-400 focus:ring-rose-400 bg-rose-50/20'
+                    : customDomainCheck.status === 'available'
+                    ? 'border-emerald-400 focus:ring-emerald-400 bg-emerald-50/20'
+                    : 'border-slate-300 focus:ring-brand-500'
+                }`}
               />
-              <p className="text-[11px] text-slate-500 mt-1">Point your custom domain CNAME to GymPulse.</p>
+              <p className={`text-[11px] mt-1 ${customDomainCheck.status === 'taken' ? 'text-rose-600 font-bold' : customDomainCheck.status === 'available' ? 'text-emerald-700 font-bold' : 'text-slate-500'}`}>
+                {customDomainCheck.message || 'Connect your branded custom domain (e.g. yourgym.com).'}
+              </p>
             </div>
           </div>
 

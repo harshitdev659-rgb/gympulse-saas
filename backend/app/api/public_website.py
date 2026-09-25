@@ -515,14 +515,50 @@ def get_gym_website_settings(
         "website_enabled": current_gym.website_enabled,
         "website_headline": current_gym.website_headline,
         "website_tagline": current_gym.website_tagline,
-        "website_about": current_gym.website_about,
-        "website_cover_image": current_gym.website_cover_image,
+        "website_amenities": current_gym.website_amenities or "",
+        "website_custom_domain": current_gym.website_custom_domain or "",
         "website_theme": current_gym.website_theme or "dark_power",
         "website_primary_color": current_gym.website_primary_color or "#10b981",
         "website_hero_style": current_gym.website_hero_style or "split",
         "website_announcement": current_gym.website_announcement or "",
-        "public_url": f"/facility/{current_gym.website_subdomain or current_gym.slug}"
+        "public_url": f"/facility/{current_gym.website_custom_domain or current_gym.website_subdomain or current_gym.slug}"
     }
+
+@router.get("/gym/website/check-domain")
+def check_domain_availability(
+    domain: str,
+    domain_type: str = "custom",
+    current_gym: Gym = Depends(get_current_gym),
+    db: Session = Depends(get_db)
+):
+    """Check whether a custom domain or website subdomain slug is available."""
+    clean = domain.strip().lower().replace("https://", "").replace("http://", "").rstrip("/")
+    if not clean:
+        return {"available": False, "domain": "", "message": "Domain cannot be empty."}
+    
+    reserved = ["api", "admin", "app", "login", "register", "download", "superadmin", "dashboard", "settings", "facility", "gym"]
+    if clean in reserved:
+        return {"available": False, "domain": clean, "message": f"'{clean}' is a reserved system keyword. Please choose another name."}
+
+    if domain_type == "subdomain":
+        clean_sub = clean.replace(" ", "-")
+        existing = db.query(Gym).filter(
+            (Gym.website_subdomain == clean_sub) | (Gym.slug == clean_sub),
+            Gym.id != current_gym.id
+        ).first()
+        if existing:
+            return {"available": False, "domain": clean_sub, "message": f"Subdomain '{clean_sub}' is already taken by another facility."}
+        return {"available": True, "domain": clean_sub, "message": f"Subdomain '{clean_sub}' is available!"}
+    
+    existing = db.query(Gym).filter(
+        (Gym.website_custom_domain == clean) | 
+        (Gym.website_subdomain == clean) |
+        (Gym.slug == clean),
+        Gym.id != current_gym.id
+    ).first()
+    if existing:
+        return {"available": False, "domain": clean, "message": f"Custom domain '{clean}' is already registered to another facility."}
+    return {"available": True, "domain": clean, "message": f"Custom domain '{clean}' is available to register!"}
 
 @router.put("/gym/website", response_model=GymResponse)
 def update_gym_website_settings(
@@ -531,22 +567,37 @@ def update_gym_website_settings(
     current_user = Depends(require_owner_or_admin),
     db: Session = Depends(get_db)
 ):
-    """Update custom website subdomain, headline, about story, theme, and styling."""
+    """Update custom website subdomain, custom domain, headline, about story, theme, and styling."""
     if not current_gym:
         raise HTTPException(status_code=400, detail="Gym context required")
     if req.website_subdomain is not None:
         new_sub = req.website_subdomain.lower().strip().replace(" ", "-")
         if new_sub != current_gym.website_subdomain:
             existing = db.query(Gym).filter(
-                Gym.website_subdomain == new_sub,
+                (Gym.website_subdomain == new_sub) | (Gym.slug == new_sub),
                 Gym.id != current_gym.id
             ).first()
             if existing:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="This website subdomain is already taken. Please choose another unique name."
+                    detail=f"The website subdomain '{new_sub}' is already taken. Please choose another unique name."
                 )
             current_gym.website_subdomain = new_sub
+            current_gym.slug = new_sub
+
+    if req.website_custom_domain is not None:
+        clean_domain = req.website_custom_domain.strip().lower().replace("https://", "").replace("http://", "").rstrip("/")
+        if clean_domain and clean_domain != current_gym.website_custom_domain:
+            existing_dom = db.query(Gym).filter(
+                (Gym.website_custom_domain == clean_domain) | (Gym.website_subdomain == clean_domain) | (Gym.slug == clean_domain),
+                Gym.id != current_gym.id
+            ).first()
+            if existing_dom:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"The custom domain '{clean_domain}' is already registered to another facility."
+                )
+        current_gym.website_custom_domain = clean_domain or None
 
     if req.website_enabled is not None:
         current_gym.website_enabled = req.website_enabled
@@ -560,8 +611,6 @@ def update_gym_website_settings(
         current_gym.website_cover_image = req.website_cover_image.strip()
     if req.website_amenities is not None:
         current_gym.website_amenities = req.website_amenities.strip()
-    if req.website_custom_domain is not None:
-        current_gym.website_custom_domain = req.website_custom_domain.strip().lower()
     if req.website_theme is not None:
         current_gym.website_theme = req.website_theme.strip().lower()
     if req.website_primary_color is not None:

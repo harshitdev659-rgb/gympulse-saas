@@ -30,6 +30,7 @@ import { Badge } from '../components/common/Badge';
 import { Modal } from '../components/common/Modal';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { formatCurrency } from '../utils/currency';
+import { exportMembersListCsv } from '../utils/csvExport';
 
 export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen }) => {
   const { gym } = useAuth();
@@ -239,9 +240,14 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
     }
   };
 
-  const handleExportCsv = () => {
-    const url = api.exportMembersCsvUrl(statusFilter);
-    window.open(url, '_blank');
+  const handleExportCsv = async () => {
+    try {
+      const membersToExport = await api.getMembers({ status_filter: statusFilter !== 'all' ? statusFilter : undefined });
+      await exportMembersListCsv(membersToExport);
+      toast.success('Members list ready — choose where to save it!');
+    } catch (err) {
+      toast.error('Failed to export members CSV.');
+    }
   };
 
   const handleSendWhatsApp = (member) => {
@@ -531,7 +537,6 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
         </div>
       </div>
 
-      {/* Add Member Modal */}
       <Modal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
@@ -541,7 +546,7 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
         <form onSubmit={handleCreateMember} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                 First Name *
               </label>
               <input
@@ -550,11 +555,11 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                 value={addForm.first_name}
                 onChange={(e) => setAddForm({ ...addForm, first_name: e.target.value })}
                 placeholder="e.g. John"
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 placeholder:text-slate-400 placeholder:font-normal"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                 Last Name *
               </label>
               <input
@@ -563,14 +568,14 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                 value={addForm.last_name}
                 onChange={(e) => setAddForm({ ...addForm, last_name: e.target.value })}
                 placeholder="e.g. Doe"
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 placeholder:text-slate-400 placeholder:font-normal"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                 Phone Number *
               </label>
               <input
@@ -578,12 +583,12 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                 required
                 value={addForm.phone}
                 onChange={(e) => setAddForm({ ...addForm, phone: e.target.value })}
-                placeholder="+1 555-0123"
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                placeholder="+91 98765 43210"
+                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 placeholder:text-slate-400 placeholder:font-normal"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                 Email Address
               </label>
               <input
@@ -591,31 +596,31 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                 value={addForm.email}
                 onChange={(e) => setAddForm({ ...addForm, email: e.target.value })}
                 placeholder="john.doe@example.com"
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 placeholder:text-slate-400 placeholder:font-normal"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                 Date of Birth
               </label>
               <input
                 type="date"
                 value={addForm.date_of_birth}
                 onChange={(e) => setAddForm({ ...addForm, date_of_birth: e.target.value })}
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                 Gender
               </label>
               <select
                 value={addForm.gender}
                 onChange={(e) => setAddForm({ ...addForm, gender: e.target.value })}
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
               >
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
@@ -623,13 +628,13 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                 Assigned Trainer
               </label>
               <select
                 value={addForm.assigned_trainer_id}
                 onChange={(e) => setAddForm({ ...addForm, assigned_trainer_id: e.target.value })}
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
               >
                 <option value="">None / General</option>
                 {trainers.map((t) => (
@@ -641,13 +646,13 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
 
           {/* Initial Plan Assignment */}
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-2">
               Initial Membership Plan (Optional)
             </label>
             <select
               value={addForm.initial_plan_id}
               onChange={(e) => setAddForm({ ...addForm, initial_plan_id: e.target.value })}
-              className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+              className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
             >
               <option value="">No Plan (Assign Later)</option>
               {plans.map((p) => (
@@ -660,7 +665,7 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                 Emergency Contact Name
               </label>
               <input
@@ -668,19 +673,19 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                 value={addForm.emergency_contact_name}
                 onChange={(e) => setAddForm({ ...addForm, emergency_contact_name: e.target.value })}
                 placeholder="Name of contact"
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 placeholder:text-slate-400 placeholder:font-normal"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                 Emergency Contact Phone
               </label>
               <input
                 type="tel"
                 value={addForm.emergency_contact_phone}
                 onChange={(e) => setAddForm({ ...addForm, emergency_contact_phone: e.target.value })}
-                placeholder="+1 555-9999"
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                placeholder="+91 98000 00000"
+                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 placeholder:text-slate-400 placeholder:font-normal"
               />
             </div>
           </div>

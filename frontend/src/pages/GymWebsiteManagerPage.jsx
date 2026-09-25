@@ -188,11 +188,10 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
   const fullPublicUrl = `${windowOrigin}${baseSubpath}/app.html?facility=${encodeURIComponent(currentSlug)}`;
 
   const handleVisitWebsite = () => {
-    if (onPreviewWebsite) {
-      onPreviewWebsite(currentSlug);
-    } else {
-      window.open(fullPublicUrl, '_blank');
-    }
+    // Always open the public website in a new browser tab.
+    // This avoids React context errors caused by DownloadAppModal (which uses useAuth/useToast)
+    // rendering inside the in-app preview shell. Opening a new tab is also better UX for a live website.
+    window.open(fullPublicUrl, '_blank', 'noopener,noreferrer');
   };
 
   const handleCopyLink = () => {

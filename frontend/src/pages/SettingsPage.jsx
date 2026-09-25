@@ -18,7 +18,13 @@ import {
   Trash2,
   RefreshCw,
   Globe,
-  ExternalLink
+  ExternalLink,
+  Edit3,
+  Key,
+  Lock,
+  CheckSquare,
+  Square,
+  ShieldCheck
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -26,6 +32,7 @@ import { useToast } from '../context/ToastContext';
 import { Button } from '../components/common/Button';
 import { Badge } from '../components/common/Badge';
 import { Modal } from '../components/common/Modal';
+import { PERMISSION_DEFINITIONS, ROLE_PRESETS } from '../utils/permissions';
 
 export const SettingsPage = () => {
   const { gym, user, refreshGymProfile, logout } = useAuth();
@@ -56,16 +63,24 @@ export const SettingsPage = () => {
     primary_color: '#2563eb'
   });
 
-  // Team
+  // Team & Staff Management
   const [teamUsers, setTeamUsers] = useState([]);
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
-  const [userForm, setUserForm] = useState({
+  const initialUserForm = {
     full_name: '',
     email: '',
     password: '',
     role: 'staff',
-    phone: ''
-  });
+    phone: '',
+    permissions: { ...ROLE_PRESETS.front_desk.permissions }
+  };
+  const [userForm, setUserForm] = useState(initialUserForm);
+
+  // Edit Staff Permissions Modal State
+  const [editingUser, setEditingUser] = useState(null);
+  const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
+  const [editRole, setEditRole] = useState('staff');
+  const [editPermissions, setEditPermissions] = useState({ ...ROLE_PRESETS.front_desk.permissions });
 
   // 24/7 Cloud Hosting Public Link
   const [cloudUrlInput, setCloudUrlInput] = useState('https://harshitdev659-rgb.github.io/gympulse-saas/');
@@ -216,15 +231,77 @@ export const SettingsPage = () => {
     }
     setIsSaving(true);
     try {
-      await api.createUser(userForm);
-      toast.success(`Account for ${userForm.full_name} created successfully!`);
+      const payload = {
+        ...userForm,
+        permissions: JSON.stringify(userForm.permissions)
+      };
+      await api.createUser(payload);
+      toast.success(`Account for ${userForm.full_name} created successfully with assigned permissions!`);
       setIsAddUserModalOpen(false);
-      setUserForm({ full_name: '', email: '', password: '', role: 'staff', phone: '' });
+      setUserForm(initialUserForm);
       fetchAllSettings();
     } catch (err) {
       toast.error(err.message || 'Failed to create team member.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleOpenEditUser = (u) => {
+    setEditingUser(u);
+    let parsedPerms = { ...ROLE_PRESETS.front_desk.permissions };
+    if (u.permissions) {
+      if (typeof u.permissions === 'string') {
+        try {
+          parsedPerms = JSON.parse(u.permissions);
+        } catch (e) {}
+      } else if (typeof u.permissions === 'object') {
+        parsedPerms = u.permissions;
+      }
+    } else if (u.role === 'trainer') {
+      parsedPerms = { ...ROLE_PRESETS.trainer.permissions };
+    } else if (u.role === 'owner') {
+      parsedPerms = { ...ROLE_PRESETS.full_access.permissions };
+    }
+    setEditPermissions(parsedPerms);
+    setEditRole(u.role || 'staff');
+    setIsEditUserModalOpen(true);
+  };
+
+  const handleSaveUserPermissions = async (e) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    setIsSaving(true);
+    try {
+      await api.updateUser(editingUser.id, {
+        role: editRole,
+        permissions: JSON.stringify(editPermissions)
+      });
+      toast.success(`Permissions updated for ${editingUser.full_name}!`);
+      setIsEditUserModalOpen(false);
+      setEditingUser(null);
+      fetchAllSettings();
+    } catch (err) {
+      toast.error(err.message || 'Failed to update user permissions.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteStaffUser = async (u) => {
+    if (u.role === 'owner') {
+      toast.error('The primary gym owner account cannot be deleted.');
+      return;
+    }
+    if (!window.confirm(`Are you sure you want to remove staff member "${u.full_name}"? They will lose access to the gym.`)) {
+      return;
+    }
+    try {
+      await api.deleteUser(u.id);
+      toast.success(`Staff user ${u.full_name} removed.`);
+      fetchAllSettings();
+    } catch (err) {
+      toast.error(err.message || 'Failed to remove user.');
     }
   };
 
@@ -334,7 +411,7 @@ export const SettingsPage = () => {
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs max-w-2xl">
           <form onSubmit={handleSaveProfile} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                 Facility Name *
               </label>
               <input
@@ -342,31 +419,33 @@ export const SettingsPage = () => {
                 required
                 value={profileForm.name}
                 onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                placeholder="e.g. Iron Pulse Fitness Hub"
+                className="w-full px-3.5 py-2.5 text-sm font-medium text-slate-900 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                   Contact Phone
                 </label>
                 <input
                   type="text"
                   value={profileForm.phone}
                   onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  placeholder="e.g. +91 98765 43210"
+                  className="w-full px-3.5 py-2.5 text-sm font-medium text-slate-900 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                   Currency Symbol
                 </label>
                 <select
                   value={profileForm.currency}
                   onChange={(e) => setProfileForm({ ...profileForm, currency: e.target.value })}
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white font-bold"
+                  className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white font-bold text-slate-900"
                 >
                   <option value="INR">INR (₹)</option>
                   <option value="USD">USD ($)</option>
@@ -379,28 +458,28 @@ export const SettingsPage = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                 Physical Facility Address
               </label>
               <textarea
                 rows={2}
                 value={profileForm.address}
                 onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })}
-                placeholder="Street, City, State/Province, Postal Code"
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                placeholder="e.g. 104, 2nd Floor, MG Road, Koramangala, Bengaluru - 560034"
+                className="w-full px-3.5 py-2.5 text-sm font-medium text-slate-900 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                 Branding Logo URL
               </label>
               <input
                 type="url"
                 value={profileForm.logo_url}
                 onChange={(e) => setProfileForm({ ...profileForm, logo_url: e.target.value })}
-                placeholder="https://..."
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                placeholder="e.g. https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=200"
+                className="w-full px-3.5 py-2.5 text-sm font-medium text-slate-900 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
               />
             </div>
 
@@ -423,7 +502,7 @@ export const SettingsPage = () => {
                   <h4 className="text-sm font-bold text-slate-900">
                     Delete Gym Facility & Its Dedicated Public Website
                   </h4>
-                  <p className="text-xs text-slate-600 mt-1 max-w-xl leading-relaxed">
+                  <p className="text-xs text-slate-700 mt-1 max-w-xl leading-relaxed font-medium">
                     Permanently purges all member profiles, check-in history, invoices, and 
                     <strong> instantly deletes your dedicated public website (/facility/{gym?.website_subdomain || gym?.slug})</strong>.
                     This action is permanent and cannot be undone.
@@ -433,7 +512,7 @@ export const SettingsPage = () => {
                 <button
                   type="button"
                   onClick={() => setIsDeleteModalOpen(true)}
-                  className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 whitespace-nowrap self-start sm:self-center shrink-0"
+                  className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 whitespace-nowrap self-start sm:self-center shrink-0 cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   Delete Gym & Website
@@ -449,22 +528,22 @@ export const SettingsPage = () => {
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs max-w-2xl">
           <form onSubmit={handleSaveConfig} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                 Business Hours Schedule
               </label>
               <input
                 type="text"
                 value={configForm.business_hours}
                 onChange={(e) => setConfigForm({ ...configForm, business_hours: e.target.value })}
-                placeholder="e.g. Mon-Fri: 6:00 AM - 10:00 PM"
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                placeholder="e.g. Mon-Sat: 6:00 AM - 10:00 PM, Sun: 7:00 AM - 1:00 PM"
+                className="w-full px-3.5 py-2.5 text-sm font-medium text-slate-900 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
-                  Tax / VAT Percentage (%)
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
+                  Tax / GST / VAT Percentage (%)
                 </label>
                 <input
                   type="number"
@@ -472,12 +551,13 @@ export const SettingsPage = () => {
                   min="0"
                   value={configForm.tax_percentage}
                   onChange={(e) => setConfigForm({ ...configForm, tax_percentage: e.target.value })}
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  placeholder="e.g. 18"
+                  className="w-full px-3.5 py-2.5 text-sm font-medium text-slate-900 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                   Expiry Alert Window (Days)
                 </label>
                 <input
@@ -486,21 +566,22 @@ export const SettingsPage = () => {
                   max="30"
                   value={configForm.expiry_alert_days}
                   onChange={(e) => setConfigForm({ ...configForm, expiry_alert_days: e.target.value })}
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  placeholder="e.g. 7"
+                  className="w-full px-3.5 py-2.5 text-sm font-medium text-slate-900 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                 Receipt Footer Notice
               </label>
               <textarea
                 rows={2}
                 value={configForm.receipt_footer_text}
                 onChange={(e) => setConfigForm({ ...configForm, receipt_footer_text: e.target.value })}
-                placeholder="Printed at the bottom of customer receipts..."
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                placeholder="e.g. Thank you for training with us! Please wear clean sports shoes on the floor at all times."
+                className="w-full px-3.5 py-2.5 text-sm font-medium text-slate-900 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
               />
             </div>
 
@@ -523,7 +604,7 @@ export const SettingsPage = () => {
                   <h4 className="text-sm font-bold text-slate-900">
                     Live Public Domain (Online 24/7 • No Same Wi-Fi Needed)
                   </h4>
-                  <p className="text-xs text-slate-600 mt-1 max-w-xl">
+                  <p className="text-xs text-slate-700 mt-1 max-w-xl font-medium">
                     This is your permanent 24/7 cloud address. When anyone clicks "Download App" or visits this link, they can download and install GymPulse on Android, iPhone, and Windows.
                   </p>
                 </div>
@@ -538,7 +619,7 @@ export const SettingsPage = () => {
                   value={cloudUrlInput}
                   onChange={(e) => setCloudUrlInput(e.target.value)}
                   placeholder="https://harshitdev659-rgb.github.io/gympulse-saas/"
-                  className="flex-1 px-3.5 py-2 text-xs font-mono rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                  className="flex-1 px-3.5 py-2 text-xs font-mono rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-slate-900 font-semibold"
                 />
                 <Button
                   onClick={handleSaveCloudUrl}
@@ -567,13 +648,18 @@ export const SettingsPage = () => {
       {/* Tab 3: Team / User Management */}
       {activeTab === 'team' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h3 className="text-base font-bold text-slate-900">Gym Operators & Staff</h3>
-              <p className="text-xs text-slate-500">Authorized user accounts permitted to operate this gym.</p>
+              <p className="text-xs text-slate-700 font-medium">
+                Create staff accounts with individual credentials and assign granular permissions for members, payments, attendance, and plans.
+              </p>
             </div>
             <Button
-              onClick={() => setIsAddUserModalOpen(true)}
+              onClick={() => {
+                setUserForm(initialUserForm);
+                setIsAddUserModalOpen(true);
+              }}
               variant="primary"
               size="sm"
               icon={Plus}
@@ -585,37 +671,108 @@ export const SettingsPage = () => {
           <div className="bg-white rounded-3xl border border-slate-200/80 overflow-hidden shadow-xs">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/75 border-b border-slate-200/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                  <th className="py-3 px-6">User</th>
+                <tr className="bg-slate-100/80 border-b border-slate-200 text-[11px] font-extrabold uppercase tracking-wider text-slate-800">
+                  <th className="py-3 px-6">User Account</th>
                   <th className="py-3 px-6">Role</th>
+                  <th className="py-3 px-6">Granted Permissions</th>
                   <th className="py-3 px-6">Contact Phone</th>
                   <th className="py-3 px-6">Status</th>
-                  <th className="py-3 px-6">Created</th>
+                  <th className="py-3 px-6 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
-                {teamUsers.map((u) => (
-                  <tr key={u.id} className="hover:bg-slate-50/50">
-                    <td className="py-3.5 px-6">
-                      <div className="font-bold text-slate-900">{u.full_name}</div>
-                      <div className="text-xs text-slate-400">{u.email}</div>
-                    </td>
-                    <td className="py-3.5 px-6">
-                      <span className="px-2 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
-                        {u.role}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-6 text-xs text-slate-600">{u.phone || '--'}</td>
-                    <td className="py-3.5 px-6">
-                      <Badge variant={u.is_active ? 'active' : 'default'} size="sm">
-                        {u.is_active ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </td>
-                    <td className="py-3.5 px-6 text-xs text-slate-400">
-                      {new Date(u.created_at).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
+                {teamUsers.map((u) => {
+                  let permsObj = {};
+                  if (u.permissions) {
+                    if (typeof u.permissions === 'string') {
+                      try { permsObj = JSON.parse(u.permissions); } catch (e) {}
+                    } else if (typeof u.permissions === 'object') {
+                      permsObj = u.permissions;
+                    }
+                  } else if (u.role === 'owner') {
+                    permsObj = { ...ROLE_PRESETS.full_access.permissions };
+                  } else {
+                    permsObj = { ...ROLE_PRESETS.front_desk.permissions };
+                  }
+
+                  const activePermKeys = Object.keys(permsObj).filter((k) => permsObj[k]);
+
+                  return (
+                    <tr key={u.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3.5 px-6">
+                        <div className="font-bold text-slate-900">{u.full_name || u.name}</div>
+                        <div className="text-xs text-slate-700 font-medium">{u.email}</div>
+                      </td>
+                      <td className="py-3.5 px-6">
+                        <span className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider border ${
+                          u.role === 'owner'
+                            ? 'bg-amber-100/80 text-amber-900 border-amber-300'
+                            : u.role === 'admin'
+                            ? 'bg-purple-100/80 text-purple-900 border-purple-300'
+                            : u.role === 'trainer'
+                            ? 'bg-blue-100/80 text-blue-900 border-blue-300'
+                            : 'bg-emerald-100/80 text-emerald-900 border-emerald-300'
+                        }`}>
+                          {u.role}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-6">
+                        {u.role === 'owner' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold bg-amber-50 text-amber-900 border border-amber-300">
+                            <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+                            Full Unrestricted Access
+                          </span>
+                        ) : activePermKeys.length === 0 ? (
+                          <span className="text-xs text-slate-500 italic">No permissions granted</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1 max-w-xs">
+                            {activePermKeys.slice(0, 3).map((k) => {
+                              const def = PERMISSION_DEFINITIONS.find((p) => p.key === k);
+                              return (
+                                <span key={k} className="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-200">
+                                  {def ? def.label : k}
+                                </span>
+                              );
+                            })}
+                            {activePermKeys.length > 3 && (
+                              <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-brand-50 text-brand-700 border border-brand-200">
+                                +{activePermKeys.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-6 text-xs text-slate-800 font-semibold">{u.phone || '--'}</td>
+                      <td className="py-3.5 px-6">
+                        <Badge variant={u.is_active ? 'active' : 'default'} size="sm">
+                          {u.is_active ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </td>
+                      <td className="py-3.5 px-6 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditUser(u)}
+                            className="p-1.5 rounded-lg text-slate-700 hover:text-brand-600 hover:bg-brand-50 border border-slate-200 transition-colors cursor-pointer"
+                            title="Edit Permissions & Role"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          {u.role !== 'owner' && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteStaffUser(u)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 transition-colors cursor-pointer"
+                              title="Delete Account"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -763,83 +920,175 @@ export const SettingsPage = () => {
       <Modal
         isOpen={isAddUserModalOpen}
         onClose={() => setIsAddUserModalOpen(false)}
-        title="Invite Staff or Trainer"
-        maxWidth="max-w-md"
+        title="Invite Staff Member & Grant Permissions"
+        maxWidth="max-w-2xl"
       >
         <form onSubmit={handleCreateUser} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
-              Full Name *
-            </label>
-            <input
-              type="text"
-              required
-              value={userForm.full_name}
-              onChange={(e) => setUserForm({ ...userForm, full_name: e.target.value })}
-              placeholder="e.g. Michael Scott"
-              className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
-              Work Email *
-            </label>
-            <input
-              type="email"
-              required
-              value={userForm.email}
-              onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
-              placeholder="michael@yourgym.com"
-              className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
-                Assigned Role
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
+                Full Name *
+              </label>
+              <input
+                type="text"
+                required
+                value={userForm.full_name}
+                onChange={(e) => setUserForm({ ...userForm, full_name: e.target.value })}
+                placeholder="e.g. Rahul Sharma"
+                className="w-full px-3.5 py-2.5 text-sm font-medium text-slate-900 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
+                Staff Work Email *
+              </label>
+              <input
+                type="email"
+                required
+                value={userForm.email}
+                onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                placeholder="e.g. rahul@yourgym.com"
+                className="w-full px-3.5 py-2.5 text-sm font-medium text-slate-900 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
+                Designated Role
               </label>
               <select
                 value={userForm.role}
-                onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white capitalize"
+                onChange={(e) => {
+                  const newRole = e.target.value;
+                  const preset = newRole === 'trainer' ? ROLE_PRESETS.trainer : newRole === 'admin' ? ROLE_PRESETS.manager : ROLE_PRESETS.front_desk;
+                  setUserForm({ ...userForm, role: newRole, permissions: { ...preset.permissions } });
+                }}
+                className="w-full px-3.5 py-2.5 text-sm font-medium text-slate-900 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white capitalize"
               >
                 <option value="staff">Staff (Front Desk)</option>
-                <option value="trainer">Trainer</option>
-                <option value="admin">Admin / Manager</option>
+                <option value="trainer">Fitness Trainer / Coach</option>
+                <option value="admin">Manager / Admin</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
-                Phone
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
+                Phone Number
               </label>
               <input
                 type="tel"
                 value={userForm.phone}
                 onChange={(e) => setUserForm({ ...userForm, phone: e.target.value })}
-                placeholder="+1 555-0199"
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                placeholder="e.g. +91 98111 22233"
+                className="w-full px-3.5 py-2.5 text-sm font-medium text-slate-900 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
-              Temporary Password *
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
+              Initial Login Password *
             </label>
             <input
               type="password"
               required
               value={userForm.password}
               onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
-              placeholder="At least 6 characters"
-              className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              placeholder="e.g. Pass123! (at least 6 characters)"
+              className="w-full px-3.5 py-2.5 text-sm font-medium text-slate-900 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
             />
           </div>
 
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+          {/* Granular Permissions Section */}
+          <div className="pt-3 border-t border-slate-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+              <div>
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-900">
+                  Allowed App Access & Permissions
+                </label>
+                <p className="text-[11px] text-slate-600 font-medium">
+                  Select which operations this staff user is authorized to perform.
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setUserForm({ ...userForm, permissions: { ...ROLE_PRESETS.front_desk.permissions } })}
+                  className="px-2 py-1 text-[11px] font-bold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition-colors"
+                >
+                  Front Desk
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserForm({ ...userForm, permissions: { ...ROLE_PRESETS.trainer.permissions } })}
+                  className="px-2 py-1 text-[11px] font-bold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition-colors"
+                >
+                  Trainer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserForm({ ...userForm, permissions: { ...ROLE_PRESETS.manager.permissions } })}
+                  className="px-2 py-1 text-[11px] font-bold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition-colors"
+                >
+                  Manager
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserForm({ ...userForm, permissions: { ...ROLE_PRESETS.full_access.permissions } })}
+                  className="px-2 py-1 text-[11px] font-bold rounded-lg bg-brand-50 hover:bg-brand-100 text-brand-800 border border-brand-300 transition-colors"
+                >
+                  All Access
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-64 overflow-y-auto p-1 bg-slate-50/60 rounded-2xl border border-slate-200">
+              {PERMISSION_DEFINITIONS.map((perm) => {
+                const isChecked = !!userForm.permissions?.[perm.key];
+                return (
+                  <label
+                    key={perm.key}
+                    className={`flex items-start gap-3 p-2.5 rounded-xl border transition-all cursor-pointer ${
+                      isChecked
+                        ? 'bg-white border-brand-500 shadow-xs'
+                        : 'bg-white/60 border-slate-200 hover:bg-white'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={(e) => {
+                        setUserForm({
+                          ...userForm,
+                          permissions: {
+                            ...(userForm.permissions || {}),
+                            [perm.key]: e.target.checked
+                          }
+                        });
+                      }}
+                      className="mt-0.5 w-4 h-4 rounded text-brand-600 focus:ring-brand-500 border-slate-300 cursor-pointer"
+                    />
+                    <div className="overflow-hidden">
+                      <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                        <span>{perm.label}</span>
+                        <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                          {perm.category}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-600 mt-0.5 leading-snug">
+                        {perm.description}
+                      </div>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
             <Button
               type="button"
               variant="secondary"
@@ -852,7 +1101,139 @@ export const SettingsPage = () => {
               variant="primary"
               isLoading={isSaving}
             >
-              Create Account
+              Create Account & Assign Permissions
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Staff User Permissions Modal */}
+      <Modal
+        isOpen={isEditUserModalOpen}
+        onClose={() => {
+          setIsEditUserModalOpen(false);
+          setEditingUser(null);
+        }}
+        title={`Edit Permissions: ${editingUser?.full_name || editingUser?.name}`}
+        maxWidth="max-w-2xl"
+      >
+        <form onSubmit={handleSaveUserPermissions} className="space-y-4">
+          <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-4">
+            <div>
+              <div className="text-xs font-extrabold uppercase text-slate-500">Managing Access For</div>
+              <div className="text-sm font-black text-slate-900">{editingUser?.full_name || editingUser?.name}</div>
+              <div className="text-xs text-slate-700 font-medium">{editingUser?.email}</div>
+            </div>
+            <div className="w-48">
+              <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-700 mb-1">
+                Role
+              </label>
+              <select
+                value={editRole}
+                onChange={(e) => setEditRole(e.target.value)}
+                className="w-full px-3 py-1.5 text-xs font-bold text-slate-900 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white capitalize"
+              >
+                <option value="staff">Staff (Front Desk)</option>
+                <option value="trainer">Fitness Trainer</option>
+                <option value="admin">Manager / Admin</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Preset Buttons */}
+          <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
+            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-900">
+              Quick Role Presets:
+            </span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setEditPermissions({ ...ROLE_PRESETS.front_desk.permissions })}
+                className="px-2.5 py-1 text-xs font-bold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition-colors"
+              >
+                Front Desk
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditPermissions({ ...ROLE_PRESETS.trainer.permissions })}
+                className="px-2.5 py-1 text-xs font-bold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition-colors"
+              >
+                Trainer
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditPermissions({ ...ROLE_PRESETS.manager.permissions })}
+                className="px-2.5 py-1 text-xs font-bold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition-colors"
+              >
+                Manager
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditPermissions({ ...ROLE_PRESETS.full_access.permissions })}
+                className="px-2.5 py-1 text-xs font-bold rounded-lg bg-brand-50 hover:bg-brand-100 text-brand-800 border border-brand-300 transition-colors"
+              >
+                Full Access
+              </button>
+            </div>
+          </div>
+
+          {/* Granular Permission Toggles */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-64 overflow-y-auto p-1 bg-slate-50/60 rounded-2xl border border-slate-200">
+            {PERMISSION_DEFINITIONS.map((perm) => {
+              const isChecked = !!editPermissions?.[perm.key];
+              return (
+                <label
+                  key={perm.key}
+                  className={`flex items-start gap-3 p-2.5 rounded-xl border transition-all cursor-pointer ${
+                    isChecked
+                      ? 'bg-white border-brand-500 shadow-xs'
+                      : 'bg-white/60 border-slate-200 hover:bg-white'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={(e) => {
+                      setEditPermissions({
+                        ...editPermissions,
+                        [perm.key]: e.target.checked
+                      });
+                    }}
+                    className="mt-0.5 w-4 h-4 rounded text-brand-600 focus:ring-brand-500 border-slate-300 cursor-pointer"
+                  />
+                  <div className="overflow-hidden">
+                    <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <span>{perm.label}</span>
+                      <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                        {perm.category}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-600 mt-0.5 leading-snug">
+                      {perm.description}
+                    </div>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+
+          <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setIsEditUserModalOpen(false);
+                setEditingUser(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              isLoading={isSaving}
+            >
+              Update Permissions
             </Button>
           </div>
         </form>

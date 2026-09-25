@@ -80,7 +80,11 @@ def get_public_facility_website(slug: str, db: Session = Depends(get_db)) -> Dic
         "email": gym.email,
         "address": gym.address,
         "business_hours": settings.business_hours if settings else "Mon-Sat: 6:00 AM - 10:00 PM",
-        "primary_color": settings.primary_color if settings else "#2563eb",
+        "primary_color": gym.website_primary_color or (settings.primary_color if settings else "#10b981"),
+        "website_theme": gym.website_theme or "dark_power",
+        "website_primary_color": gym.website_primary_color or (settings.primary_color if settings else "#10b981"),
+        "website_hero_style": gym.website_hero_style or "split",
+        "website_announcement": gym.website_announcement or "",
         "plans": [
             {
                 "id": p.id,
@@ -189,8 +193,10 @@ def get_gym_website_settings(
         "website_tagline": current_gym.website_tagline,
         "website_about": current_gym.website_about,
         "website_cover_image": current_gym.website_cover_image,
-        "website_amenities": current_gym.website_amenities,
-        "website_custom_domain": current_gym.website_custom_domain,
+        "website_theme": current_gym.website_theme or "dark_power",
+        "website_primary_color": current_gym.website_primary_color or "#10b981",
+        "website_hero_style": current_gym.website_hero_style or "split",
+        "website_announcement": current_gym.website_announcement or "",
         "public_url": f"/facility/{current_gym.website_subdomain or current_gym.slug}"
     }
 
@@ -201,7 +207,7 @@ def update_gym_website_settings(
     current_user = Depends(require_owner_or_admin),
     db: Session = Depends(get_db)
 ):
-    """Update custom website subdomain, headline, about story, and amenities."""
+    """Update custom website subdomain, headline, about story, theme, and styling."""
     if not current_gym:
         raise HTTPException(status_code=400, detail="Gym context required")
     if req.website_subdomain is not None:
@@ -232,6 +238,14 @@ def update_gym_website_settings(
         current_gym.website_amenities = req.website_amenities.strip()
     if req.website_custom_domain is not None:
         current_gym.website_custom_domain = req.website_custom_domain.strip().lower()
+    if req.website_theme is not None:
+        current_gym.website_theme = req.website_theme.strip().lower()
+    if req.website_primary_color is not None:
+        current_gym.website_primary_color = req.website_primary_color.strip()
+    if req.website_hero_style is not None:
+        current_gym.website_hero_style = req.website_hero_style.strip().lower()
+    if req.website_announcement is not None:
+        current_gym.website_announcement = req.website_announcement.strip()
 
     db.commit()
     db.refresh(current_gym)

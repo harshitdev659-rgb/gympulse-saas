@@ -151,6 +151,12 @@ class ApiService {
     });
   }
 
+  deleteUser(id) {
+    return this.request(`/auth/users/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
   // Dashboard
   getDashboardStats() {
     return this.request('/dashboard/stats');

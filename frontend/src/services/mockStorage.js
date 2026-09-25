@@ -376,6 +376,64 @@ export function handleMockRequest(endpoint, options = {}) {
     return { success: true };
   }
 
+  // Auth: Team / Staff Users Management
+  const matchUserById = endpoint.match(/^\/auth\/users\/([^/?]+)/);
+  if (matchUserById) {
+    const targetUserId = matchUserById[1];
+    const uIdx = db.users.findIndex((u) => u.id == targetUserId || String(u.id) === String(targetUserId));
+    if (uIdx === -1) {
+      throw new Error('User account not found');
+    }
+    if (method === 'DELETE') {
+      const removed = db.users[uIdx];
+      db.users.splice(uIdx, 1);
+      saveDb(db);
+      return { success: true, message: `User ${removed.full_name || removed.name} removed successfully.` };
+    }
+    if (method === 'PUT') {
+      db.users[uIdx] = {
+        ...db.users[uIdx],
+        ...body,
+        permissions: body.permissions !== undefined ? body.permissions : db.users[uIdx].permissions
+      };
+      saveDb(db);
+      return db.users[uIdx];
+    }
+    return db.users[uIdx];
+  }
+
+  if (endpoint.startsWith('/auth/users')) {
+    if (method === 'POST') {
+      const existing = db.users.find(
+        (u) => (u.gym_id == currentGymId || String(u.gym_id) === String(currentGymId)) &&
+               (u.email || '').toLowerCase().trim() === (body.email || '').toLowerCase().trim()
+      );
+      if (existing) {
+        throw new Error('A user with this email already exists in your gym.');
+      }
+      const newStaffUser = {
+        id: Date.now(),
+        gym_id: currentGymId,
+        full_name: (body.full_name || 'Staff Member').trim(),
+        name: (body.full_name || 'Staff Member').trim(),
+        email: (body.email || '').toLowerCase().trim(),
+        password: body.password || '',
+        role: body.role || 'staff',
+        phone: body.phone || '',
+        permissions: body.permissions || null,
+        is_active: true,
+        is_superadmin: false,
+        created_at: new Date().toISOString()
+      };
+      db.users.push(newStaffUser);
+      saveDb(db);
+      return newStaffUser;
+    }
+    return db.users.filter(
+      (u) => (u.gym_id == currentGymId || String(u.gym_id) === String(currentGymId)) && !u.is_superadmin
+    );
+  }
+
   // 4. Dashboard Stats (strictly scoped to active gym)
   if (endpoint.startsWith('/dashboard/stats')) {
     const gymMembers = db.members.filter((m) => m.gym_id === currentGymId);
@@ -739,6 +797,10 @@ export function handleMockRequest(endpoint, options = {}) {
           currentGym.slug = body.website_subdomain;
         }
         currentGym.website = { ...(currentGym.website || {}), ...body };
+        if (body.website_theme) currentGym.website_theme = body.website_theme;
+        if (body.website_primary_color) currentGym.website_primary_color = body.website_primary_color;
+        if (body.website_hero_style) currentGym.website_hero_style = body.website_hero_style;
+        if (body.website_announcement !== undefined) currentGym.website_announcement = body.website_announcement;
       }
       saveDb(db);
       return { ...db.website, ...(currentGym?.website || {}) };
@@ -753,6 +815,10 @@ export function handleMockRequest(endpoint, options = {}) {
       website_cover_image: activeGym?.website_cover_image || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&auto=format&fit=crop&q=80',
       website_amenities: activeGym?.website_amenities || 'Olympic Free Weights, Cardio Theatre, Strength Machines, Certified Trainers, Steam & Sauna, Lockers',
       website_custom_domain: activeGym?.website_custom_domain || '',
+      website_theme: activeGym?.website_theme || activeGym?.website?.website_theme || 'dark_power',
+      website_primary_color: activeGym?.website_primary_color || activeGym?.website?.website_primary_color || '#10b981',
+      website_hero_style: activeGym?.website_hero_style || activeGym?.website?.website_hero_style || 'split',
+      website_announcement: activeGym?.website_announcement || activeGym?.website?.website_announcement || '',
       ...db.website,
       ...(activeGym?.website || {})
     };
@@ -835,6 +901,11 @@ export function handleMockRequest(endpoint, options = {}) {
       { id: 2, name: 'Elena Rostova', specialty: 'Functional Fitness & Mobility', specialization: 'Functional Fitness & Mobility', bio: 'Specialist in functional biomechanics, mobility restoration, and HIIT.' }
     ];
 
+    const selectedTheme = web.website_theme || facilityGym.website_theme || 'dark_power';
+    const selectedColor = web.website_primary_color || facilityGym.website_primary_color || '#10b981';
+    const selectedHeroStyle = web.website_hero_style || facilityGym.website_hero_style || 'split';
+    const selectedAnnouncement = web.website_announcement || facilityGym.website_announcement || '';
+
     return {
       // Direct flattened properties expected by GymPublicWebsitePage:
       id: facilityGym.id,
@@ -852,7 +923,11 @@ export function handleMockRequest(endpoint, options = {}) {
       email: facilityGym.email || 'contact@gympulse.com',
       address: facilityGym.address || 'Central Fitness Complex',
       business_hours: 'Mon-Sat: 6:00 AM - 10:00 PM',
-      primary_color: '#0270c7',
+      primary_color: selectedColor,
+      website_theme: selectedTheme,
+      website_primary_color: selectedColor,
+      website_hero_style: selectedHeroStyle,
+      website_announcement: selectedAnnouncement,
       plans: plansList,
       trainers: trainersList,
 
@@ -864,7 +939,11 @@ export function handleMockRequest(endpoint, options = {}) {
         website_tagline: web.website_tagline || facilityGym.website_tagline || 'World-Class Fitness, Strength & Conditioning',
         website_about: web.website_about || facilityGym.website_about || `${facilityGym.name} provides premier fitness equipment, certified coaching, and a supportive community.`,
         website_cover_image: web.website_cover_image || facilityGym.website_cover_image || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&auto=format&fit=crop&q=80',
-        website_amenities: amenitiesList.join(', ')
+        website_amenities: amenitiesList.join(', '),
+        website_theme: selectedTheme,
+        website_primary_color: selectedColor,
+        website_hero_style: selectedHeroStyle,
+        website_announcement: selectedAnnouncement
       }
     };
   }

@@ -38,6 +38,10 @@ class Gym(Base):
     website_cover_image = Column(String(500), nullable=True)
     website_amenities = Column(Text, nullable=True)
     website_custom_domain = Column(String(255), nullable=True)
+    website_theme = Column(String(50), default="dark_power", nullable=False)  # dark_power, clean_studio, neon_energy, luxury_gold
+    website_primary_color = Column(String(50), default="#10b981", nullable=False)
+    website_hero_style = Column(String(50), default="split", nullable=False)  # split, centered, bold_card
+    website_announcement = Column(String(255), nullable=True)
     max_members = Column(Integer, default=25, nullable=False)
     created_at = Column(DateTime, default=get_utc_now, nullable=False)
     updated_at = Column(DateTime, default=get_utc_now, onupdate=get_utc_now, nullable=False)
@@ -65,6 +69,7 @@ class User(Base):
     role = Column(String(50), default="staff", nullable=False)  # superadmin, owner, admin, trainer, staff
     is_superadmin = Column(Boolean, default=False, nullable=False)
     phone = Column(String(50), nullable=True)
+    permissions = Column(Text, nullable=True)  # JSON string of granular allowed permissions
     is_active = Column(Boolean, default=True, nullable=False)
     reset_token = Column(String(255), nullable=True)
     reset_token_expiry = Column(DateTime, nullable=True)

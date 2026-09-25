@@ -13,11 +13,72 @@ import {
   Clock, 
   CheckCircle2, 
   RefreshCw,
-  Edit3
+  Edit3,
+  Palette,
+  Layout,
+  Megaphone
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+
+const THEME_OPTIONS = [
+  {
+    id: 'dark_power',
+    name: 'Iron & Power',
+    tag: 'Athletic / Gritty',
+    description: 'Dark charcoal theme with glowing highlights. Perfect for strength, powerlifting & bodybuilding gyms.',
+    previewBg: 'bg-slate-950',
+    previewCard: 'bg-slate-900 border-slate-700',
+    previewAccent: 'bg-emerald-500',
+    textColor: 'text-slate-100',
+    subColor: 'text-slate-400'
+  },
+  {
+    id: 'clean_studio',
+    name: 'Clean Studio',
+    tag: 'Modern / Light',
+    description: 'High-contrast light background with crisp cards. Ideal for boutique fitness, pilates, yoga, and wellness clubs.',
+    previewBg: 'bg-slate-100',
+    previewCard: 'bg-white border-slate-300 shadow-sm',
+    previewAccent: 'bg-teal-500',
+    textColor: 'text-slate-900',
+    subColor: 'text-slate-600'
+  },
+  {
+    id: 'neon_energy',
+    name: 'Urban CrossFit',
+    tag: 'High Voltage',
+    description: 'Deep obsidian zinc with high-energy fiery gradients and bold borders. Designed for CrossFit, HIIT & bootcamps.',
+    previewBg: 'bg-zinc-950',
+    previewCard: 'bg-zinc-900 border-orange-500/40',
+    previewAccent: 'bg-orange-500',
+    textColor: 'text-orange-100',
+    subColor: 'text-orange-400/80'
+  },
+  {
+    id: 'luxury_gold',
+    name: 'Luxury Elite',
+    tag: 'Prestige / VIP',
+    description: 'Deep obsidian with metallic gold accents and refined executive typography for high-end luxury wellness clubs.',
+    previewBg: 'bg-[#0a0a0c]',
+    previewCard: 'bg-[#131318] border-amber-500/40',
+    previewAccent: 'bg-amber-400',
+    textColor: 'text-amber-100',
+    subColor: 'text-amber-400/80'
+  }
+];
+
+const COLOR_PRESETS = [
+  { name: 'Emerald', hex: '#10b981' },
+  { name: 'Cobalt Blue', hex: '#2563eb' },
+  { name: 'Sunset Orange', hex: '#f97316' },
+  { name: 'Crimson Red', hex: '#e11d48' },
+  { name: 'Gold Champagne', hex: '#d97706' },
+  { name: 'Electric Violet', hex: '#8b5cf6' },
+  { name: 'Cyber Cyan', hex: '#06b6d4' },
+  { name: 'Neon Green', hex: '#22c55e' }
+];
 
 export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
   const { gym } = useAuth();
@@ -37,7 +98,11 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
     website_about: '',
     website_cover_image: '',
     website_amenities: '',
-    website_custom_domain: ''
+    website_custom_domain: '',
+    website_theme: 'dark_power',
+    website_primary_color: '#10b981',
+    website_hero_style: 'split',
+    website_announcement: ''
   });
 
   // Leads state
@@ -57,7 +122,11 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
         website_about: data.website_about || `${gym?.name || 'Our facility'} offers world-class training equipment and certified coaches.`,
         website_cover_image: data.website_cover_image || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&auto=format&fit=crop&q=80',
         website_amenities: data.website_amenities || 'Olympic Free Weights, Cardio Theatre, Strength Machines, Certified Trainers, Steam & Sauna, Lockers',
-        website_custom_domain: data.website_custom_domain || ''
+        website_custom_domain: data.website_custom_domain || '',
+        website_theme: data.website_theme || gym?.website_theme || 'dark_power',
+        website_primary_color: data.website_primary_color || gym?.website_primary_color || '#10b981',
+        website_hero_style: data.website_hero_style || gym?.website_hero_style || 'split',
+        website_announcement: data.website_announcement || gym?.website_announcement || ''
       });
     } catch (err) {
       console.debug('Could not load website settings, falling back to defaults:', err);
@@ -212,16 +281,186 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
         <form onSubmit={handleSave} className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-6 space-y-6">
           <div className="border-b border-slate-100 pb-4">
             <h2 className="text-base font-bold text-slate-900">Branded Website Settings</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Edit content displayed to prospective members visiting your public website.</p>
+            <p className="text-xs text-slate-500 mt-0.5">Customize your live public website's design, colors, hero layout, and content.</p>
+          </div>
+
+          {/* Visual Theme Selection */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-800">
+                  <Palette className="w-3.5 h-3.5 inline mr-1 text-brand-600" /> Facility Website Theme & Visual Identity
+                </label>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Select a unique aesthetic so your gym website stands out distinctly from other fitness centers.
+                </p>
+              </div>
+              <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-brand-50 text-brand-700 border border-brand-200">
+                Active: {THEME_OPTIONS.find(t => t.id === form.website_theme)?.name || 'Iron & Power'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-1">
+              {THEME_OPTIONS.map((theme) => {
+                const isSelected = form.website_theme === theme.id;
+                return (
+                  <div
+                    key={theme.id}
+                    onClick={() => setForm({ ...form, website_theme: theme.id })}
+                    className={`rounded-2xl p-3.5 border-2 cursor-pointer transition-all flex flex-col justify-between ${
+                      isSelected
+                        ? 'border-brand-600 ring-2 ring-brand-500/20 shadow-md bg-brand-50/20'
+                        : 'border-slate-200 hover:border-slate-300 bg-white hover:shadow-xs'
+                    }`}
+                  >
+                    <div>
+                      {/* Theme Mini Card Preview */}
+                      <div className={`h-20 rounded-xl ${theme.previewBg} p-2.5 flex flex-col justify-between mb-3 border border-black/10 shadow-inner relative overflow-hidden`}>
+                        <div className="flex items-center justify-between">
+                          <div className={`w-12 h-2 rounded-full ${theme.previewAccent} opacity-80`} />
+                          <div className={`w-2 h-2 rounded-full ${theme.previewAccent}`} />
+                        </div>
+                        <div className={`p-1.5 rounded-lg ${theme.previewCard}`}>
+                          <div className={`text-[9px] font-black ${theme.textColor} leading-tight truncate`}>
+                            {theme.name}
+                          </div>
+                          <div className={`text-[8px] ${theme.subColor} truncate`}>
+                            {theme.tag}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-slate-900">{theme.name}</span>
+                        <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                          {theme.tag}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-relaxed">
+                        {theme.description}
+                      </p>
+                    </div>
+
+                    <div className="pt-2 mt-2 border-t border-slate-100 flex items-center justify-between">
+                      <span className={`text-[11px] font-bold ${isSelected ? 'text-brand-700' : 'text-slate-400'}`}>
+                        {isSelected ? '✓ Selected' : 'Choose Theme'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Accent Color & Hero Layout */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 rounded-2xl bg-slate-50/80 border border-slate-200">
+            {/* Primary Accent Color */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
+                <Palette className="w-3.5 h-3.5 inline mr-1 text-brand-600" /> Primary Accent Color
+              </label>
+              <p className="text-[11px] text-slate-500 mb-2.5">
+                Customizes call-to-action buttons, badges, and icons across your public website.
+              </p>
+              
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                {COLOR_PRESETS.map((color) => (
+                  <button
+                    key={color.hex}
+                    type="button"
+                    onClick={() => setForm({ ...form, website_primary_color: color.hex })}
+                    className={`w-7 h-7 rounded-full transition-transform border flex items-center justify-center ${
+                      form.website_primary_color?.toLowerCase() === color.hex.toLowerCase()
+                        ? 'scale-110 ring-2 ring-offset-2 ring-slate-800 border-white shadow-xs'
+                        : 'border-black/10 hover:scale-105'
+                    }`}
+                    style={{ backgroundColor: color.hex }}
+                    title={color.name}
+                  >
+                    {form.website_primary_color?.toLowerCase() === color.hex.toLowerCase() && (
+                      <Check className="w-3.5 h-3.5 text-white" />
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-8 h-8 rounded-lg border border-slate-300 shrink-0 shadow-xs"
+                  style={{ backgroundColor: form.website_primary_color || '#10b981' }}
+                />
+                <input
+                  type="text"
+                  value={form.website_primary_color}
+                  onChange={(e) => setForm({ ...form, website_primary_color: e.target.value })}
+                  placeholder="#10b981"
+                  className="w-32 px-3 py-1.5 text-xs font-mono font-bold rounded-lg border border-slate-300 text-slate-900 uppercase"
+                />
+                <span className="text-[11px] text-slate-500">Custom Hex Code</span>
+              </div>
+            </div>
+
+            {/* Hero Layout Style */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
+                <Layout className="w-3.5 h-3.5 inline mr-1 text-brand-600" /> Hero Layout Style
+              </label>
+              <p className="text-[11px] text-slate-500 mb-2.5">
+                Choose how your homepage banner presents your brand to visitors.
+              </p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div
+                  onClick={() => setForm({ ...form, website_hero_style: 'split' })}
+                  className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                    form.website_hero_style === 'split'
+                      ? 'border-brand-600 bg-white ring-2 ring-brand-500/20 shadow-xs'
+                      : 'border-slate-200 bg-white/60 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="font-bold text-xs text-slate-900 mb-0.5">Split Hero (2-Column)</div>
+                  <p className="text-[11px] text-slate-500">Headline & CTA on the left, high-res gym photo & badges on the right.</p>
+                </div>
+
+                <div
+                  onClick={() => setForm({ ...form, website_hero_style: 'centered' })}
+                  className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                    form.website_hero_style === 'centered'
+                      ? 'border-brand-600 bg-white ring-2 ring-brand-500/20 shadow-xs'
+                      : 'border-slate-200 bg-white/60 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="font-bold text-xs text-slate-900 mb-0.5">Centered Impact</div>
+                  <p className="text-[11px] text-slate-500">Centered bold headline with prominent floating membership passes.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Top Announcement Bar */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
+              <Megaphone className="w-3.5 h-3.5 inline mr-1 text-brand-600" /> Top Announcement Alert (Optional)
+            </label>
+            <input
+              type="text"
+              value={form.website_announcement}
+              onChange={(e) => setForm({ ...form, website_announcement: e.target.value })}
+              placeholder="e.g. 🎉 Monsoon Flash Sale: 20% OFF on all 6 & 12 Month Memberships! Claim your pass today."
+              className="w-full px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+            <p className="text-[11px] text-slate-500 mt-1">
+              Displays a vibrant alert bar at the very top of your public website for special promotions, holiday hours, or discounts.
+            </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
                 Website Name / Subdomain Slug *
               </label>
               <div className="flex rounded-xl shadow-xs">
-                <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-slate-200 bg-slate-50 text-slate-500 text-xs font-mono">
+                <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-slate-200 bg-slate-50 text-slate-600 text-xs font-mono font-bold">
                   {windowOrigin.replace(/^https?:\/\//, '')}{baseSubpath}/app.html?facility=
                 </span>
                 <input
@@ -230,14 +469,14 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
                   value={form.website_subdomain}
                   onChange={(e) => setForm({ ...form, website_subdomain: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
                   placeholder="e.g. apex-fitness"
-                  className="flex-1 block w-full rounded-none rounded-r-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 font-mono"
+                  className="flex-1 block w-full rounded-none rounded-r-xl border border-slate-300 px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 font-mono"
                 />
               </div>
-              <p className="text-[11px] text-slate-400 mt-1">This forms your unique public web address.</p>
+              <p className="text-[11px] text-slate-500 mt-1">This forms your unique public web address.</p>
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
                 Custom Domain (Optional)
               </label>
               <input
@@ -245,15 +484,15 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
                 value={form.website_custom_domain}
                 onChange={(e) => setForm({ ...form, website_custom_domain: e.target.value })}
                 placeholder="e.g. www.yourgymname.com"
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
-              <p className="text-[11px] text-slate-400 mt-1">Point your custom domain CNAME to GymPulse.</p>
+              <p className="text-[11px] text-slate-500 mt-1">Point your custom domain CNAME to GymPulse.</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
                 Hero Headline *
               </label>
               <input
@@ -261,13 +500,13 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
                 required
                 value={form.website_headline}
                 onChange={(e) => setForm({ ...form, website_headline: e.target.value })}
-                placeholder="Welcome to Our Fitness Facility"
-                className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                placeholder="e.g. Welcome to Apex Elite Fitness"
+                className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
                 Hero Tagline / Subtitle *
               </label>
               <input
@@ -275,14 +514,14 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
                 required
                 value={form.website_tagline}
                 onChange={(e) => setForm({ ...form, website_tagline: e.target.value })}
-                placeholder="Elevate Your Athletic Potential & Peak Health"
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                placeholder="e.g. Transform Your Physique With World-Class Training"
+                className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
               About Your Facility (Story & Mission)
             </label>
             <textarea
@@ -290,33 +529,33 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
               value={form.website_about}
               onChange={(e) => setForm({ ...form, website_about: e.target.value })}
               placeholder="Tell prospective athletes about your equipment, coaches, and culture..."
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
+              className="w-full px-3 py-2 text-xs font-medium rounded-xl border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
               Amenities & Equipment Highlights (Comma Separated)
             </label>
             <input
               type="text"
               value={form.website_amenities}
               onChange={(e) => setForm({ ...form, website_amenities: e.target.value })}
-              placeholder="Olympic Free Weights, Cardio Theatre, Steam & Sauna, Certified Trainers, Lockers"
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              placeholder="e.g. Olympic Free Weights, Cardio Theatre, Steam & Sauna, Certified Trainers, Lockers"
+              className="w-full px-3.5 py-2 text-xs font-medium rounded-xl border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
               Hero Cover Photo URL
             </label>
             <input
               type="url"
               value={form.website_cover_image}
               onChange={(e) => setForm({ ...form, website_cover_image: e.target.value })}
-              placeholder="https://images.unsplash.com/..."
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              placeholder="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&auto=format&fit=crop&q=80"
+              className="w-full px-3.5 py-2 text-xs font-medium rounded-xl border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 font-mono"
             />
           </div>
 

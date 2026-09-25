@@ -185,25 +185,25 @@ export const PlansPage = () => {
                 </div>
 
                 <h3 className="text-xl font-bold text-slate-900">{plan.name}</h3>
-                <p className="text-xs text-slate-500 mt-2 min-h-[36px] leading-relaxed">
+                <p className="text-xs text-slate-700 font-medium mt-2 min-h-[36px] leading-relaxed">
                   {plan.description || 'General gym access and equipment usage.'}
                 </p>
 
                 <div className="mt-6 flex items-baseline gap-1">
                   <span className="text-3xl font-black text-slate-900">{formatCurrency(plan.price, currency)}</span>
-                  <span className="text-xs text-slate-500"> / {plan.duration_days} days</span>
+                  <span className="text-xs font-bold text-slate-700"> / {plan.duration_days} days</span>
                 </div>
               </div>
 
               <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-[11px] text-slate-400">Duration: {plan.duration_days}d</span>
+                <span className="text-xs font-bold text-slate-700">Duration: {plan.duration_days} days</span>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => {
                       setEditingPlan(plan);
                       setIsEditModalOpen(true);
                     }}
-                    className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+                    className="p-1.5 text-slate-600 hover:text-slate-950 hover:bg-slate-100 rounded-lg transition-colors"
                     title="Edit Plan"
                   >
                     <Edit className="w-4 h-4" />
@@ -213,7 +213,7 @@ export const PlansPage = () => {
                       setDeletingPlan(plan);
                       setIsDeleteDialogOpen(true);
                     }}
-                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                    className="p-1.5 text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                     title="Delete / Deactivate Plan"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -234,7 +234,7 @@ export const PlansPage = () => {
       >
         <form onSubmit={handleCreatePlan} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
               Plan Name *
             </label>
             <input
@@ -243,26 +243,26 @@ export const PlansPage = () => {
               value={planForm.name}
               onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })}
               placeholder="e.g. 3-Month Power Pass"
-              className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
               Description
             </label>
             <textarea
               rows={2}
               value={planForm.description}
               onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })}
-              placeholder="What does this membership include?"
-              className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              placeholder="e.g. Full floor access, sauna, lockers, and 2 guest passes"
+              className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                 Duration (Days) *
               </label>
               <input
@@ -271,11 +271,12 @@ export const PlansPage = () => {
                 min="1"
                 value={planForm.duration_days}
                 onChange={(e) => setPlanForm({ ...planForm, duration_days: e.target.value })}
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                placeholder="e.g. 30"
+                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                 Price ({currency}) *
               </label>
               <input
@@ -285,13 +286,14 @@ export const PlansPage = () => {
                 min="0"
                 value={planForm.price}
                 onChange={(e) => setPlanForm({ ...planForm, price: e.target.value })}
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 font-bold"
+                placeholder="e.g. 1999"
+                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
               Billing Period
             </label>
             <select
@@ -336,7 +338,7 @@ export const PlansPage = () => {
         {editingPlan && (
           <form onSubmit={handleUpdatePlan} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                 Plan Name
               </label>
               <input
@@ -344,25 +346,27 @@ export const PlansPage = () => {
                 required
                 value={editingPlan.name}
                 onChange={(e) => setEditingPlan({ ...editingPlan, name: e.target.value })}
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                placeholder="e.g. 3-Month Power Pass"
+                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                 Description
               </label>
               <textarea
                 rows={2}
                 value={editingPlan.description || ''}
                 onChange={(e) => setEditingPlan({ ...editingPlan, description: e.target.value })}
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                placeholder="e.g. Full floor access, sauna, lockers, and 2 guest passes"
+                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                   Duration (Days)
                 </label>
                 <input
@@ -371,11 +375,12 @@ export const PlansPage = () => {
                   min="1"
                   value={editingPlan.duration_days}
                   onChange={(e) => setEditingPlan({ ...editingPlan, duration_days: e.target.value })}
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  placeholder="e.g. 30"
+                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                   Price ({currency})
                 </label>
                 <input
@@ -385,7 +390,8 @@ export const PlansPage = () => {
                   min="0"
                   value={editingPlan.price}
                   onChange={(e) => setEditingPlan({ ...editingPlan, price: e.target.value })}
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 font-bold"
+                  placeholder="e.g. 1999"
+                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
               </div>
             </div>

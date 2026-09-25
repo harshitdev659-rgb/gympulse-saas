@@ -30,6 +30,7 @@ class UserCreate(BaseModel):
     password: str = Field(..., min_length=6)
     role: str = "staff"  # admin, trainer, staff
     phone: Optional[str] = None
+    permissions: Optional[str] = None
 
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
@@ -37,6 +38,7 @@ class UserUpdate(BaseModel):
     role: Optional[str] = None
     is_active: Optional[bool] = None
     password: Optional[str] = None
+    permissions: Optional[str] = None
 
 class UserResponse(BaseModel):
     id: int
@@ -46,6 +48,7 @@ class UserResponse(BaseModel):
     role: str
     is_superadmin: bool = False
     phone: Optional[str] = None
+    permissions: Optional[str] = None
     is_active: bool
     created_at: datetime.datetime
 
@@ -90,6 +93,10 @@ class GymResponse(BaseModel):
     website_cover_image: Optional[str] = None
     website_amenities: Optional[str] = None
     website_custom_domain: Optional[str] = None
+    website_theme: Optional[str] = "dark_power"
+    website_primary_color: Optional[str] = "#10b981"
+    website_hero_style: Optional[str] = "split"
+    website_announcement: Optional[str] = None
     max_members: int
     created_at: datetime.datetime
 
@@ -394,6 +401,10 @@ class GymWebsiteUpdate(BaseModel):
     website_cover_image: Optional[str] = None
     website_amenities: Optional[str] = None
     website_custom_domain: Optional[str] = None
+    website_theme: Optional[str] = None
+    website_primary_color: Optional[str] = None
+    website_hero_style: Optional[str] = None
+    website_announcement: Optional[str] = None
 
 class GymInquiryCreate(BaseModel):
     full_name: str

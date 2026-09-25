@@ -9,6 +9,7 @@ import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { MembersPage } from './pages/MembersPage';
 import { PendingApprovalPage } from './pages/PendingApprovalPage';
+import { canAccessTab } from './utils/permissions';
 
 // Code-split dynamic routes for blazing fast initial bundle & load times
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage })));
@@ -291,63 +292,90 @@ function AppContent() {
     >
       <ErrorBoundary onReset={() => setActiveTab('dashboard')}>
         <Suspense fallback={<LoadingFallback />}>
-          {activeTab === 'superadmin' && (
-            <SuperAdminPage onPreviewWebsite={(slug) => setPreviewFacilitySlug(slug)} />
+          {!canAccessTab(user, activeTab) ? (
+            <div className="bg-white rounded-3xl p-10 border border-slate-200/80 shadow-xs max-w-lg mx-auto text-center space-y-4 my-12">
+              <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 flex items-center justify-center mx-auto">
+                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-slate-900">Access Restricted</h3>
+                <p className="text-xs text-slate-600 mt-2 leading-relaxed">
+                  You are signed in as <strong>{user?.full_name || user?.name || user?.email}</strong> (<span className="capitalize">{user?.role}</span>).
+                  Your gym owner has not granted your account permission to access the <strong>{activeTab}</strong> section.
+                </p>
+              </div>
+              <div className="pt-2">
+                <button
+                  onClick={() => setActiveTab('dashboard')}
+                  className="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+                >
+                  Return to Dashboard
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {activeTab === 'superadmin' && (
+                <SuperAdminPage onPreviewWebsite={(slug) => setPreviewFacilitySlug(slug)} />
+              )}
+
+              {activeTab === 'website' && (
+                <GymWebsiteManagerPage onPreviewWebsite={(slug) => setPreviewFacilitySlug(slug)} />
+              )}
+
+              {activeTab === 'dashboard' && (
+                <DashboardPage
+                  setActiveTab={setActiveTab}
+                  onQuickCheckIn={() => setIsQuickCheckInOpen(true)}
+                  onOpenAi={handleOpenAi}
+                  refreshTrigger={dashboardRefreshTrigger}
+                  onPreviewWebsite={(slug) => setPreviewFacilitySlug(slug || gym?.website_subdomain || gym?.slug)}
+                />
+              )}
+
+              {activeTab === 'members' && (
+                selectedMemberId ? (
+                  <MemberDetailPage
+                    memberId={selectedMemberId}
+                    onBack={() => setSelectedMemberId(null)}
+                  />
+                ) : (
+                  <MembersPage
+                    onSelectMember={(id) => setSelectedMemberId(id)}
+                    isAddModalOpen={isQuickAddMemberOpen}
+                    setIsAddModalOpen={setIsQuickAddMemberOpen}
+                  />
+                )
+              )}
+
+              {activeTab === 'memberships' && <PlansPage />}
+
+              {activeTab === 'attendance' && (
+                <AttendancePage
+                  isCheckInModalOpen={isQuickCheckInOpen}
+                  setIsCheckInModalOpen={setIsQuickCheckInOpen}
+                  refreshTrigger={dashboardRefreshTrigger}
+                />
+              )}
+
+              {activeTab === 'payments' && <PaymentsPage />}
+
+              {activeTab === 'trainers' && (
+                <TrainersPage
+                  onSelectMember={(id) => {
+                    setActiveTab('members');
+                    setSelectedMemberId(id);
+                  }}
+                />
+              )}
+
+              {activeTab === 'reports' && <ReportsPage />}
+
+              {activeTab === 'settings' && <SettingsPage />}
+            </>
           )}
-
-          {activeTab === 'website' && (
-            <GymWebsiteManagerPage onPreviewWebsite={(slug) => setPreviewFacilitySlug(slug)} />
-          )}
-
-          {activeTab === 'dashboard' && (
-            <DashboardPage
-              setActiveTab={setActiveTab}
-              onQuickCheckIn={() => setIsQuickCheckInOpen(true)}
-              onOpenAi={handleOpenAi}
-              refreshTrigger={dashboardRefreshTrigger}
-              onPreviewWebsite={(slug) => setPreviewFacilitySlug(slug || gym?.website_subdomain || gym?.slug)}
-            />
-          )}
-
-          {activeTab === 'members' && (
-            selectedMemberId ? (
-              <MemberDetailPage
-                memberId={selectedMemberId}
-                onBack={() => setSelectedMemberId(null)}
-              />
-            ) : (
-              <MembersPage
-                onSelectMember={(id) => setSelectedMemberId(id)}
-                isAddModalOpen={isQuickAddMemberOpen}
-                setIsAddModalOpen={setIsQuickAddMemberOpen}
-              />
-            )
-          )}
-
-          {activeTab === 'memberships' && <PlansPage />}
-
-          {activeTab === 'attendance' && (
-            <AttendancePage
-              isCheckInModalOpen={isQuickCheckInOpen}
-              setIsCheckInModalOpen={setIsQuickCheckInOpen}
-              refreshTrigger={dashboardRefreshTrigger}
-            />
-          )}
-
-          {activeTab === 'payments' && <PaymentsPage />}
-
-          {activeTab === 'trainers' && (
-            <TrainersPage
-              onSelectMember={(id) => {
-                setActiveTab('members');
-                setSelectedMemberId(id);
-              }}
-            />
-          )}
-
-          {activeTab === 'reports' && <ReportsPage />}
-
-          {activeTab === 'settings' && <SettingsPage />}
         </Suspense>
       </ErrorBoundary>
     </Shell>

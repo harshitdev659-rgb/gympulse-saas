@@ -314,6 +314,7 @@ def create_gym_user(
         password_hash=get_password_hash(req.password),
         role=req.role,
         phone=req.phone,
+        permissions=req.permissions,
         is_active=True
     )
     db.add(new_user)
@@ -348,9 +349,30 @@ def update_gym_user(
         user.role = req.role
     if req.is_active is not None:
         user.is_active = req.is_active
+    if req.permissions is not None:
+        user.permissions = req.permissions
     if req.password:
         user.password_hash = get_password_hash(req.password)
 
     db.commit()
     db.refresh(user)
     return user
+
+@router.delete("/users/{user_id}")
+def delete_gym_user(
+    user_id: int,
+    current_user: User = Depends(require_owner_or_admin),
+    current_gym: Gym = Depends(get_current_gym),
+    db: Session = Depends(get_db)
+):
+    """Permanently delete a staff or trainer account."""
+    user = db.query(User).filter(User.id == user_id, User.gym_id == current_gym.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.role == "owner":
+        owner_count = db.query(User).filter(User.gym_id == current_gym.id, User.role == "owner").count()
+        if owner_count <= 1:
+            raise HTTPException(status_code=400, detail="Cannot delete the primary gym owner account.")
+    db.delete(user)
+    db.commit()
+    return {"success": True, "message": f"User {user.full_name} deleted successfully."}

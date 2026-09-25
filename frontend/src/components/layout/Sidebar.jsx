@@ -18,6 +18,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { canAccessTab } from '../../utils/permissions';
 
 export const Sidebar = ({ activeTab, setActiveTab, onOpenAi, isOpen, onClose, onPreviewWebsite }) => {
   const { user, gym, logout } = useAuth();
@@ -30,7 +31,7 @@ export const Sidebar = ({ activeTab, setActiveTab, onOpenAi, isOpen, onClose, on
   const baseSubpath = isGitHubPages ? '/gympulse-saas' : '';
   const websiteUrl = gymSlug ? `${windowOrigin}${baseSubpath}/app.html?facility=${encodeURIComponent(gymSlug)}` : null;
 
-  const navItems = [
+  const allNavItems = [
     ...(isSuperAdmin ? [{ id: 'superadmin', label: 'Platform Control', icon: Crown }] : []),
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'members', label: 'Members', icon: Users },
@@ -42,6 +43,8 @@ export const Sidebar = ({ activeTab, setActiveTab, onOpenAi, isOpen, onClose, on
     { id: 'reports', label: 'Reports', icon: BarChart3 },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
+
+  const navItems = allNavItems.filter((item) => canAccessTab(user, item.id));
 
   return (
     <>

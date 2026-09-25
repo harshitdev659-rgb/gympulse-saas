@@ -1006,6 +1006,51 @@ export function handleMockRequest(endpoint, options = {}) {
     };
   }
 
+  // Remove All Active Gyms as Super Admin
+  if ((endpoint.startsWith('/platform/gyms/remove-all-active') || endpoint.startsWith('/platform/gyms/active')) && (method === 'POST' || method === 'DELETE')) {
+    const isGymActive = (g) => {
+      if (!g) return false;
+      const approval = String(g.approval_status || '').toLowerCase().trim();
+      const isApproved = g.is_approved === true || g.is_approved === 'true' || g.is_approved === 1;
+      const sub = String(g.subscription_status || '').toLowerCase().trim();
+      if (approval === 'rejected') return false;
+      return approval === 'approved' || isApproved || sub === 'active';
+    };
+    const activeGymIds = new Set(db.gyms.filter(isGymActive).map((g) => String(g.id)));
+    const count = activeGymIds.size;
+
+    db.gyms = db.gyms.filter((g) => !activeGymIds.has(String(g.id)));
+    db.members = db.members.filter((m) => !activeGymIds.has(String(m.gym_id)));
+    db.attendance = db.attendance.filter((a) => !activeGymIds.has(String(a.gym_id)));
+    db.payments = db.payments.filter((p) => !activeGymIds.has(String(p.gym_id)));
+    db.plans = db.plans.filter((p) => !activeGymIds.has(String(p.gym_id)));
+    db.trainers = db.trainers.filter((t) => !activeGymIds.has(String(t.gym_id)));
+    db.inquiries = db.inquiries.filter((inq) => !activeGymIds.has(String(inq.gym_id)));
+    db.users = db.users.filter((u) => u.is_superadmin || !activeGymIds.has(String(u.gym_id)));
+
+    if (activeGymIds.has(String(db.currentGymId))) {
+      db.currentGymId = db.gyms[0]?.id || null;
+    }
+    saveDb(db);
+    return { success: true, removed_count: count, message: `Successfully removed all ${count} active facilities.` };
+  }
+
+  // Remove All Gyms Across Entire Platform
+  if (endpoint.startsWith('/platform/gyms/remove-all') && method === 'POST') {
+    const count = db.gyms.length;
+    db.gyms = [];
+    db.members = [];
+    db.attendance = [];
+    db.payments = [];
+    db.plans = [];
+    db.trainers = [];
+    db.inquiries = [];
+    db.users = db.users.filter((u) => u.is_superadmin);
+    db.currentGymId = null;
+    saveDb(db);
+    return { success: true, removed_count: count, message: `Successfully removed all ${count} facilities.` };
+  }
+
   // Approve / Reject Gym as Super Admin
   if (endpoint.startsWith('/platform/gyms/approve-all') && method === 'POST') {
     let count = 0;

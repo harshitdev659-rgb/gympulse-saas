@@ -449,6 +449,18 @@ class ApiService {
     });
   }
 
+  removeAllActiveGyms() {
+    return this.request('/platform/gyms/remove-all-active', {
+      method: 'POST'
+    });
+  }
+
+  removeAllGyms() {
+    return this.request('/platform/gyms/remove-all', {
+      method: 'POST'
+    });
+  }
+
   getPlatformPaymentSettings() {
     return this.request('/platform/payment-settings');
   }

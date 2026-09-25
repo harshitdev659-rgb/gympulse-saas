@@ -267,3 +267,90 @@ def delete_gym_facility(
         "deleted_id": gym_id,
         "deleted_slug": gym_slug
     }
+
+@router.post("/gyms/remove-all-active")
+def remove_all_active_gyms(
+    current_admin: User = Depends(require_superadmin),
+    db: Session = Depends(get_db)
+):
+    """Permanently delete all currently active gym facilities and their tenant records."""
+    active_gyms = db.query(Gym).filter(
+        or_(
+            func.lower(Gym.approval_status) == "approved",
+            Gym.is_approved == True,
+            (Gym.subscription_status == "active") & (func.lower(Gym.approval_status) != "rejected")
+        )
+    ).all()
+
+    active_ids = [g.id for g in active_gyms]
+    count = len(active_ids)
+
+    if count > 0:
+        from app.models.models import (
+            GymInquiry, Notification, Payment, Attendance,
+            MemberMembership, Member, MembershipPlan, Trainer, GymSetting, User
+        )
+        if current_admin.gym_id in active_ids:
+            current_admin.gym_id = None
+            db.add(current_admin)
+            db.flush()
+
+        db.query(User).filter(User.gym_id.in_(active_ids), User.is_superadmin == True).update({"gym_id": None}, synchronize_session=False)
+        db.query(GymInquiry).filter(GymInquiry.gym_id.in_(active_ids)).delete(synchronize_session=False)
+        db.query(Notification).filter(Notification.gym_id.in_(active_ids)).delete(synchronize_session=False)
+        db.query(Payment).filter(Payment.gym_id.in_(active_ids)).delete(synchronize_session=False)
+        db.query(Attendance).filter(Attendance.gym_id.in_(active_ids)).delete(synchronize_session=False)
+        db.query(MemberMembership).filter(MemberMembership.gym_id.in_(active_ids)).delete(synchronize_session=False)
+        db.query(Member).filter(Member.gym_id.in_(active_ids)).delete(synchronize_session=False)
+        db.query(MembershipPlan).filter(MembershipPlan.gym_id.in_(active_ids)).delete(synchronize_session=False)
+        db.query(Trainer).filter(Trainer.gym_id.in_(active_ids)).delete(synchronize_session=False)
+        db.query(GymSetting).filter(GymSetting.gym_id.in_(active_ids)).delete(synchronize_session=False)
+        db.query(User).filter(User.gym_id.in_(active_ids), User.is_superadmin == False).delete(synchronize_session=False)
+        db.query(Gym).filter(Gym.id.in_(active_ids)).delete(synchronize_session=False)
+        db.commit()
+
+    return {
+        "success": True,
+        "removed_count": count,
+        "message": f"Successfully removed all {count} active gym facilities."
+    }
+
+@router.post("/gyms/remove-all")
+def remove_all_gyms(
+    current_admin: User = Depends(require_superadmin),
+    db: Session = Depends(get_db)
+):
+    """Permanently delete all gym facilities across the entire platform."""
+    all_gyms = db.query(Gym).all()
+    all_ids = [g.id for g in all_gyms]
+    count = len(all_ids)
+
+    if count > 0:
+        from app.models.models import (
+            GymInquiry, Notification, Payment, Attendance,
+            MemberMembership, Member, MembershipPlan, Trainer, GymSetting, User
+        )
+        if current_admin.gym_id in all_ids:
+            current_admin.gym_id = None
+            db.add(current_admin)
+            db.flush()
+
+        db.query(User).filter(User.gym_id.in_(all_ids), User.is_superadmin == True).update({"gym_id": None}, synchronize_session=False)
+        db.query(GymInquiry).filter(GymInquiry.gym_id.in_(all_ids)).delete(synchronize_session=False)
+        db.query(Notification).filter(Notification.gym_id.in_(all_ids)).delete(synchronize_session=False)
+        db.query(Payment).filter(Payment.gym_id.in_(all_ids)).delete(synchronize_session=False)
+        db.query(Attendance).filter(Attendance.gym_id.in_(all_ids)).delete(synchronize_session=False)
+        db.query(MemberMembership).filter(MemberMembership.gym_id.in_(all_ids)).delete(synchronize_session=False)
+        db.query(Member).filter(Member.gym_id.in_(all_ids)).delete(synchronize_session=False)
+        db.query(MembershipPlan).filter(MembershipPlan.gym_id.in_(all_ids)).delete(synchronize_session=False)
+        db.query(Trainer).filter(Trainer.gym_id.in_(all_ids)).delete(synchronize_session=False)
+        db.query(GymSetting).filter(GymSetting.gym_id.in_(all_ids)).delete(synchronize_session=False)
+        db.query(User).filter(User.gym_id.in_(all_ids), User.is_superadmin == False).delete(synchronize_session=False)
+        db.query(Gym).filter(Gym.id.in_(all_ids)).delete(synchronize_session=False)
+        db.commit()
+
+    return {
+        "success": True,
+        "removed_count": count,
+        "message": f"Successfully removed all {count} gym facilities."
+    }

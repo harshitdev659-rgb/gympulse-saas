@@ -174,6 +174,30 @@ export const SettingsPage = () => {
 
   useEffect(() => {
     fetchAllSettings();
+
+    const handleSync = () => {
+      fetchAllSettings();
+      refreshGymProfile();
+    };
+
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('gympulse_db_updated', handleSync);
+
+    let bc = null;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        bc = new BroadcastChannel('gympulse_channel');
+        bc.onmessage = () => handleSync();
+      }
+    } catch (e) {}
+
+    return () => {
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('gympulse_db_updated', handleSync);
+      if (bc) {
+        try { bc.close(); } catch (e) {}
+      }
+    };
   }, []);
 
   const handleSaveProfile = async (e) => {
@@ -307,13 +331,22 @@ export const SettingsPage = () => {
 
   const handleUpgradeTier = async (targetTier) => {
     setIsUpgrading(true);
+    // Instant optimistic update so pending banner shows in 0ms
+    setBillingStatus((prev) => prev ? {
+      ...prev,
+      requested_plan_tier: targetTier,
+      tier_upgrade_status: 'pending',
+      tier_upgrade_requested_at: new Date().toISOString()
+    } : prev);
+
     try {
       const res = await api.upgradePlan(targetTier);
-      toast.success(res.message);
-      refreshGymProfile();
-      fetchAllSettings();
+      toast.success(res.message || `Upgrade request for ${targetTier.toUpperCase()} submitted! Super Admin has been notified immediately.`);
+      await refreshGymProfile();
+      await fetchAllSettings();
     } catch (err) {
-      toast.error(err.message || 'Upgrade simulation failed.');
+      toast.error(err.message || 'Upgrade request failed.');
+      fetchAllSettings();
     } finally {
       setIsUpgrading(false);
     }
@@ -852,7 +885,7 @@ export const SettingsPage = () => {
                   <p className="text-xs text-slate-500">Up to 50 members</p>
                 </div>
                 <Button
-                  onClick={() => handleUpgradeTier('free')}
+                  onClick={() => handleUpgradeTier('starter')}
                   disabled={billingStatus.plan_tier === 'free' || billingStatus.plan_tier === 'starter' || isUpgrading}
                   variant="secondary"
                   size="sm"

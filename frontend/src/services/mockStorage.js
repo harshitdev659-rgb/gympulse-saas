@@ -156,8 +156,42 @@ export function handleMockRequest(endpoint, options = {}) {
   let currentUser = tokenUserId 
     ? db.users.find((u) => u.id == tokenUserId || String(u.id) === String(tokenUserId)) || null 
     : (db.currentUserId ? db.users.find((u) => u.id == db.currentUserId || String(u.id) === String(db.currentUserId)) || null : null);
+
+  if (!currentUser && typeof localStorage !== 'undefined') {
+    try {
+      const savedUserStr = localStorage.getItem('gympulse_user');
+      if (savedUserStr) {
+        const parsed = JSON.parse(savedUserStr);
+        if (parsed?.id) {
+          currentUser = db.users.find((u) => u.id == parsed.id || String(u.id) === String(parsed.id)) || parsed;
+        }
+      }
+    } catch (e) {}
+  }
+
   let currentGymId = currentUser?.gym_id || db.currentGymId || null;
   let currentGym = currentGymId ? db.gyms.find((g) => g.id == currentGymId || String(g.id) === String(currentGymId)) || null : null;
+
+  if (!currentGym && typeof localStorage !== 'undefined') {
+    try {
+      const savedGymStr = localStorage.getItem('gympulse_gym');
+      if (savedGymStr) {
+        const parsedGym = JSON.parse(savedGymStr);
+        if (parsedGym?.id) {
+          currentGym = db.gyms.find((g) => g.id == parsedGym.id || String(g.id) === String(parsedGym.id)) || parsedGym;
+          currentGymId = parsedGym.id;
+          if (!db.gyms.some((g) => g.id == parsedGym.id || String(g.id) === String(parsedGym.id))) {
+            db.gyms.push(parsedGym);
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  if (!currentGym && db.gyms.length > 0) {
+    currentGym = db.gyms[db.gyms.length - 1];
+    currentGymId = currentGym.id;
+  }
 
   // 1. Auth: Login
   if (endpoint.startsWith('/auth/login') && method === 'POST') {
@@ -216,6 +250,10 @@ export function handleMockRequest(endpoint, options = {}) {
     const slug = gymName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const newGymId = Math.max(...db.gyms.map((g) => g.id), 0) + 1;
 
+    const requestedTier = (body.plan_tier || 'pro').toLowerCase().trim();
+    const planTier = ['starter', 'pro', 'business'].includes(requestedTier) ? requestedTier : 'pro';
+    const memberCapacity = planTier === 'business' ? 10000 : planTier === 'starter' ? 50 : 250;
+
     const newGym = {
       id: newGymId,
       name: gymName,
@@ -225,13 +263,13 @@ export function handleMockRequest(endpoint, options = {}) {
       phone: body.phone || '+91 90000 00000',
       address: 'Fitness Facility Address',
       currency: body.currency || 'INR',
-      plan_tier: body.plan_tier || 'starter',
+      plan_tier: planTier,
       is_approved: false, // Requires Super Admin approval
       approval_status: 'pending',
       payment_verified: false,
       registration_payment_method: body.payment_method || 'qr_code',
       registration_payment_ref: body.payment_ref || '',
-      member_capacity: body.plan_tier === 'business' ? 10000 : body.plan_tier === 'pro' ? 250 : 50,
+      member_capacity: memberCapacity,
       logo_url: '/gympulse.png',
       created_at: new Date().toISOString()
     };
@@ -951,37 +989,75 @@ export function handleMockRequest(endpoint, options = {}) {
   // 14c. SaaS Billing & Subscriptions
   if (endpoint.startsWith('/billing/status')) {
     const gymMembers = db.members.filter((m) => m.gym_id === currentGymId);
-    const tier = currentGym?.plan_tier || 'free';
+    let resolvedGym = currentGym;
+    if (!resolvedGym && typeof localStorage !== 'undefined') {
+      try {
+        const savedGym = JSON.parse(localStorage.getItem('gympulse_gym') || '{}');
+        if (savedGym?.id) resolvedGym = db.gyms.find((g) => g.id == savedGym.id) || savedGym;
+      } catch (e) {}
+    }
+    const tier = (resolvedGym?.plan_tier || 'pro').toLowerCase().trim();
+    const tierName = tier === 'business' 
+      ? 'Business Enterprise (₹5,999/mo)' 
+      : (tier === 'starter' || tier === 'free') 
+      ? 'Starter Plan (₹999/mo)' 
+      : 'Pro Growth (₹2,499/mo)';
+    const maxMembers = resolvedGym?.member_capacity || (tier === 'business' ? 10000 : (tier === 'starter' || tier === 'free') ? 50 : 250);
+
     return {
       plan_tier: tier,
-      tier_name: tier === 'free' || tier === 'starter' ? 'Starter Tier' : tier === 'business' ? 'Business Enterprise' : 'Pro Growth',
-      subscription_status: currentGym?.subscription_status || 'active',
+      tier_name: tierName,
+      subscription_status: resolvedGym?.subscription_status || 'active',
       member_count: gymMembers.length,
-      max_members: currentGym?.member_capacity || (tier === 'free' ? 25 : tier === 'business' ? 10000 : 250),
-      usage_percentage: Math.min(100, Math.round((gymMembers.length / 250) * 100)),
+      max_members: maxMembers,
+      usage_percentage: Math.min(100, Math.round((gymMembers.length / maxMembers) * 100)),
       can_add_member: true,
-      ai_enabled: tier !== 'free',
-      features: ['Unlimited Check-ins', 'Digital Invoicing', 'AI Assistant', 'CSV Exports'],
-      requested_plan_tier: currentGym?.requested_plan_tier || null,
-      tier_upgrade_status: currentGym?.tier_upgrade_status || 'none',
-      tier_upgrade_requested_at: currentGym?.tier_upgrade_requested_at || null
+      ai_enabled: tier !== 'free' && tier !== 'starter',
+      features: tier === 'business' 
+        ? ['Unlimited Athletes', 'Digital Invoicing', 'Priority AI Copilot', 'CSV Reports', 'Multi-Floor Roster']
+        : (tier === 'starter' || tier === 'free')
+        ? ['Up to 50 Athletes', 'Front Desk Check-in', 'Standard Invoicing', 'Public Website']
+        : ['Up to 250 Athletes', 'Automated Check-in', 'AI Operations Copilot', 'CSV Reports', 'Trainer Profiles'],
+      requested_plan_tier: resolvedGym?.requested_plan_tier || null,
+      tier_upgrade_status: resolvedGym?.tier_upgrade_status || 'none',
+      tier_upgrade_requested_at: resolvedGym?.tier_upgrade_requested_at || null
     };
   }
 
   if (endpoint.startsWith('/billing/upgrade') && method === 'POST') {
-    const targetTier = (body.target_tier || 'pro').toLowerCase();
-    if (currentGym) {
-      currentGym.requested_plan_tier = targetTier;
-      currentGym.tier_upgrade_status = 'pending';
-      currentGym.tier_upgrade_requested_at = new Date().toISOString();
+    const targetTier = (body.target_tier || 'pro').toLowerCase().trim();
+    let targetGym = currentGym;
+    if (!targetGym && typeof localStorage !== 'undefined') {
+      try {
+        const savedGym = JSON.parse(localStorage.getItem('gympulse_gym') || '{}');
+        if (savedGym?.id) {
+          targetGym = db.gyms.find((item) => item.id == savedGym.id || String(item.id) === String(savedGym.id));
+        }
+      } catch (e) {}
+    }
+    if (!targetGym && db.gyms.length > 0) {
+      targetGym = db.gyms[db.gyms.length - 1];
+    }
+    if (targetGym) {
+      targetGym.requested_plan_tier = targetTier;
+      targetGym.tier_upgrade_status = 'pending';
+      targetGym.tier_upgrade_requested_at = new Date().toISOString();
       saveDb(db);
+      if (typeof localStorage !== 'undefined') {
+        try {
+          const savedGym = JSON.parse(localStorage.getItem('gympulse_gym') || '{}');
+          if (String(savedGym.id) === String(targetGym.id) || !savedGym.id) {
+            localStorage.setItem('gympulse_gym', JSON.stringify({ ...savedGym, ...targetGym }));
+          }
+        } catch (e) {}
+      }
     }
     return {
       message: `Upgrade request to ${targetTier.toUpperCase()} tier submitted! Payment pending Admin verification.`,
       requested_tier: targetTier,
-      current_tier: currentGym?.plan_tier || 'free',
+      current_tier: targetGym?.plan_tier || 'pro',
       upgrade_status: 'pending',
-      status: currentGym?.subscription_status || 'active'
+      status: targetGym?.subscription_status || 'active'
     };
   }
 
@@ -1047,10 +1123,28 @@ export function handleMockRequest(endpoint, options = {}) {
     const gymId = matchApproveUpgrade[1];
     const g = db.gyms.find((item) => item.id == gymId || String(item.id) === String(gymId));
     if (!g) throw new Error('Gym facility not found');
-    g.plan_tier = g.requested_plan_tier || 'pro';
+    const newTier = (g.requested_plan_tier || 'pro').toLowerCase().trim();
+    g.plan_tier = newTier;
     g.tier_upgrade_status = 'approved';
     g.subscription_status = 'active';
+    g.member_capacity = newTier === 'business' ? 10000 : (newTier === 'starter' || newTier === 'free') ? 50 : 250;
     saveDb(db);
+
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const savedGym = JSON.parse(localStorage.getItem('gympulse_gym') || '{}');
+        if (String(savedGym.id) === String(g.id)) {
+          localStorage.setItem('gympulse_gym', JSON.stringify({
+            ...savedGym,
+            ...g,
+            plan_tier: newTier,
+            tier_upgrade_status: 'approved',
+            subscription_status: 'active',
+            member_capacity: g.member_capacity
+          }));
+        }
+      } catch (e) {}
+    }
     return g;
   }
 

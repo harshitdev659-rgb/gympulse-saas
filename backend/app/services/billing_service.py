@@ -5,40 +5,50 @@ from app.core.config import settings
 from fastapi import HTTPException, status
 
 TIER_CONFIG = {
-    "free": {
-        "name": "Starter Tier",
-        "max_members": 25,
+    "starter": {
+        "name": "Starter Plan (₹999/mo)",
+        "max_members": 50,
         "ai_enabled": False,
         "features": [
-            "Up to 25 active members",
-            "Basic dashboard & KPIs",
-            "Member check-in / check-out",
-            "Manual payment recording",
-            "Standard receipt printing"
+            "Up to 50 active athletes",
+            "Front desk check-ins & attendance",
+            "Manual payment recording & invoicing",
+            "Dedicated public gym website"
+        ]
+    },
+    "free": {
+        "name": "Starter Plan (₹999/mo)",
+        "max_members": 50,
+        "ai_enabled": False,
+        "features": [
+            "Up to 50 active athletes",
+            "Front desk check-ins & attendance",
+            "Manual payment recording & invoicing",
+            "Dedicated public gym website"
         ]
     },
     "pro": {
-        "name": "Pro Growth",
+        "name": "Pro Growth (₹2,499/mo)",
         "max_members": 250,
         "ai_enabled": True,
         "features": [
-            "Up to 250 members",
+            "Up to 250 athletes",
+            "AI Operations Copilot",
+            "Automated check-ins & attendance",
             "Advanced analytics & trend charts",
-            "AI Assistant for gym queries",
-            "CSV report exports",
-            "Automated expiry alerts & notifications",
-            "Trainer assignment & profiles"
+            "CSV financial exports & receipts",
+            "Personal trainer profiles"
         ]
     },
     "business": {
-        "name": "Business Enterprise",
-        "max_members": 100000,
+        "name": "Business Enterprise (₹5,999/mo)",
+        "max_members": 10000,
         "ai_enabled": True,
         "features": [
-            "Unlimited members",
+            "Unlimited athletes & floor capacity",
             "Unlimited staff & trainer accounts",
             "Priority AI Assistant & insights",
-            "Multi-trainer rosters & commission tracking",
+            "Multi-trainer rosters & tracking",
             "Custom branding & priority support"
         ]
     }
@@ -48,8 +58,8 @@ class BillingService:
     @staticmethod
     def get_tier_status(gym: Gym, db: Session) -> Dict[str, Any]:
         """Return current billing tier status, usage, and available features."""
-        tier = gym.plan_tier.lower() if gym.plan_tier else "free"
-        config = TIER_CONFIG.get(tier, TIER_CONFIG["free"])
+        tier = (gym.plan_tier or "pro").lower().strip()
+        config = TIER_CONFIG.get(tier, TIER_CONFIG.get("pro"))
         
         member_count = db.query(Member).filter(Member.gym_id == gym.id).count()
         # Respect custom gym.max_members if set, otherwise default to tier config

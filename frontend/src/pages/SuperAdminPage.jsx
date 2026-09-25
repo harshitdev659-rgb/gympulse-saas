@@ -150,10 +150,10 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
   useEffect(() => {
     fetchData(false);
 
-    // Continuous real-time background polling every 2.5s
+    // Continuous real-time background polling every 1.5s for instant sync
     const interval = setInterval(() => {
       fetchData(true);
-    }, 2500);
+    }, 1500);
 
     // Instant cross-tab and storage synchronization
     const handleSync = () => {
@@ -324,12 +324,57 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
 
   const handleApproveTierUpgrade = async (gymId, gymName, requestedTier) => {
     setActionLoadingId(gymId);
+    // Optimistic UI update for immediate 0ms response
+    setGyms((prev) =>
+      prev.map((gym) =>
+        gym.id === gymId
+          ? {
+              ...gym,
+              plan_tier: requestedTier || gym.requested_plan_tier || 'pro',
+              tier_upgrade_status: 'approved',
+              max_members: requestedTier === 'business' ? 10000 : requestedTier === 'pro' ? 250 : 50,
+            }
+          : gym
+      )
+    );
     try {
       await api.approveUpgrade(gymId);
       toast.success(`Payment verified! Facility "${gymName}" upgraded to ${requestedTier?.toUpperCase()} tier.`);
       await fetchData(true);
     } catch (err) {
       toast.error(err.message || 'Failed to approve tier upgrade.');
+      await fetchData(true);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleApproveAllUpgrades = async () => {
+    const pendingUpgrades = gyms.filter((g) => g.tier_upgrade_status === 'pending');
+    if (pendingUpgrades.length === 0) return;
+    setActionLoadingId('all-upgrades');
+    // Optimistic UI update
+    setGyms((prev) =>
+      prev.map((gym) =>
+        gym.tier_upgrade_status === 'pending'
+          ? {
+              ...gym,
+              plan_tier: gym.requested_plan_tier || 'pro',
+              tier_upgrade_status: 'approved',
+              max_members: gym.requested_plan_tier === 'business' ? 10000 : gym.requested_plan_tier === 'pro' ? 250 : 50,
+            }
+          : gym
+      )
+    );
+    try {
+      for (const gym of pendingUpgrades) {
+        await api.approveUpgrade(gym.id);
+      }
+      toast.success(`All ${pendingUpgrades.length} subscription upgrade requests approved!`);
+      await fetchData(true);
+    } catch (err) {
+      toast.error(err.message || 'Failed to approve some upgrades.');
+      await fetchData(true);
     } finally {
       setActionLoadingId(null);
     }
@@ -866,49 +911,102 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
         </div>
       )}
 
-      {/* Pending Subscription Upgrades Card (Payment Verification) */}
+      {/* Pending Subscription Upgrades Card (Payment Verification & Instant Activation) */}
       {gyms.some((g) => g.tier_upgrade_status === 'pending') && (
-        <div className="bg-amber-50 border-2 border-amber-300 rounded-3xl p-6 shadow-sm space-y-4">
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-amber-500 animate-ping"></span>
-            <h3 className="text-base font-black text-amber-950">
-              Action Required: Pending Subscription Tier Upgrades ({gyms.filter((g) => g.tier_upgrade_status === 'pending').length})
-            </h3>
+        <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 border-2 border-indigo-400 rounded-3xl p-6 shadow-md space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2.5">
+              <span className="relative flex h-3.5 w-3.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-indigo-600"></span>
+              </span>
+              <h3 className="text-base font-black text-indigo-950 flex items-center gap-2">
+                <span>Action Required: Pending Subscription Tier Upgrades</span>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-indigo-200 text-indigo-950 border border-indigo-300">
+                  {gyms.filter((g) => g.tier_upgrade_status === 'pending').length} Awaiting Verification
+                </span>
+              </h3>
+            </div>
+            <div className="flex items-center gap-2">
+              {gyms.filter((g) => g.tier_upgrade_status === 'pending').length > 1 && (
+                <button
+                  type="button"
+                  onClick={handleApproveAllUpgrades}
+                  disabled={actionLoadingId !== null}
+                  className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>{actionLoadingId === 'all-upgrades' ? 'Approving All...' : `Approve All Upgrades (${gyms.filter((g) => g.tier_upgrade_status === 'pending').length})`}</span>
+                </button>
+              )}
+              <span className="text-[11px] font-extrabold text-indigo-950 bg-white/90 px-3 py-1 rounded-full border border-indigo-300 flex items-center gap-1.5 shadow-2xs">
+                <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+                Real-time Live Sync (Auto-updates)
+              </span>
+            </div>
           </div>
-          <p className="text-xs text-amber-800">
-            The following gym facilities have submitted an upgrade request. Please confirm receipt of offline/UPI payment before approving their tier upgrade.
+
+          <p className="text-xs text-indigo-900 leading-relaxed">
+            The following gym facilities have requested an immediate tier upgrade. Confirm the payment receipt or transaction reference below, then click <strong>Confirm Payment &amp; Approve</strong> to instantly elevate their athlete limit.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {gyms.filter((g) => g.tier_upgrade_status === 'pending').map((g) => (
-              <div key={g.id} className="bg-white p-4 rounded-2xl border border-amber-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h4 className="font-extrabold text-slate-900 text-sm">{g.name}</h4>
-                  <div className="text-xs text-slate-500 mt-0.5">
-                    Owner: <strong className="text-slate-800">{g.owner_name}</strong> ({g.owner_email})
+            {gyms.filter((g) => g.tier_upgrade_status === 'pending').map((g) => {
+              const currentTier = (g.plan_tier || 'pro').toUpperCase();
+              const requestedTier = (g.requested_plan_tier || 'business').toUpperCase();
+              const priceLabel = requestedTier === 'BUSINESS' ? '₹5,999/mo' : requestedTier === 'PRO' ? '₹2,499/mo' : '₹999/mo';
+              const capacityLabel = requestedTier === 'BUSINESS' ? '10,000 Athletes' : requestedTier === 'PRO' ? '250 Athletes' : '50 Athletes';
+
+              return (
+                <div key={g.id} className="bg-white p-5 rounded-2xl border-2 border-indigo-300 shadow-sm flex flex-col justify-between gap-4 hover:border-indigo-400 transition-all">
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span className="font-black text-slate-950 text-sm flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-indigo-600" />
+                        {g.name}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-950 border border-indigo-300">
+                        {requestedTier} &bull; {priceLabel}
+                      </span>
+                    </div>
+
+                    <div className="text-xs text-slate-700 space-y-0.5">
+                      <div>Owner: <strong className="text-slate-950 font-black">{g.owner_name}</strong> ({g.owner_email})</div>
+                      {g.phone && <div>Phone: <strong className="text-slate-900 font-extrabold">{g.phone}</strong></div>}
+                    </div>
+
+                    <div className="mt-3 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs flex items-center justify-between flex-wrap gap-2">
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                          Tier Transition
+                        </span>
+                        <div className="font-black text-slate-950 flex items-center gap-1.5 mt-0.5">
+                          <span className="px-1.5 py-0.5 rounded bg-slate-200 text-slate-800 text-[11px]">{currentTier}</span>
+                          <span className="text-indigo-600">&rarr;</span>
+                          <span className="px-2 py-0.5 rounded bg-indigo-600 text-white font-black text-[11px]">{requestedTier}</span>
+                          <span className="text-slate-600 font-bold text-[11px]">({capacityLabel})</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Plan Fee</span>
+                        <span className="font-black text-emerald-800 text-sm">{priceLabel}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-xs font-bold text-amber-900 mt-1 flex items-center gap-1.5 flex-wrap">
-                    <span className="px-1.5 py-0.5 rounded bg-slate-100 uppercase">{g.plan_tier}</span>
-                    <span>&rarr;</span>
-                    <span className="px-2 py-0.5 rounded bg-brand-100 text-brand-700 font-black uppercase">
-                      {g.requested_plan_tier} TIER
-                    </span>
-                    <span className="text-slate-600 font-semibold">
-                      ({g.requested_plan_tier === 'business' ? '₹5,999/mo' : '₹2,499/mo'})
-                    </span>
+
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                    <button
+                      onClick={() => handleApproveTierUpgrade(g.id, g.name, g.requested_plan_tier)}
+                      disabled={actionLoadingId === g.id || actionLoadingId === 'all-upgrades'}
+                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md shadow-emerald-600/25 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>{actionLoadingId === g.id ? 'Upgrading...' : 'Confirm Payment & Approve Upgrade'}</span>
+                    </button>
                   </div>
                 </div>
-
-                <button
-                  onClick={() => handleApproveTierUpgrade(g.id, g.name, g.requested_plan_tier)}
-                  disabled={actionLoadingId === g.id}
-                  className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs transition-colors flex items-center gap-1.5 flex-shrink-0 cursor-pointer"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  {actionLoadingId === g.id ? 'Approving...' : 'Confirm Payment & Approve'}
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

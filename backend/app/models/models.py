@@ -20,7 +20,7 @@ class Gym(Base):
     address = Column(Text, nullable=True)
     currency = Column(String(10), default="INR", nullable=False)  # INR, USD, EUR, GBP, etc.
     logo_url = Column(String(500), nullable=True)
-    plan_tier = Column(String(50), default="free", nullable=False)  # free, pro, business
+    plan_tier = Column(String(50), default="pro", nullable=False)  # starter, pro, business
     subscription_status = Column(String(50), default="active", nullable=False)  # active, past_due, trialing
     approval_status = Column(String(50), default="pending", nullable=False)  # pending, approved, rejected
     is_approved = Column(Boolean, default=False, nullable=False)

@@ -20,7 +20,7 @@ class RegisterGymRequest(BaseModel):
     password: str = Field(..., min_length=6)
     phone: Optional[str] = None
     currency: str = "INR"
-    plan_tier: Optional[str] = "starter"
+    plan_tier: Optional[str] = "pro"
     payment_method: Optional[str] = "qr_code"
     payment_ref: Optional[str] = None
 

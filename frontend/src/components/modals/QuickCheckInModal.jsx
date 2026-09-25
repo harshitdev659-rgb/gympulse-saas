@@ -108,7 +108,7 @@ export const QuickCheckInModal = ({
       <div className="space-y-4">
         {/* Search Input */}
         <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-600">
             <Search className="w-4 h-4" />
           </div>
           <input
@@ -117,19 +117,19 @@ export const QuickCheckInModal = ({
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search athlete by name, phone, or email..."
-            className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white placeholder-slate-400"
+            className="w-full pl-10 pr-4 py-2.5 text-sm font-extrabold text-slate-950 rounded-xl border-2 border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white placeholder:text-slate-500 placeholder:font-medium shadow-2xs"
           />
         </div>
 
         {/* Member Results List */}
-        <div className="border border-slate-100 rounded-2xl bg-slate-50/50 p-2 max-h-72 overflow-y-auto space-y-1.5">
+        <div className="border-2 border-slate-200 rounded-2xl bg-slate-50/70 p-2 max-h-72 overflow-y-auto space-y-1.5">
           {isLoading ? (
-            <div className="py-8 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
+            <div className="py-8 text-center text-slate-600 flex flex-col items-center justify-center gap-2">
               <RefreshCw className="w-5 h-5 animate-spin text-brand-600" />
-              <span className="text-xs font-semibold">Searching member records...</span>
+              <span className="text-xs font-bold text-slate-900">Searching member records...</span>
             </div>
           ) : members.length === 0 ? (
-            <div className="py-8 text-center text-slate-400 text-xs">
+            <div className="py-8 text-center text-slate-600 text-xs font-bold">
               {searchTerm ? `No athletes found matching "${searchTerm}".` : 'No athletes registered yet.'}
             </div>
           ) : (
@@ -140,21 +140,21 @@ export const QuickCheckInModal = ({
               return (
                 <div
                   key={m.id}
-                  className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-200/70 hover:border-brand-300 transition-all shadow-2xs"
+                  className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-300 hover:border-brand-500 transition-all shadow-xs"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-xl bg-brand-50 border border-brand-100 text-brand-700 flex items-center justify-center font-bold text-xs shrink-0">
+                    <div className="w-9 h-9 rounded-xl bg-brand-100 border border-brand-300 text-brand-950 flex items-center justify-center font-black text-xs shrink-0">
                       {m.first_name?.[0]}{m.last_name?.[0]}
                     </div>
                     <div className="min-w-0">
-                      <div className="text-sm font-bold text-slate-900 truncate">
+                      <div className="text-sm font-black text-slate-950 truncate">
                         {m.full_name}
                       </div>
-                      <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
                         <span>{m.phone || 'No phone'}</span>
                         <span>•</span>
-                        <span className={`font-semibold capitalize ${
-                          m.status === 'active' ? 'text-emerald-600' : 'text-slate-500'
+                        <span className={`font-black uppercase tracking-wider ${
+                          m.status === 'active' ? 'text-emerald-800' : 'text-slate-700'
                         }`}>
                           {m.status}
                         </span>
@@ -164,7 +164,7 @@ export const QuickCheckInModal = ({
 
                   <div className="shrink-0 ml-3">
                     {isCheckedInJustNow ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-950 text-xs font-black">
                         <CheckCircle2 className="w-3.5 h-3.5" /> Checked In
                       </span>
                     ) : (
@@ -174,7 +174,7 @@ export const QuickCheckInModal = ({
                         onClick={() => handleCheckIn(m)}
                         disabled={isChecking}
                         icon={QrCode}
-                        className="text-xs font-bold bg-brand-600 hover:bg-brand-700"
+                        className="text-xs font-black bg-brand-600 hover:bg-brand-700 text-white shadow-2xs"
                       >
                         {isChecking ? 'Checking In...' : 'Check In'}
                       </Button>

@@ -408,11 +408,22 @@ class ApiService {
     return this.request('/billing/status');
   }
 
-  upgradePlan(targetTier) {
-    return this.request('/billing/upgrade', {
+  async upgradePlan(targetTier) {
+    const res = await this.request('/billing/upgrade', {
       method: 'POST',
       body: JSON.stringify({ target_tier: targetTier })
     });
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('gympulse_db_updated', { detail: { action: 'upgrade', targetTier } }));
+      try {
+        if (typeof BroadcastChannel !== 'undefined') {
+          const bc = new BroadcastChannel('gympulse_channel');
+          bc.postMessage({ type: 'upgrade_requested', targetTier, timestamp: Date.now() });
+          setTimeout(() => { try { bc.close(); } catch (e) {} }, 50);
+        }
+      } catch (e) {}
+    }
+    return res;
   }
 
   // ----------------- Platform Super Admin (Platform Owner) -----------------
@@ -436,10 +447,21 @@ class ApiService {
     });
   }
 
-  approveUpgrade(gymId) {
-    return this.request(`/platform/gyms/${gymId}/approve-upgrade`, {
+  async approveUpgrade(gymId) {
+    const res = await this.request(`/platform/gyms/${gymId}/approve-upgrade`, {
       method: 'POST'
     });
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('gympulse_db_updated', { detail: { action: 'upgrade_approved', gymId } }));
+      try {
+        if (typeof BroadcastChannel !== 'undefined') {
+          const bc = new BroadcastChannel('gympulse_channel');
+          bc.postMessage({ type: 'upgrade_approved', gymId, timestamp: Date.now() });
+          setTimeout(() => { try { bc.close(); } catch (e) {} }, 50);
+        }
+      } catch (e) {}
+    }
+    return res;
   }
 
   rejectGym(gymId, notes = '') {

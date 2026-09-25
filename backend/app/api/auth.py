@@ -37,6 +37,12 @@ def register_gym(req: RegisterGymRequest, db: Session = Depends(get_db)):
     if existing_gym:
         slug = f"{clean_slug}-{secrets.token_hex(2)}"
 
+    # Determine plan tier and capacity based on registration selection
+    selected_tier = (req.plan_tier or "pro").lower().strip()
+    if selected_tier not in ["starter", "pro", "business"]:
+        selected_tier = "pro"
+    capacity = 10000 if selected_tier == "business" else 250 if selected_tier == "pro" else 50
+
     # Create Gym with Pending Platform Approval and Auto-Created Website
     gym = Gym(
         name=gym_name,
@@ -44,7 +50,7 @@ def register_gym(req: RegisterGymRequest, db: Session = Depends(get_db)):
         email=email,
         phone=req.phone,
         currency=req.currency or "INR",
-        plan_tier=req.plan_tier or "starter",
+        plan_tier=selected_tier,
         subscription_status="active",
         approval_status="pending",  # Awaiting Platform Super Admin Approval
         is_approved=False,
@@ -58,7 +64,7 @@ def register_gym(req: RegisterGymRequest, db: Session = Depends(get_db)):
         website_about=f"{gym_name} provides state-of-the-art equipment, certified personal trainers, and high-energy workout programs tailored for your goals.",
         website_cover_image="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&auto=format&fit=crop&q=80",
         website_amenities="Free Weights & Dumbbells, Cardio Theatre, Strength Training Machines, Personal Training, Locker Rooms & Showers, Steam & Sauna, Nutrition Bar",
-        max_members=250
+        max_members=capacity
     )
     db.add(gym)
     db.flush()

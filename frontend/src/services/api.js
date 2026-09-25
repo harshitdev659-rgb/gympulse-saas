@@ -424,6 +424,12 @@ class ApiService {
     });
   }
 
+  approveAllGyms() {
+    return this.request('/platform/gyms/approve-all', {
+      method: 'POST'
+    });
+  }
+
   approveUpgrade(gymId) {
     return this.request(`/platform/gyms/${gymId}/approve-upgrade`, {
       method: 'POST'

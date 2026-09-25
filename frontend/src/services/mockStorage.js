@@ -940,8 +940,16 @@ export function handleMockRequest(endpoint, options = {}) {
 
   // 16. Super Admin: Platform Operations & Gym Deletion
   if (endpoint.startsWith('/platform/metrics')) {
-    const pending_approvals = db.gyms.filter((g) => g.approval_status === 'pending').length;
-    const active_facilities = db.gyms.filter((g) => g.approval_status === 'approved' || g.is_approved).length;
+    const isGymActive = (g) => {
+      if (!g) return false;
+      const approval = String(g.approval_status || '').toLowerCase().trim();
+      const isApproved = g.is_approved === true || g.is_approved === 'true' || g.is_approved === 1;
+      const sub = String(g.subscription_status || '').toLowerCase().trim();
+      if (approval === 'rejected') return false;
+      return approval === 'approved' || isApproved || sub === 'active';
+    };
+    const active_facilities = db.gyms.filter(isGymActive).length;
+    const pending_approvals = db.gyms.filter((g) => !isGymActive(g) && String(g.approval_status || '').toLowerCase() !== 'rejected').length;
     return {
       total_gyms: db.gyms.length,
       pending_approvals,
@@ -999,6 +1007,21 @@ export function handleMockRequest(endpoint, options = {}) {
   }
 
   // Approve / Reject Gym as Super Admin
+  if (endpoint.startsWith('/platform/gyms/approve-all') && method === 'POST') {
+    let count = 0;
+    db.gyms.forEach((g) => {
+      if (g.approval_status === 'pending' || !g.is_approved) {
+        g.is_approved = true;
+        g.approval_status = 'approved';
+        g.payment_verified = true;
+        g.subscription_status = 'active';
+        count++;
+      }
+    });
+    saveDb(db);
+    return { approved_count: count, message: `Successfully approved ${count} facilities` };
+  }
+
   const matchGymApprove = endpoint.match(/^\/platform\/gyms\/([^/?]+)\/approve$/);
   if (matchGymApprove && method === 'POST') {
     const gymId = matchGymApprove[1];
@@ -1007,6 +1030,7 @@ export function handleMockRequest(endpoint, options = {}) {
       g.is_approved = true;
       g.approval_status = 'approved';
       g.payment_verified = true;
+      g.subscription_status = 'active';
       saveDb(db);
 
       if (typeof localStorage !== 'undefined') {
@@ -1019,7 +1043,8 @@ export function handleMockRequest(endpoint, options = {}) {
                 ...parsedGym,
                 is_approved: true,
                 approval_status: 'approved',
-                payment_verified: true
+                payment_verified: true,
+                subscription_status: 'active'
               }));
             }
           }

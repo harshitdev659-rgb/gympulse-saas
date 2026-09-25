@@ -209,14 +209,96 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
     toast.success('Generated official UPI payment QR code URL!');
   };
 
+  // Helpers to deterministically classify facility operational state
+  const isFacilityActive = (g) => {
+    if (!g) return false;
+    const status = String(g.approval_status || '').toLowerCase().trim();
+    const approved = g.is_approved === true || g.is_approved === 'true' || g.is_approved === 1;
+    const subStatus = String(g.subscription_status || '').toLowerCase().trim();
+    if (status === 'rejected') return false;
+    return status === 'approved' || approved || subStatus === 'active';
+  };
+
+  const isFacilityPending = (g) => {
+    if (!g) return false;
+    if (isFacilityActive(g)) return false;
+    const status = String(g.approval_status || '').toLowerCase().trim();
+    return status !== 'rejected';
+  };
+
+  // Derive counts directly from live gyms array with fallback to metrics endpoint
+  const totalGymsCount = (Array.isArray(gyms) && gyms.length > 0)
+    ? gyms.length
+    : (metrics?.total_gyms ?? 0);
+
+  const activeFacilitiesCount = (Array.isArray(gyms) && gyms.length > 0)
+    ? gyms.filter(isFacilityActive).length
+    : (metrics?.active_facilities ?? 0);
+
+  const pendingApprovalsCount = (Array.isArray(gyms) && gyms.length > 0)
+    ? gyms.filter(isFacilityPending).length
+    : (metrics?.pending_approvals ?? 0);
+
+  const platformMrrAmount = activeFacilitiesCount * 2499.0;
+
   const handleApprove = async (gymId, gymName) => {
     setActionLoadingId(gymId);
+    // Instant optimistic update so Active Facilities immediately increments to 1 without lag
+    setGyms((prev) =>
+      prev.map((g) =>
+        (g.id === gymId || String(g.id) === String(gymId))
+          ? { ...g, is_approved: true, approval_status: 'approved', payment_verified: true, subscription_status: 'active' }
+          : g
+      )
+    );
+    setMetrics((prev) => prev ? {
+      ...prev,
+      active_facilities: (prev.active_facilities || 0) + 1,
+      pending_approvals: Math.max(0, (prev.pending_approvals || 1) - 1),
+      platform_mrr: ((prev.active_facilities || 0) + 1) * 2499.0
+    } : null);
+
     try {
       await api.approveGym(gymId);
       toast.success(`Payment verified! Facility "${gymName}" approved & activated.`);
       await fetchData(true);
     } catch (err) {
       toast.error(err.message || 'Approval failed.');
+      await fetchData(true);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleApproveAll = async () => {
+    const pendingList = gyms.filter(isFacilityPending);
+    if (pendingList.length === 0) {
+      toast.info('No pending facility applications to approve.');
+      return;
+    }
+    if (!window.confirm(`Are you sure you want to verify and approve all ${pendingList.length} pending facility application(s)?`)) return;
+
+    setActionLoadingId('all');
+    // Instant optimistic update
+    setGyms((prev) =>
+      prev.map((g) =>
+        isFacilityPending(g)
+          ? { ...g, is_approved: true, approval_status: 'approved', payment_verified: true, subscription_status: 'active' }
+          : g
+      )
+    );
+
+    try {
+      if (api.approveAllGyms) {
+        await api.approveAllGyms();
+      } else {
+        await Promise.all(pendingList.map((g) => api.approveGym(g.id)));
+      }
+      toast.success(`All ${pendingList.length} facility application(s) verified & activated!`);
+      await fetchData(true);
+    } catch (err) {
+      toast.error(err.message || 'Batch approval failed.');
+      await fetchData(true);
     } finally {
       setActionLoadingId(null);
     }
@@ -277,8 +359,12 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
       g.slug.toLowerCase().includes(searchTerm.toLowerCase());
     
     if (filterStatus === 'all') return matchesSearch;
+    if (filterStatus === 'approved') return matchesSearch && isFacilityActive(g);
+    if (filterStatus === 'pending') return matchesSearch && isFacilityPending(g);
+    if (filterStatus === 'rejected') return matchesSearch && String(g.approval_status || '').toLowerCase() === 'rejected';
     return matchesSearch && g.approval_status === filterStatus;
   });
+
 
   return (
     <div className="space-y-6">
@@ -483,7 +569,7 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
               <Building2 className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 mt-2">{metrics?.total_gyms || 0}</div>
+          <div className="text-2xl font-black text-slate-900 mt-2">{totalGymsCount}</div>
           <div className="text-[11px] text-slate-400 mt-1">Registered gyms across SaaS</div>
         </div>
 
@@ -494,19 +580,62 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
               <Clock className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-amber-900 mt-2">{metrics?.pending_approvals || 0}</div>
-          <div className="text-[11px] text-amber-700 mt-1">Awaiting payment verification</div>
+          <div className="text-2xl font-black text-amber-900 mt-2">{pendingApprovalsCount}</div>
+          <div className="text-[11px] text-amber-700 mt-1">
+            {pendingApprovalsCount > 0 ? (
+              <span className="font-bold flex items-center gap-1">
+                <span>Awaiting payment verification</span>
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span>
+              </span>
+            ) : (
+              'All applications reviewed'
+            )}
+          </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+        <div className={`bg-white p-5 rounded-2xl border shadow-xs transition-all ${
+          activeFacilitiesCount > 0 ? 'border-emerald-200 bg-emerald-50/20' : 'border-slate-200/80'
+        }`}>
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Active Facilities</span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+              activeFacilitiesCount > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'
+            }`}>
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-emerald-600 mt-2">{metrics?.active_facilities || 0}</div>
-          <div className="text-[11px] text-slate-400 mt-1">Operating live on GymPulse</div>
+          <div className="text-2xl font-black text-emerald-600 mt-2 flex items-baseline gap-2">
+            <span>{activeFacilitiesCount}</span>
+            {activeFacilitiesCount > 0 ? (
+              <span className="text-[11px] font-bold text-emerald-600 bg-emerald-100/80 px-2 py-0.5 rounded-full">
+                ● Live
+              </span>
+            ) : totalGymsCount > 0 ? (
+              <span className="text-[11px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                {pendingApprovalsCount} Pending
+              </span>
+            ) : null}
+          </div>
+          <div className="text-[11px] text-slate-400 mt-1">
+            {activeFacilitiesCount > 0 ? (
+              'Operating live on GymPulse'
+            ) : totalGymsCount > 0 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  const firstPending = gyms.find(isFacilityPending);
+                  if (firstPending) {
+                    handleApprove(firstPending.id, firstPending.name);
+                  }
+                }}
+                className="text-emerald-700 font-extrabold hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <span>⚡ Quick Activate Pending Gym &rarr;</span>
+              </button>
+            ) : (
+              'No facilities registered yet'
+            )}
+          </div>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -517,14 +646,14 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
             </div>
           </div>
           <div className="text-2xl font-black text-purple-700 mt-2">
-            {formatCurrency(metrics?.platform_mrr || 0, 'INR')}
+            {formatCurrency(platformMrrAmount || metrics?.platform_mrr || 0, 'INR')}
           </div>
           <div className="text-[11px] text-slate-400 mt-1">Estimated platform monthly MRR</div>
         </div>
       </div>
 
       {/* Pending Facility Approvals Alert Box (Real-time Payment Approvals) */}
-      {gyms.some((g) => g.approval_status === 'pending') && (
+      {gyms.some(isFacilityPending) && (
         <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border-2 border-amber-400 rounded-3xl p-6 shadow-md space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2.5">
@@ -535,14 +664,25 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
               <h3 className="text-base font-black text-amber-950 flex items-center gap-2">
                 <span>Action Required: Pending Facility Payment Approvals</span>
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-200 text-amber-950 border border-amber-300">
-                  {gyms.filter((g) => g.approval_status === 'pending').length} Awaiting Verification
+                  {pendingApprovalsCount} Awaiting Verification
                 </span>
               </h3>
             </div>
-            <span className="text-[11px] font-extrabold text-amber-900 bg-white/90 px-3 py-1 rounded-full border border-amber-300 flex items-center gap-1.5 shadow-2xs">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              Real-time Live Sync (Auto-updates)
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleApproveAll}
+                disabled={actionLoadingId !== null}
+                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>{actionLoadingId === 'all' ? 'Approving All...' : `Approve All Pending (${pendingApprovalsCount})`}</span>
+              </button>
+              <span className="text-[11px] font-extrabold text-amber-900 bg-white/90 px-3 py-1 rounded-full border border-amber-300 flex items-center gap-1.5 shadow-2xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Real-time Live Sync (Auto-updates)
+              </span>
+            </div>
           </div>
 
           <p className="text-xs text-amber-900 leading-relaxed">
@@ -739,9 +879,9 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
                 </tr>
               ) : (
                 filteredGyms.map((g) => {
-                  const isActionLoading = actionLoadingId === g.id;
-                  const isPending = g.approval_status === 'pending';
-                  const isApproved = g.approval_status === 'approved';
+                  const isActionLoading = actionLoadingId === g.id || actionLoadingId === 'all';
+                  const isPending = isFacilityPending(g);
+                  const isApproved = isFacilityActive(g);
 
                   return (
                     <tr key={g.id} className="hover:bg-slate-50/50 transition-colors">

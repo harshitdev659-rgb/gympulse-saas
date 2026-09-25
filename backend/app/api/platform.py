@@ -1,6 +1,7 @@
 from typing import List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import or_, func
 from app.core.database import get_db
 from app.core.dependencies import require_superadmin
 from app.models.models import Gym, User, Member, Notification
@@ -15,8 +16,23 @@ def get_platform_metrics(
 ) -> Dict[str, Any]:
     """Overview stats for the Platform Owner / Super Admin."""
     total_gyms = db.query(Gym).count()
-    pending_approvals = db.query(Gym).filter(Gym.approval_status == "pending").count()
-    active_facilities = db.query(Gym).filter(Gym.approval_status == "approved").count()
+    
+    # Check both case-insensitive approval status, is_approved boolean, and active subscription status
+    active_facilities = db.query(Gym).filter(
+        or_(
+            func.lower(Gym.approval_status) == "approved",
+            Gym.is_approved == True,
+            (Gym.subscription_status == "active") & (func.lower(Gym.approval_status) != "rejected")
+        )
+    ).count()
+
+    pending_approvals = db.query(Gym).filter(
+        or_(
+            func.lower(Gym.approval_status) == "pending",
+            (Gym.is_approved == False) & (func.lower(Gym.approval_status) != "rejected")
+        )
+    ).count()
+
     total_athletes = db.query(Member).count()
     
     # Estimate MRR in INR based on active facilities
@@ -128,6 +144,28 @@ def approve_gym_facility(
     db.refresh(gym)
 
     return GymResponse.model_validate(gym)
+
+@router.post("/gyms/approve-all")
+def approve_all_pending_gyms(
+    current_admin: User = Depends(require_superadmin),
+    db: Session = Depends(get_db)
+):
+    """Approve all pending gym facilities in a single batch operation."""
+    pending_gyms = db.query(Gym).filter(
+        or_(
+            func.lower(Gym.approval_status) == "pending",
+            Gym.is_approved == False
+        )
+    ).all()
+    count = 0
+    for g in pending_gyms:
+        g.approval_status = "approved"
+        g.is_approved = True
+        g.payment_verified = True
+        g.subscription_status = "active"
+        count += 1
+    db.commit()
+    return {"approved_count": count, "message": f"Successfully approved {count} facility applications."}
 
 # ----------------- Platform Subscription Payment Settings -----------------
 PLATFORM_PAYMENT_CONFIG = {

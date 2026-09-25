@@ -88,6 +88,9 @@ function AppContent() {
   const [aiInitialPrompt, setAiInitialPrompt] = useState('');
   const [dashboardRefreshTrigger, setDashboardRefreshTrigger] = useState(0);
 
+  // Viewing public landing while retaining device login session
+  const [isViewingLanding, setIsViewingLanding] = useState(false);
+
   const isSuperAdmin = user?.is_superadmin || user?.role === 'superadmin';
 
   // Automatically switch Platform Owners into the Super Admin console
@@ -161,9 +164,6 @@ function AppContent() {
       </Suspense>
     );
   }
-
-  // Viewing public landing while retaining device login session
-  const [isViewingLanding, setIsViewingLanding] = useState(false);
 
   // If not authenticated, render public pages
   if (!isAuthenticated) {

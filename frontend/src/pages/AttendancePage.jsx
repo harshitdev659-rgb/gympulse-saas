@@ -28,6 +28,7 @@ import { useToast } from '../context/ToastContext';
 import { Button } from '../components/common/Button';
 import { Badge } from '../components/common/Badge';
 import { Modal } from '../components/common/Modal';
+import { exportAttendanceLogCsv } from '../utils/csvExport';
 
 export const AttendancePage = ({ isCheckInModalOpen, setIsCheckInModalOpen, refreshTrigger }) => {
   const { gym } = useAuth();
@@ -132,9 +133,17 @@ export const AttendancePage = ({ isCheckInModalOpen, setIsCheckInModalOpen, refr
     }
   };
 
-  const handleExportCsv = () => {
-    const url = api.exportAttendanceCsvUrl(historyStartDate, historyEndDate);
-    window.open(url, '_blank');
+  const handleExportCsv = async () => {
+    try {
+      // Use already-loaded history data, or fetch fresh if empty
+      const data = historyAttendance.length > 0
+        ? historyAttendance
+        : await api.getAttendanceHistory({ start_date: historyStartDate || null, end_date: historyEndDate || null });
+      await exportAttendanceLogCsv(data);
+      toast.success('Attendance log ready — choose where to save it!');
+    } catch (err) {
+      toast.error('Failed to export attendance CSV.');
+    }
   };
 
   const gymSlug = gym?.website_subdomain || gym?.slug || 'gym';

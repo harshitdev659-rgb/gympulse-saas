@@ -6,7 +6,7 @@ from app.core.dependencies import (
     get_current_gym, get_current_user, require_owner, 
     require_owner_or_admin, require_staff_or_above
 )
-from app.core.security import verify_password, inquiry_rate_limiter
+from app.core.security import verify_password, get_password_hash, inquiry_rate_limiter
 import datetime
 from datetime import date, timedelta
 from app.models.models import (
@@ -251,10 +251,32 @@ def public_join_facility(
     )
     db.add(payment)
 
+    # Ensure a User account exists in the app for this athlete
+    user_email = (req.email.strip().lower() if req.email else f"athlete_{clean_phone[-10:]}@{gym.slug or 'gympulse'}.app")
+    user = db.query(User).filter(
+        User.gym_id == gym.id,
+        (User.email == user_email) | (User.phone == clean_phone)
+    ).first()
+
+    temp_password = f"Gym@{clean_phone[-4:] if len(clean_phone) >= 4 else '1234'}"
+    if not user:
+        user = User(
+            gym_id=gym.id,
+            full_name=f"{req.first_name.strip()} {req.last_name.strip()}".strip(),
+            email=user_email,
+            phone=clean_phone,
+            password_hash=get_password_hash(temp_password),
+            role="member",
+            is_active=True
+        )
+        db.add(user)
+    else:
+        user.is_active = True
+
     notif = Notification(
         gym_id=gym.id,
         title=f"New Member Joined Online: {member.first_name} {member.last_name}",
-        message=f"{member.first_name} {member.last_name} enrolled into '{plan.name}' ({req.payment_method.upper()}: ₹{plan.price:.0f}). Digital Pass issued.",
+        message=f"{member.first_name} {member.last_name} enrolled into '{plan.name}' ({req.payment_method.upper()}: ₹{plan.price:.0f}). Account added to app & Digital Pass issued.",
         type="billing"
     )
     db.add(notif)
@@ -263,7 +285,7 @@ def public_join_facility(
 
     return {
         "success": True,
-        "message": f"Welcome to {gym.name}! Your membership pass is active.",
+        "message": f"Welcome to {gym.name}! Your account has been added to the app and your membership pass is active.",
         "member": {
             "id": member.id,
             "full_name": f"{member.first_name} {member.last_name}",
@@ -274,9 +296,17 @@ def public_join_facility(
             "expiry_date": str(end_date),
             "status": member.status
         },
+        "account": {
+            "user_id": user.id if user else None,
+            "email": user_email,
+            "role": "member",
+            "phone": clean_phone,
+            "full_name": f"{member.first_name} {member.last_name}"
+        },
         "receipt_number": inv_num,
         "amount": plan.price,
-        "payment_status": payment_status
+        "payment_status": payment_status,
+        "download_url": "/index.html"
     }
 
 @router.post("/public/facility/{slug}/checkin")

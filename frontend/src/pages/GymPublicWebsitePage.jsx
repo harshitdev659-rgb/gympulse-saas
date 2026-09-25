@@ -26,7 +26,9 @@ import {
   X,
   Zap,
   UserCheck,
-  Search
+  Search,
+  Smartphone,
+  ExternalLink
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useToast } from '../context/ToastContext';
@@ -50,7 +52,7 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
   }, []);
 
   const handleDownloadClick = () => {
-    setIsDownloadModalOpen(true);
+    window.location.href = getAppDownloadUrl();
   };
 
   // Inquiry Form State
@@ -97,6 +99,33 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
   });
   const [isSubmittingPass, setIsSubmittingPass] = useState(false);
   const [activatedPass, setActivatedPass] = useState(null);
+  const [redirectCountdown, setRedirectCountdown] = useState(5);
+  const [isRedirectPaused, setIsRedirectPaused] = useState(false);
+
+  const getAppDownloadUrl = () => {
+    if (typeof window === 'undefined') return '/index.html';
+    const origin = window.location.origin;
+    const pathname = window.location.pathname;
+    if (pathname.includes('/gympulse-saas')) {
+      return `${origin}/gympulse-saas/index.html`;
+    }
+    if (pathname.endsWith('app.html')) {
+      return pathname.replace(/app\.html$/, 'index.html');
+    }
+    return `${origin}/index.html`;
+  };
+
+  useEffect(() => {
+    let timer;
+    if (activatedPass && !isRedirectPaused && redirectCountdown > 0) {
+      timer = setTimeout(() => {
+        setRedirectCountdown((prev) => prev - 1);
+      }, 1000);
+    } else if (activatedPass && !isRedirectPaused && redirectCountdown === 0) {
+      window.location.href = getAppDownloadUrl();
+    }
+    return () => clearTimeout(timer);
+  }, [activatedPass, isRedirectPaused, redirectCountdown]);
 
   // Athlete Self-Service Portal State
   const [isPortalModalOpen, setIsPortalModalOpen] = useState(() => {
@@ -164,6 +193,8 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
       phone: prev.phone || checkInPhone || ''
     }));
     setActivatedPass(null);
+    setRedirectCountdown(5);
+    setIsRedirectPaused(false);
     setIsBuyPassModalOpen(true);
   };
 
@@ -188,10 +219,12 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
       });
       playSuccessChime();
       setActivatedPass(res);
+      setRedirectCountdown(5);
+      setIsRedirectPaused(false);
       try {
         localStorage.setItem('gympulse_athlete_phone', buyPassForm.phone.trim());
       } catch (err) {}
-      toast.success(res.message || 'Membership pass activated successfully!');
+      toast.success(res.message || 'Membership pass activated & account created successfully!');
     } catch (err) {
       toast.error(err.message || 'Failed to activate membership pass.');
     } finally {
@@ -1182,7 +1215,51 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
         maxWidth="max-w-lg"
       >
         {activatedPass ? (
-          <div className="space-y-5">
+          <div className="space-y-4">
+            {/* Account Added & App Download Redirect Notice */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950 via-slate-900 to-indigo-950 text-white border-2 border-emerald-400/60 shadow-xl space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <h4 className="font-black text-sm text-emerald-300 uppercase tracking-wider">Account Added & Pass Active!</h4>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
+                  Enrolled in App
+                </span>
+              </div>
+              <p className="text-xs text-slate-200 leading-relaxed">
+                Your athlete account has been created for <strong>{gymName}</strong> in the GymPulse app. Download the app on your mobile or desktop to use entrance QR check-in and track your workout streak!
+              </p>
+              
+              <div className="pt-2 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-2 text-slate-300">
+                  <Smartphone className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="font-bold">
+                    {isRedirectPaused 
+                      ? "⏸️ Auto-redirect paused so you can save or print your pass." 
+                      : `⚡ Redirecting to App Download Portal in ${redirectCountdown}s...`}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsRedirectPaused(!isRedirectPaused)}
+                    className="text-[11px] font-bold text-slate-400 hover:text-white underline cursor-pointer"
+                  >
+                    {isRedirectPaused ? 'Resume Redirect' : 'Pause'}
+                  </button>
+                  <a
+                    href={getAppDownloadUrl()}
+                    className="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download App</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* Digital Pass Card */}
             <div className="p-6 rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-zinc-950 text-white border-2 border-amber-400/40 shadow-2xl relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
 
@@ -1231,6 +1308,16 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
                 </div>
               </div>
             </div>
+
+            {/* Direct App Download Button */}
+            <a
+              href={getAppDownloadUrl()}
+              className="w-full py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01]"
+            >
+              <Smartphone className="w-4 h-4" />
+              <span>Redirect to App Download Website (Windows, Android, iOS)</span>
+              <ExternalLink className="w-4 h-4" />
+            </a>
 
             <div className="flex items-center gap-2.5">
               <button

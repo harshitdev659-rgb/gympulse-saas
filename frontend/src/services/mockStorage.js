@@ -971,10 +971,67 @@ export function handleMockRequest(endpoint, options = {}) {
         notes: `Online Website Pass - ${plan.name} (Ref: ${body.payment_ref || 'Online QR'})`
       });
 
+      // Ensure User account is created for the app
+      const cleanPhoneDigits = (body.phone || '').replace(/[^0-9]/g, '');
+      const userEmail = (body.email || `athlete_${cleanPhoneDigits.slice(-10)}@${facilityGym.slug || 'gympulse'}.app`).toLowerCase();
+      let user = db.users.find((u) => 
+        (u.gym_id === facilityGym.id || !u.gym_id) && 
+        (u.email === userEmail || (u.phone && cleanPhoneDigits && u.phone.replace(/[^0-9]/g, '').endsWith(cleanPhoneDigits.slice(-10))))
+      );
+      if (!user) {
+        user = {
+          id: Date.now() + 50,
+          gym_id: facilityGym.id,
+          full_name: member.full_name,
+          email: userEmail,
+          phone: body.phone,
+          password: 'Gympulse@123',
+          role: 'member',
+          is_superadmin: false,
+          is_active: true,
+          created_at: new Date().toISOString()
+        };
+        db.users.push(user);
+      } else {
+        user.is_active = true;
+      }
+
       saveDb(db);
+
+      // Save athlete active pass in device storage
+      if (typeof localStorage !== 'undefined') {
+        try {
+          localStorage.setItem('gympulse_athlete_phone', member.phone);
+          localStorage.setItem('gympulse_athlete_account', JSON.stringify({
+            member_id: member.id,
+            user_id: user.id,
+            full_name: member.full_name,
+            email: userEmail,
+            phone: member.phone,
+            gym_id: facilityGym.id,
+            gym_name: facilityGym.name,
+            plan_name: plan.name,
+            expiry_date: expiry
+          }));
+        } catch (e) {}
+      }
+
+      // Broadcast instant database update to staff and admin apps
+      if (typeof window !== 'undefined') {
+        try {
+          window.dispatchEvent(new CustomEvent('gympulse_db_updated', { 
+            detail: { action: 'member_joined', member, user, plan } 
+          }));
+          if (typeof BroadcastChannel !== 'undefined') {
+            const channel = new BroadcastChannel('gympulse_channel');
+            channel.postMessage({ type: 'MEMBERS_UPDATED', member, user, plan });
+          }
+        } catch (e) {}
+      }
+
       return {
         success: true,
-        message: `Welcome to ${facilityGym.name}! Your membership pass is active.`,
+        message: `Welcome to ${facilityGym.name}! Your account has been added to the app and your membership pass is active.`,
         member: {
           id: member.id,
           full_name: member.full_name,
@@ -985,9 +1042,17 @@ export function handleMockRequest(endpoint, options = {}) {
           expiry_date: expiry,
           status: member.status
         },
+        account: {
+          user_id: user.id,
+          email: userEmail,
+          role: 'member',
+          phone: member.phone,
+          full_name: member.full_name
+        },
         receipt_number: invNum,
         amount: plan.price,
-        payment_status: paymentStatus
+        payment_status: paymentStatus,
+        download_url: '/index.html'
       };
     }
 

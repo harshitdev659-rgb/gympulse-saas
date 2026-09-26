@@ -51,7 +51,10 @@ export const ReportsPage = () => {
       if (Array.isArray(attendance)) {
         attendance.forEach((att) => {
           const mId = att.member_id;
-          const attTime = new Date(att.check_in_time).getTime();
+          // Support both combined ISO datetime and separate date+time fields
+          const dateStr = att.date || (att.check_in_time ? att.check_in_time.split('T')[0] : null);
+          if (!dateStr) return;
+          const attTime = new Date(dateStr).getTime();
           if (!isNaN(attTime) && (!lastCheckInMap[mId] || attTime > lastCheckInMap[mId])) {
             lastCheckInMap[mId] = attTime;
           }
@@ -82,6 +85,7 @@ export const ReportsPage = () => {
 
         setAtRiskMembers(atRisk);
       }
+
     } catch (err) {
       toast.error('Failed to load reports analytics.');
     } finally {

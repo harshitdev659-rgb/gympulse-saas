@@ -648,25 +648,70 @@ export function handleMockRequest(endpoint, options = {}) {
   if (endpoint.startsWith('/dashboard/stats')) {
     const gymMembers = db.members.filter((m) => m.gym_id === currentGymId);
     const gymAttendance = db.attendance.filter((a) => a.gym_id === currentGymId);
-    const gymPayments = db.payments.filter((p) => p.gym_id === currentGymId);
+    const gymPayments = db.payments.filter((p) => p.gym_id === currentGymId && p.status === 'completed');
+
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const thisMonth = now.getMonth();
+    const thisYear = now.getFullYear();
 
     const total_members = gymMembers.length;
     const active_members = gymMembers.filter((m) => m.status === 'active').length;
     const expired_members = gymMembers.filter((m) => m.status === 'expired').length;
     const expiring_soon_members = gymMembers.filter((m) => m.is_expiring_soon).length;
-    const today_attendance = gymAttendance.length;
-    const active_now = gymAttendance.filter((a) => !a.check_out_time).length;
-    const monthly_revenue = gymPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
 
-    const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Today'];
-    const attendance_chart_data = labels.map((l, i) => ({
-      label: l,
-      count: total_members > 0 ? Math.max(1, Math.round((total_members * 0.3) + (i % 3))) : 0
-    }));
-    const revenue_chart_data = labels.map((l, i) => ({
-      label: l,
-      revenue: monthly_revenue > 0 ? Math.round((monthly_revenue / 7) * (0.8 + (i * 0.05))) : 0
-    }));
+    // Today's attendance — count records with date === todayStr
+    const todayRecords = gymAttendance.filter((a) => {
+      const d = a.date || (a.check_in_time ? a.check_in_time.split('T')[0] : '');
+      return d === todayStr;
+    });
+    const today_attendance = todayRecords.length;
+    const active_now = todayRecords.filter((a) => !a.check_out_time).length;
+
+    // Monthly revenue — payments this month
+    const monthlyPayments = gymPayments.filter((p) => {
+      const pd = new Date(p.payment_date || p.created_at || '');
+      return pd.getMonth() === thisMonth && pd.getFullYear() === thisYear;
+    });
+    const monthly_revenue = monthlyPayments.reduce((s, p) => s + (p.amount || 0), 0);
+    const total_revenue = gymPayments.reduce((s, p) => s + (p.amount || 0), 0);
+
+    // New members this month
+    const new_members_this_month = gymMembers.filter((m) => {
+      const jd = new Date(m.join_date || m.created_at || '');
+      return jd.getMonth() === thisMonth && jd.getFullYear() === thisYear;
+    }).length;
+
+    // Last 7 days attendance chart (real data)
+    const labels = [];
+    const attendance_chart_data = [];
+    for (let i = 6; i >= 0; i--) {
+      const dt = new Date(now);
+      dt.setDate(dt.getDate() - i);
+      const ds = dt.toISOString().split('T')[0];
+      const dayName = i === 0 ? 'Today' : dt.toLocaleDateString('en-IN', { weekday: 'short' });
+      const count = gymAttendance.filter((a) => {
+        const d = a.date || (a.check_in_time ? a.check_in_time.split('T')[0] : '');
+        return d === ds;
+      }).length;
+      labels.push(dayName);
+      attendance_chart_data.push({ label: dayName, count });
+    }
+
+    // Revenue chart — last 7 days
+    const revenue_chart_data = labels.map((l, i) => {
+      const dt = new Date(now);
+      dt.setDate(dt.getDate() - (6 - i));
+      const ds = dt.toISOString().split('T')[0];
+      const rev = gymPayments
+        .filter((p) => (p.payment_date || '').split('T')[0] === ds)
+        .reduce((s, p) => s + (p.amount || 0), 0);
+      return { label: l, revenue: rev };
+    });
+
+    // Pending payments (members who haven't fully paid — simplified: outstanding dues > 0)
+    const pending_payments_count = gymMembers.filter((m) => (m.outstanding_amount || 0) > 0).length;
+    const pending_payments_amount = gymMembers.reduce((s, m) => s + (m.outstanding_amount || 0), 0);
 
     return {
       total_members,
@@ -676,15 +721,20 @@ export function handleMockRequest(endpoint, options = {}) {
       today_attendance,
       active_now,
       monthly_revenue,
-      last_month_revenue: Math.round(monthly_revenue * 0.85),
-      pending_payments_count: total_members > 0 ? 1 : 0,
-      pending_payments_amount: total_members > 0 ? 1500 : 0,
-      new_members_this_month: total_members,
-      recent_checkins: gymAttendance.slice(0, 6),
+      total_revenue,
+      last_month_revenue: Math.round(total_revenue * 0.15), // approximate prior month
+      pending_payments_count,
+      pending_payments_amount,
+      new_members_this_month,
+      recent_checkins: gymAttendance.filter((a) => {
+        const d = a.date || '';
+        return d === todayStr;
+      }).slice(-6).reverse(),
       attendance_chart_data,
       revenue_chart_data
     };
   }
+
 
   // 5. Members: Seed 5 Sample Members for testing current gym
   if (endpoint.startsWith('/members/seed-test-members') && method === 'POST') {

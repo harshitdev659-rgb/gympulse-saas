@@ -128,7 +128,32 @@ export const LoginPage = ({ onNavigateRegister, onNavigateForgotPassword, onBack
             </Button>
           </form>
 
-          <div className="mt-6 text-center text-xs text-slate-500">
+          {/* Demo Gym Quick Login */}
+          <div className="mt-5 p-4 bg-emerald-50/80 border border-emerald-200/80 rounded-2xl">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span className="text-xs font-extrabold text-emerald-800 uppercase tracking-wider">Try Demo Gym</span>
+            </div>
+            <p className="text-xs text-emerald-900 font-medium mb-3">
+              Explore with 50 real members, attendance history, payments & reports.
+            </p>
+            <div className="text-xs text-slate-700 font-mono bg-white/80 rounded-xl px-3 py-2 border border-emerald-200/60 mb-2.5 space-y-0.5">
+              <div><span className="font-bold text-slate-500">Email:</span> demo@gympulsefitness.in</div>
+              <div><span className="font-bold text-slate-500">Password:</span> Demo@123</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('demo@gympulsefitness.in');
+                setPassword('Demo@123');
+              }}
+              className="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all cursor-pointer"
+            >
+              Fill Demo Credentials
+            </button>
+          </div>
+
+          <div className="mt-4 text-center text-xs text-slate-500">
             Don't have a gym account?{' '}
             <button
               type="button"

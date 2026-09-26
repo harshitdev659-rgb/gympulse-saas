@@ -768,7 +768,7 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                 <select
                   value={editingMember.status}
                   onChange={(e) => setEditingMember({ ...editingMember, status: e.target.value })}
-                  className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white capitalize"
+                  className="w-full px-3.5 py-2 text-sm font-semibold text-slate-900 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white capitalize"
                 >
                   <option value="active">Active</option>
                   <option value="expired">Expired</option>
@@ -778,13 +778,13 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
                 Assigned Trainer
               </label>
               <select
                 value={editingMember.assigned_trainer_id || ''}
                 onChange={(e) => setEditingMember({ ...editingMember, assigned_trainer_id: e.target.value })}
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                className="w-full px-3.5 py-2 text-sm font-semibold text-slate-900 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
               >
                 <option value="">None / General</option>
                 {trainers.map((t) => (
@@ -792,6 +792,7 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                 ))}
               </select>
             </div>
+
 
             <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
               <Button

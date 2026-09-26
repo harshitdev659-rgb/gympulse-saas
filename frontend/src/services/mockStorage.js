@@ -2,7 +2,173 @@
 // Allows GymPulse on Android, Apple iPhone & iPad to run with strict data privacy and zero dummy data
 
 const STORAGE_KEY = 'gympulse_standalone_db';
-const DB_VERSION = 3;
+const DB_VERSION = 4; // bumped — triggers re-init and injects realistic demo gym
+
+// ─── Demo Gym Seed ──────────────────────────────────────────────────────────
+// Realistic demo: GymPulse Fitness Demo, Nashik, Maharashtra
+// 50 members · 5 trainers · 4 plans · 300+ attendance records · realistic payments
+const DEMO_GYM_ID = 1001;
+const DEMO_OWNER_ID = 2001;
+
+function buildDemoDb() {
+  const now = new Date();
+  const d = (n) => { const dt = new Date(now); dt.setDate(dt.getDate() - n); return dt.toISOString().split('T')[0]; };
+  const fut = (n) => { const dt = new Date(now); dt.setDate(dt.getDate() + n); return dt.toISOString().split('T')[0]; };
+
+  const gym = {
+    id: DEMO_GYM_ID, name: 'GymPulse Fitness Demo', slug: 'gympulse-fitness-demo',
+    website_subdomain: 'gympulse-fitness-demo',
+    email: 'demo@gympulsefitness.in', phone: '+91 98501 23456',
+    address: 'Plot 12, Indira Nagar, College Road, Nashik, Maharashtra 422005',
+    currency: 'INR', plan_tier: 'pro', is_approved: true, approval_status: 'approved',
+    payment_verified: true, subscription_status: 'active', member_capacity: 250,
+    logo_url: '/gympulse.png', website_enabled: true,
+    website_headline: 'Train Harder. Live Better.', website_tagline: "Nashik's Premier Fitness Destination",
+    website_about: "GymPulse Fitness Demo is Nashik's top-rated gym. We offer state-of-the-art equipment, certified personal trainers, group classes, and a supportive community.",
+    website_amenities: 'Olympic Free Weights, Cardio Theatre, Strength Machines, Certified Trainers, Yoga Studio, Steam & Sauna, Lockers, Protein Bar',
+    website_theme: 'dark_power', website_primary_color: '#10b981', website_hero_style: 'split',
+    website_announcement: '🎉 New Year Special: Get 15% off on Annual memberships! Valid till end of month.',
+    created_at: d(180)
+  };
+
+  const owner = {
+    id: DEMO_OWNER_ID, gym_id: DEMO_GYM_ID, email: 'demo@gympulsefitness.in',
+    password: 'Demo@123', name: 'Harshit Sharma', full_name: 'Harshit Sharma', role: 'owner', is_superadmin: false
+  };
+
+  const demoPlans = [
+    { id: 3001, gym_id: DEMO_GYM_ID, name: 'Monthly Flex Pass',    duration_days: 30,  price: 1500,  billing_period: 'monthly',     is_active: true, description: 'Full gym floor access, lockers, and unlimited cardio sessions.' },
+    { id: 3002, gym_id: DEMO_GYM_ID, name: 'Quarterly Power Plan', duration_days: 90,  price: 4000,  billing_period: 'quarterly',   is_active: true, description: '3-month access with initial fitness assessment and 2 PT sessions.' },
+    { id: 3003, gym_id: DEMO_GYM_ID, name: 'Half-Yearly Elite',    duration_days: 180, price: 7000,  billing_period: 'half_yearly', is_active: true, description: '6-month unlimited access, yoga, sauna, and monthly body composition check.' },
+    { id: 3004, gym_id: DEMO_GYM_ID, name: 'Annual VIP Pass',      duration_days: 365, price: 12000, billing_period: 'yearly',      is_active: true, description: 'Full year VIP access, dedicated trainer, priority class booking, and protein shakes.' },
+  ];
+
+  const demoTrainers = [
+    { id: 4001, gym_id: DEMO_GYM_ID, name: 'Amit Verma',   specialty: 'Strength & Conditioning',      specialization: 'Strength & Conditioning',      phone: '+91 98200 11001', email: 'amit@demo.in',  bio: 'NSCA-CSCS certified with 8+ years elite athlete training.', is_active: true, assigned_members_count: 12, experience_years: 8 },
+    { id: 4002, gym_id: DEMO_GYM_ID, name: 'Karan Patel',  specialty: 'HIIT & Functional Fitness',     specialization: 'HIIT & Functional Fitness',     phone: '+91 98200 11002', email: 'karan@demo.in', bio: 'ACE Certified PT. Expert in functional movement and HIIT programming.', is_active: true, assigned_members_count: 10, experience_years: 6 },
+    { id: 4003, gym_id: DEMO_GYM_ID, name: 'Neha Sharma',  specialty: 'Yoga & Flexibility',            specialization: 'Yoga & Flexibility',            phone: '+91 98200 11003', email: 'neha@demo.in',  bio: 'RYT-500 certified yoga instructor. Specialises in Hatha and Vinyasa flow.', is_active: true, assigned_members_count: 8, experience_years: 5 },
+    { id: 4004, gym_id: DEMO_GYM_ID, name: 'Riya Shah',    specialty: 'Weight Management & Nutrition', specialization: 'Weight Management & Nutrition', phone: '+91 98200 11004', email: 'riya@demo.in',  bio: 'Sports nutritionist and certified PT. Evidence-based nutrition with effective training.', is_active: true, assigned_members_count: 9, experience_years: 4 },
+    { id: 4005, gym_id: DEMO_GYM_ID, name: 'Rohit Joshi',  specialty: 'Bodybuilding & Hypertrophy',    specialization: 'Bodybuilding & Hypertrophy',    phone: '+91 98200 11005', email: 'rohit@demo.in', bio: 'State-level bodybuilder and ISSA-certified coach. Custom hypertrophy programs.', is_active: true, assigned_members_count: 11, experience_years: 7 },
+  ];
+
+  // 50 members: 33 active, 11 expired, 6 frozen  (jo=joinDaysAgo, ei=expiresIn, tr=trainer, mt=method)
+  const ml = [
+    { fn:'Aarav',    ln:'Sharma',    ph:'+91 98001 10001', pl:3001, pd:1500,  st:'active',  jo:15,  ei:15,  tr:4001, mt:'upi' },
+    { fn:'Priya',    ln:'Mehta',     ph:'+91 98001 10002', pl:3002, pd:4000,  st:'active',  jo:60,  ei:30,  tr:4002, mt:'cash' },
+    { fn:'Rahul',    ln:'Patil',     ph:'+91 98001 10003', pl:3004, pd:12000, st:'active',  jo:45,  ei:320, tr:4005, mt:'upi' },
+    { fn:'Sneha',    ln:'Joshi',     ph:'+91 98001 10004', pl:3003, pd:7000,  st:'active',  jo:90,  ei:90,  tr:4003, mt:'card' },
+    { fn:'Vikram',   ln:'Singh',     ph:'+91 98001 10005', pl:3001, pd:1500,  st:'active',  jo:20,  ei:10,  tr:4001, mt:'upi' },
+    { fn:'Ananya',   ln:'Desai',     ph:'+91 98001 10006', pl:3002, pd:4000,  st:'active',  jo:5,   ei:85,  tr:4004, mt:'upi' },
+    { fn:'Siddharth',ln:'Kapoor',    ph:'+91 98001 10007', pl:3004, pd:12000, st:'active',  jo:100, ei:265, tr:4005, mt:'bank_transfer' },
+    { fn:'Meera',    ln:'Kulkarni',  ph:'+91 98001 10008', pl:3003, pd:7000,  st:'active',  jo:30,  ei:150, tr:4003, mt:'cash' },
+    { fn:'Arjun',    ln:'Rao',       ph:'+91 98001 10009', pl:3001, pd:1500,  st:'active',  jo:25,  ei:5,   tr:4002, mt:'upi' },
+    { fn:'Diya',     ln:'Nair',      ph:'+91 98001 10010', pl:3002, pd:4000,  st:'active',  jo:10,  ei:80,  tr:4004, mt:'upi' },
+    { fn:'Kabir',    ln:'Khan',      ph:'+91 98001 10011', pl:3004, pd:12000, st:'active',  jo:150, ei:215, tr:4001, mt:'upi' },
+    { fn:'Ishita',   ln:'Bose',      ph:'+91 98001 10012', pl:3003, pd:7000,  st:'active',  jo:50,  ei:130, tr:4003, mt:'card' },
+    { fn:'Rishi',    ln:'Verma',     ph:'+91 98001 10013', pl:3001, pd:1500,  st:'active',  jo:3,   ei:27,  tr:4005, mt:'cash' },
+    { fn:'Anika',    ln:'Gupta',     ph:'+91 98001 10014', pl:3002, pd:4000,  st:'active',  jo:75,  ei:15,  tr:4004, mt:'upi' },
+    { fn:'Parth',    ln:'Shah',      ph:'+91 98001 10015', pl:3004, pd:12000, st:'active',  jo:200, ei:165, tr:4001, mt:'upi' },
+    { fn:'Kavya',    ln:'Iyer',      ph:'+91 98001 10016', pl:3003, pd:7000,  st:'active',  jo:120, ei:60,  tr:4003, mt:'card' },
+    { fn:'Omkar',    ln:'Bhosale',   ph:'+91 98001 10017', pl:3001, pd:1500,  st:'active',  jo:7,   ei:23,  tr:4002, mt:'upi' },
+    { fn:'Tanvi',    ln:'More',      ph:'+91 98001 10018', pl:3002, pd:4000,  st:'active',  jo:40,  ei:50,  tr:4004, mt:'cash' },
+    { fn:'Yash',     ln:'Gaikwad',   ph:'+91 98001 10019', pl:3004, pd:12000, st:'active',  jo:30,  ei:335, tr:4005, mt:'upi' },
+    { fn:'Riya',     ln:'Pawar',     ph:'+91 98001 10020', pl:3001, pd:1500,  st:'active',  jo:12,  ei:18,  tr:4003, mt:'upi' },
+    { fn:'Nilesh',   ln:'Shirke',    ph:'+91 98001 10021', pl:3003, pd:7000,  st:'active',  jo:60,  ei:120, tr:4001, mt:'bank_transfer' },
+    { fn:'Sonali',   ln:'Jadhav',    ph:'+91 98001 10022', pl:3002, pd:4000,  st:'active',  jo:20,  ei:70,  tr:4002, mt:'cash' },
+    { fn:'Hardik',   ln:'Patel',     ph:'+91 98001 10023', pl:3004, pd:12000, st:'active',  jo:365, ei:1,   tr:4005, mt:'upi' },
+    { fn:'Manali',   ln:'Khot',      ph:'+91 98001 10024', pl:3001, pd:1500,  st:'active',  jo:1,   ei:29,  tr:4004, mt:'upi' },
+    { fn:'Pranav',   ln:'Wagh',      ph:'+91 98001 10025', pl:3002, pd:4000,  st:'active',  jo:55,  ei:35,  tr:4001, mt:'card' },
+    { fn:'Ashwini',  ln:'Deshpande', ph:'+91 98001 10026', pl:3003, pd:7000,  st:'active',  jo:80,  ei:100, tr:4003, mt:'upi' },
+    { fn:'Rohan',    ln:'Bachhav',   ph:'+91 98001 10027', pl:3004, pd:12000, st:'active',  jo:250, ei:115, tr:4005, mt:'upi' },
+    { fn:'Tejal',    ln:'Salvi',     ph:'+91 98001 10028', pl:3001, pd:1500,  st:'active',  jo:18,  ei:12,  tr:4002, mt:'cash' },
+    { fn:'Gaurav',   ln:'Borse',     ph:'+91 98001 10029', pl:3002, pd:4000,  st:'active',  jo:35,  ei:55,  tr:4004, mt:'upi' },
+    { fn:'Pallavi',  ln:'Gaikwad',   ph:'+91 98001 10030', pl:3003, pd:7000,  st:'active',  jo:110, ei:70,  tr:4003, mt:'card' },
+    { fn:'Saurabh',  ln:'Chavan',    ph:'+91 98001 10031', pl:3001, pd:1500,  st:'active',  jo:8,   ei:22,  tr:4001, mt:'upi' },
+    { fn:'Pooja',    ln:'Kulkarni',  ph:'+91 98001 10032', pl:3004, pd:12000, st:'active',  jo:70,  ei:295, tr:4005, mt:'upi' },
+    { fn:'Devendra', ln:'Mane',      ph:'+91 98001 10033', pl:3002, pd:4000,  st:'active',  jo:22,  ei:68,  tr:4002, mt:'cash' },
+    { fn:'Kiran',    ln:'Thorat',    ph:'+91 98001 10034', pl:3001, pd:1500,  st:'expired', jo:60,  ei:-30, tr:4002, mt:'cash' },
+    { fn:'Monika',   ln:'Naik',      ph:'+91 98001 10035', pl:3002, pd:4000,  st:'expired', jo:150, ei:-60, tr:4004, mt:'upi' },
+    { fn:'Sameer',   ln:'Raut',      ph:'+91 98001 10036', pl:3003, pd:7000,  st:'expired', jo:200, ei:-20, tr:4001, mt:'card' },
+    { fn:'Vrushali', ln:'Shinde',    ph:'+91 98001 10037', pl:3001, pd:1500,  st:'expired', jo:65,  ei:-35, tr:4003, mt:'cash' },
+    { fn:'Abhijit',  ln:'Ingale',    ph:'+91 98001 10038', pl:3002, pd:4000,  st:'expired', jo:120, ei:-30, tr:4005, mt:'upi' },
+    { fn:'Shraddha', ln:'Sonawane',  ph:'+91 98001 10039', pl:3004, pd:12000, st:'expired', jo:400, ei:-35, tr:4001, mt:'upi' },
+    { fn:'Mahesh',   ln:'Kamble',    ph:'+91 98001 10040', pl:3001, pd:1500,  st:'expired', jo:45,  ei:-15, tr:4002, mt:'cash' },
+    { fn:'Rupali',   ln:'Patil',     ph:'+91 98001 10041', pl:3002, pd:4000,  st:'expired', jo:180, ei:-90, tr:4004, mt:'upi' },
+    { fn:'Santosh',  ln:'Waghmare',  ph:'+91 98001 10042', pl:3003, pd:7000,  st:'expired', jo:220, ei:-40, tr:4003, mt:'card' },
+    { fn:'Vaishali', ln:'Holkar',    ph:'+91 98001 10043', pl:3001, pd:1500,  st:'expired', jo:70,  ei:-40, tr:4005, mt:'cash' },
+    { fn:'Dhanraj',  ln:'Sawant',    ph:'+91 98001 10044', pl:3002, pd:4000,  st:'expired', jo:160, ei:-70, tr:4001, mt:'upi' },
+    { fn:'Apurva',   ln:'Desai',     ph:'+91 98001 10045', pl:3003, pd:7000,  st:'frozen',  jo:90,  ei:90,  tr:4003, mt:'card' },
+    { fn:'Rajesh',   ln:'Mhetre',    ph:'+91 98001 10046', pl:3002, pd:4000,  st:'frozen',  jo:70,  ei:20,  tr:4002, mt:'cash' },
+    { fn:'Nisha',    ln:'Talekar',   ph:'+91 98001 10047', pl:3004, pd:12000, st:'frozen',  jo:50,  ei:315, tr:4005, mt:'upi' },
+    { fn:'Aditya',   ln:'Gade',      ph:'+91 98001 10048', pl:3001, pd:1500,  st:'frozen',  jo:40,  ei:-10, tr:4004, mt:'upi' },
+    { fn:'Prachi',   ln:'Khambe',    ph:'+91 98001 10049', pl:3002, pd:4000,  st:'frozen',  jo:60,  ei:30,  tr:4001, mt:'cash' },
+    { fn:'Vishal',   ln:'Bhinde',    ph:'+91 98001 10050', pl:3003, pd:7000,  st:'frozen',  jo:80,  ei:100, tr:4003, mt:'card' },
+  ];
+
+  let attId = 7001;
+  const members = [], payments = [], attendance = [];
+
+  ml.forEach((m, idx) => {
+    const memberId = 5001 + idx;
+    const joinDate = d(m.jo);
+    const expiryDate = m.ei >= 0 ? fut(m.ei) : d(-m.ei);
+    const plan = demoPlans.find(p => p.id === m.pl) || demoPlans[0];
+    const isExpiringSoon = m.st === 'active' && m.ei >= 0 && m.ei <= 7;
+
+    members.push({
+      id: memberId, gym_id: DEMO_GYM_ID,
+      first_name: m.fn, last_name: m.ln, full_name: `${m.fn} ${m.ln}`,
+      email: `${m.fn.toLowerCase()}.${m.ln.toLowerCase()}@example.in`,
+      phone: m.ph, status: m.st, join_date: joinDate,
+      current_plan_name: plan.name, membership_expiry_date: expiryDate,
+      is_expiring_soon: isExpiringSoon, assigned_trainer_id: m.tr || null,
+      gender: idx % 3 === 0 ? 'Female' : 'Male',
+      address: `${10 + idx * 3}, Nashik, Maharashtra`
+    });
+
+    payments.push({
+      id: 6001 + idx, gym_id: DEMO_GYM_ID, member_id: memberId,
+      member_name: `${m.fn} ${m.ln}`, plan_name: plan.name,
+      amount: m.pd, payment_method: m.mt, status: 'completed',
+      payment_date: joinDate,
+      invoice_number: `INV-2026-${String(6001 + idx).padStart(4,'0')}`,
+      notes: `Membership enrollment - ${plan.name}`
+    });
+
+    if (m.st === 'active' || m.st === 'frozen') {
+      const days = Math.min(m.jo, 90);
+      const visits = Math.floor(days * 0.55);
+      for (let i = 0; i < visits; i++) {
+        const db = Math.floor(Math.random() * Math.max(days, 1));
+        const h = 6 + Math.floor(Math.random() * 10);
+        const mn = Math.floor(Math.random() * 60);
+        const ho = Math.min(h + 1 + Math.floor(Math.random() * 2), 22);
+        attendance.push({
+          id: attId++, gym_id: DEMO_GYM_ID, member_id: memberId,
+          member_name: `${m.fn} ${m.ln}`, date: d(db),
+          check_in_time: `${String(h).padStart(2,'0')}:${String(mn).padStart(2,'0')}`,
+          check_out_time: i % 12 === 0 ? null : `${String(ho).padStart(2,'0')}:${String(Math.floor(Math.random()*60)).padStart(2,'0')}`,
+          method: i % 4 === 0 ? 'qr_kiosk' : 'manual', notes: ''
+        });
+      }
+    }
+  });
+
+  return { gym, owner, plans: demoPlans, trainers: demoTrainers, members, payments, attendance };
+}
+
+function injectDemoGym(db) {
+  if (db.gyms.some(g => g.id === DEMO_GYM_ID)) return db;
+  const { gym, owner, plans, trainers, members, payments, attendance } = buildDemoDb();
+  db.gyms.push(gym);
+  db.users.push(owner);
+  plans.forEach(p => db.plans.push(p));
+  trainers.forEach(t => db.trainers.push(t));
+  members.forEach(m => db.members.push(m));
+  payments.forEach(p => db.payments.push(p));
+  attendance.forEach(a => db.attendance.push(a));
+  return db;
+}
 
 const defaultDb = {
   version: DB_VERSION,
@@ -59,24 +225,30 @@ function getDb() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultDb));
-      memoryDb = JSON.parse(JSON.stringify(defaultDb));
+      const freshDb = injectDemoGym(JSON.parse(JSON.stringify(defaultDb)));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(freshDb));
+      memoryDb = freshDb;
       return memoryDb;
     }
     const parsed = JSON.parse(raw);
     if (!parsed.version || parsed.version < DB_VERSION || !Array.isArray(parsed.gyms)) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultDb));
-      memoryDb = JSON.parse(JSON.stringify(defaultDb));
+      // Version mismatch — reset and inject demo gym
+      const freshDb = injectDemoGym(JSON.parse(JSON.stringify(defaultDb)));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(freshDb));
+      memoryDb = freshDb;
       return memoryDb;
     }
     if (!parsed.platform_payment_settings) {
       parsed.platform_payment_settings = { ...defaultDb.platform_payment_settings };
     }
+    // Ensure demo gym always exists (e.g. after a partial reset or first upgrade)
+    injectDemoGym(parsed);
     memoryDb = parsed;
     return memoryDb;
   } catch (e) {
     if (memoryDb) return memoryDb;
-    memoryDb = JSON.parse(JSON.stringify(defaultDb));
+    const freshDb = injectDemoGym(JSON.parse(JSON.stringify(defaultDb)));
+    memoryDb = freshDb;
     return memoryDb;
   }
 }
@@ -786,17 +958,55 @@ export function handleMockRequest(endpoint, options = {}) {
   }
 
   // 11. Reports (scoped to current gym)
-  if (endpoint.startsWith('/reports/summary') || endpoint.startsWith('/reports/revenue')) {
+  if (endpoint.startsWith('/reports/summary')) {
     const gymMembers = db.members.filter((m) => m.gym_id === currentGymId);
     const gymPayments = db.payments.filter((p) => p.gym_id === currentGymId);
     const gymAttendance = db.attendance.filter((a) => a.gym_id === currentGymId);
+    const totalRev = gymPayments.filter(p => p.status === 'completed').reduce((s, p) => s + (p.amount || 0), 0);
+    const activeCount = gymMembers.filter((m) => m.status === 'active').length;
+    const expiredCount = gymMembers.filter((m) => m.status === 'expired').length;
+    const frozenCount = gymMembers.filter((m) => m.status === 'frozen').length;
     return {
-      monthly_revenue: gymPayments.reduce((s, p) => s + (p.amount || 0), 0),
+      total_revenue: totalRev,
+      monthly_revenue: totalRev,
+      total_visits: gymAttendance.length,
       total_checkins: gymAttendance.length,
-      active_members: gymMembers.filter((m) => m.status === 'active').length,
+      total_members: gymMembers.length,
+      active_members: activeCount,
+      expired_members: expiredCount,
+      frozen_members: frozenCount,
+      expiring_soon_members: gymMembers.filter((m) => m.is_expiring_soon).length,
+      new_members_this_month: gymMembers.filter((m) => {
+        const jd = m.join_date || m.created_at;
+        if (!jd) return false;
+        const joinDt = new Date(jd);
+        const now = new Date();
+        return joinDt.getMonth() === now.getMonth() && joinDt.getFullYear() === now.getFullYear();
+      }).length,
       revenue_growth_pct: 12.0
     };
   }
+
+  if (endpoint.startsWith('/reports/revenue')) {
+    const gymPayments = db.payments.filter((p) => p.gym_id === currentGymId && p.status === 'completed');
+    const totalRev = gymPayments.reduce((s, p) => s + (p.amount || 0), 0);
+    // Build daily breakdown from actual payment dates
+    const byDate = {};
+    gymPayments.forEach((p) => {
+      const dt = (p.payment_date || '').split('T')[0] || new Date().toISOString().split('T')[0];
+      if (!byDate[dt]) byDate[dt] = { date: dt, count: 0, amount: 0 };
+      byDate[dt].count++;
+      byDate[dt].amount += p.amount || 0;
+    });
+    const daily_breakdown = Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date));
+    return {
+      total_revenue: totalRev,
+      monthly_revenue: totalRev,
+      revenue_growth_pct: 12.0,
+      daily_breakdown
+    };
+  }
+
 
   // 12. Settings & Gym Profile
   if (endpoint.startsWith('/settings/config')) {
@@ -1686,6 +1896,59 @@ export function handleMockRequest(endpoint, options = {}) {
         members_count: db.members.filter((m) => m.gym_id == g.id || String(m.gym_id) === String(g.id)).length
       };
     });
+  }
+
+  // Demo Data Reset — Owner or SuperAdmin only
+  // POST /demo/reset-gym-data  — rebuilds demo gym to pristine state for current gym
+  if (endpoint.startsWith('/demo/reset-gym-data') && method === 'POST') {
+    const isSuperadmin = currentUser?.is_superadmin || currentUser?.role === 'superadmin';
+    const isOwner = currentUser?.role === 'owner';
+    if (!isSuperadmin && !isOwner) {
+      throw new Error('Only the Gym Owner or Super Admin can reset demo data.');
+    }
+    const targetGymId = isSuperadmin ? (body.gym_id || DEMO_GYM_ID) : currentGymId;
+    if (!targetGymId) throw new Error('No active gym to reset.');
+
+    // Remove all non-superadmin data for this gym
+    db.members     = db.members.filter(m => m.gym_id !== targetGymId);
+    db.attendance  = db.attendance.filter(a => a.gym_id !== targetGymId);
+    db.payments    = db.payments.filter(p => p.gym_id !== targetGymId);
+    db.plans       = db.plans.filter(p => p.gym_id !== targetGymId);
+    db.trainers    = db.trainers.filter(t => t.gym_id !== targetGymId);
+    db.inquiries   = db.inquiries.filter(i => i.gym_id !== targetGymId);
+
+    if (targetGymId === DEMO_GYM_ID) {
+      // Re-build the demo gym
+      const fresh = buildDemoDb();
+      fresh.plans.forEach(p => db.plans.push(p));
+      fresh.trainers.forEach(t => db.trainers.push(t));
+      fresh.members.forEach(m => db.members.push(m));
+      fresh.payments.forEach(p => db.payments.push(p));
+      fresh.attendance.forEach(a => db.attendance.push(a));
+    }
+    saveDb(db);
+    return { success: true, message: 'Demo data has been reset to the original realistic state. Reload the page to see fresh data.' };
+  }
+
+  // Trainers: Update & Delete
+  const matchTrainer = endpoint.match(/^\/trainers\/([^/?]+)$/);
+  if (matchTrainer) {
+    const trainerId = matchTrainer[1];
+    const tIdx = db.trainers.findIndex(t => t.id == trainerId || String(t.id) === String(trainerId));
+    if (method === 'DELETE') {
+      if (tIdx !== -1) { db.trainers.splice(tIdx, 1); saveDb(db); }
+      return { success: true };
+    }
+    if (method === 'PUT') {
+      if (tIdx !== -1) {
+        db.trainers[tIdx] = { ...db.trainers[tIdx], ...body };
+        saveDb(db);
+        return db.trainers[tIdx];
+      }
+      throw new Error('Trainer not found');
+    }
+    if (tIdx !== -1) return db.trainers[tIdx];
+    throw new Error('Trainer not found');
   }
 
   // Fallback default response

@@ -523,8 +523,44 @@ export const SettingsPage = () => {
             </div>
           </form>
 
+          {/* Demo Data Reset */}
+          <div className="mt-6 pt-4 border-t border-slate-100">
+            <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-1.5 text-amber-700 font-extrabold text-xs uppercase tracking-wider mb-1">
+                    <RefreshCw className="w-4 h-4 text-amber-600" />
+                    <span>Demo Data Reset</span>
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-900">Reset to Fresh Demo State</h4>
+                  <p className="text-xs text-slate-700 mt-1 max-w-xl leading-relaxed font-medium">
+                    Restore all 50 demo members, 5 trainers, 4 plans, and attendance records to the original pristine state. 
+                    Reload the page after reset to see fresh data.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!window.confirm('Reset all demo data to its original pristine state? This will remove any members/plans you added manually.')) return;
+                    try {
+                      const res = await api.resetDemoData();
+                      toast.success(res?.message || 'Demo data reset successfully! Reload to see fresh data.');
+                      setTimeout(() => window.location.reload(), 2000);
+                    } catch (err) {
+                      toast.error(err.message || 'Demo reset failed.');
+                    }
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 whitespace-nowrap self-start sm:self-center shrink-0 cursor-pointer"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Reset Demo Data
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* AppSec Danger Zone: Decommission Facility & Erase Public Website */}
-          <div className="mt-8 pt-6 border-t border-slate-200">
+          <div className="mt-4 pt-2">
             <div className="bg-rose-50/70 border-2 border-rose-200/80 rounded-2xl p-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
@@ -555,6 +591,7 @@ export const SettingsPage = () => {
           </div>
         </div>
       )}
+
 
       {/* Tab 2: Operational Config */}
       {activeTab === 'config' && (

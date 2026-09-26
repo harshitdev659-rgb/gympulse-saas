@@ -121,23 +121,26 @@ export async function exportMembersListCsv(members = []) {
   ];
 
   const rows = members.map((m) => {
-    const activePlan = m.active_membership?.plan?.name || m.plan_name || 'No Active Plan';
-    const expiry = m.active_membership?.end_date || m.expiry_date || 'N/A';
+    // Support both backend (active_membership) and mock (membership_expiry_date / current_plan_name) field names
+    const activePlan = m.active_membership?.plan?.name || m.current_plan_name || m.plan_name || 'No Active Plan';
+    const expiry = m.active_membership?.end_date || m.membership_expiry_date || m.expiry_date || 'N/A';
+    const joined = m.join_date || (m.created_at ? new Date(m.created_at).toLocaleDateString() : 'N/A');
     return [
       m.id,
-      `${m.first_name || ''} ${m.last_name || ''}`.trim(),
+      `${m.first_name || ''} ${m.last_name || ''}`.trim() || m.full_name || 'N/A',
       m.phone || 'N/A',
       m.email || 'N/A',
       (m.status || 'active').toUpperCase(),
       activePlan,
       expiry,
-      m.created_at ? new Date(m.created_at).toLocaleDateString() : 'N/A'
+      joined
     ];
   });
 
   const today = new Date().toISOString().split('T')[0];
   await downloadCsv(`members-roster-${today}.csv`, headers, rows);
 }
+
 
 export async function exportAttendanceLogCsv(attendanceList = []) {
   const headers = [

@@ -573,6 +573,11 @@ class ApiService {
       body: JSON.stringify({ cloud_url })
     });
   }
+
+  // Demo Data Reset
+  resetDemoData() {
+    return this.request('/demo/reset-gym-data', { method: 'POST' });
+  }
 }
 
 export const api = new ApiService();

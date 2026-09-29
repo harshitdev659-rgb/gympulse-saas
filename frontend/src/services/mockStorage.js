@@ -2,7 +2,7 @@
 // Allows GymPulse on Android, Apple iPhone & iPad to run with strict data privacy and zero dummy data
 
 const STORAGE_KEY = 'gympulse_standalone_db';
-const DB_VERSION = 4; // bumped — triggers re-init and injects realistic demo gym
+const DB_VERSION = 5; // clean slate — zero demo gyms by default
 
 // ─── Demo Gym Seed ──────────────────────────────────────────────────────────
 // Realistic demo: GymPulse Fitness Demo, Nashik, Maharashtra
@@ -177,7 +177,7 @@ const defaultDb = {
   version: DB_VERSION,
   currentGymId: null,
   currentUserId: null,
-  deleted_gym_ids: [],
+  deleted_gym_ids: [DEMO_GYM_ID, String(DEMO_GYM_ID)],
   gyms: [],
   users: [
     {
@@ -229,15 +229,15 @@ function getDb() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      const freshDb = injectDemoGym(JSON.parse(JSON.stringify(defaultDb)));
+      const freshDb = JSON.parse(JSON.stringify(defaultDb));
       localStorage.setItem(STORAGE_KEY, JSON.stringify(freshDb));
       memoryDb = freshDb;
       return memoryDb;
     }
     const parsed = JSON.parse(raw);
     if (!parsed.version || parsed.version < DB_VERSION || !Array.isArray(parsed.gyms)) {
-      // Version mismatch — reset and inject demo gym
-      const freshDb = injectDemoGym(JSON.parse(JSON.stringify(defaultDb)));
+      // Version upgrade — initialize clean slate without demo gyms
+      const freshDb = JSON.parse(JSON.stringify(defaultDb));
       localStorage.setItem(STORAGE_KEY, JSON.stringify(freshDb));
       memoryDb = freshDb;
       return memoryDb;
@@ -248,13 +248,32 @@ function getDb() {
     if (!Array.isArray(parsed.deleted_gym_ids)) {
       parsed.deleted_gym_ids = [];
     }
-    // Ensure demo gym exists IF it was not explicitly deleted
-    injectDemoGym(parsed);
+    if (!parsed.deleted_gym_ids.includes(DEMO_GYM_ID)) {
+      parsed.deleted_gym_ids.push(DEMO_GYM_ID, String(DEMO_GYM_ID));
+    }
+    // Purge any demo gyms and associated demo records from storage
+    if (Array.isArray(parsed.gyms)) {
+      const hadDemo = parsed.gyms.some(g => g.id == DEMO_GYM_ID || String(g.id) === String(DEMO_GYM_ID) || g.slug === 'gympulse-fitness-demo');
+      if (hadDemo) {
+        parsed.gyms = parsed.gyms.filter(g => g.id != DEMO_GYM_ID && String(g.id) !== String(DEMO_GYM_ID) && g.slug !== 'gympulse-fitness-demo');
+        parsed.members = (parsed.members || []).filter(m => m.gym_id != DEMO_GYM_ID && String(m.gym_id) !== String(DEMO_GYM_ID));
+        parsed.attendance = (parsed.attendance || []).filter(a => a.gym_id != DEMO_GYM_ID && String(a.gym_id) !== String(DEMO_GYM_ID));
+        parsed.payments = (parsed.payments || []).filter(p => p.gym_id != DEMO_GYM_ID && String(p.gym_id) !== String(DEMO_GYM_ID));
+        parsed.plans = (parsed.plans || []).filter(p => p.gym_id != DEMO_GYM_ID && String(p.gym_id) !== String(DEMO_GYM_ID));
+        parsed.trainers = (parsed.trainers || []).filter(t => t.gym_id != DEMO_GYM_ID && String(t.gym_id) !== String(DEMO_GYM_ID));
+        parsed.inquiries = (parsed.inquiries || []).filter(i => i.gym_id != DEMO_GYM_ID && String(i.gym_id) !== String(DEMO_GYM_ID));
+        parsed.users = (parsed.users || []).filter(u => u.is_superadmin || (u.gym_id != DEMO_GYM_ID && String(u.gym_id) !== String(DEMO_GYM_ID)));
+        if (parsed.currentGymId == DEMO_GYM_ID || String(parsed.currentGymId) === String(DEMO_GYM_ID)) {
+          parsed.currentGymId = parsed.gyms[0]?.id || null;
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+      }
+    }
     memoryDb = parsed;
     return memoryDb;
   } catch (e) {
     if (memoryDb) return memoryDb;
-    const freshDb = injectDemoGym(JSON.parse(JSON.stringify(defaultDb)));
+    const freshDb = JSON.parse(JSON.stringify(defaultDb));
     memoryDb = freshDb;
     return memoryDb;
   }

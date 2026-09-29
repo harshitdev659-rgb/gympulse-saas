@@ -595,3 +595,112 @@ def test_windows_portable_download_endpoint():
     assert update_res.json()["cloud_url"] == "https://gympulse-saas.onrender.com"
 
 
+def test_database_migration_idempotent_and_schema_complete():
+    """Verify that database schema migration runs cleanly, adds all missing columns, and is 100% idempotent."""
+    from app.core.migration import run_db_migrations
+    from sqlalchemy import inspect as sa_inspect
+
+    # Run migration on the test engine
+    run_db_migrations(test_engine)
+
+    # Verify all columns on gyms exist
+    inspector = sa_inspect(test_engine)
+    gym_cols = [c["name"] for c in inspector.get_columns("gyms")]
+    required_gym_cols = [
+        "requested_plan_tier", "tier_upgrade_status", "tier_upgrade_requested_at",
+        "website_theme", "website_primary_color", "website_hero_style", "website_announcement"
+    ]
+    for col in required_gym_cols:
+        assert col in gym_cols, f"Column gyms.{col} missing after migration"
+
+    # Verify user permissions column exists
+    user_cols = [c["name"] for c in inspector.get_columns("users")]
+    assert "permissions" in user_cols, "Column users.permissions missing after migration"
+
+    # Verify idempotency: running a second time should apply 0 new columns and cause 0 errors
+    second_run = run_db_migrations(test_engine)
+    assert len(second_run) == 0, f"Expected 0 migrations on second run, got {second_run}"
+
+
+def test_superadmin_facility_deletion_atomic_and_fresh_read():
+    """Verify Super Admin facility deletion: atomic transaction, fresh read verification, and unauthorized rejection."""
+    superadmin_token = get_auth_token("superadmin@gympulse.com", "SuperAdmin123!")
+    owner_token = get_auth_token("owner@titangym.com", "Secret123!")
+    admin_headers = {"Authorization": f"Bearer {superadmin_token}"}
+    owner_headers = {"Authorization": f"Bearer {owner_token}"}
+
+    # 1. Create a synthetic test gym facility
+    reg_res = client.post("/api/auth/register-gym", json={
+        "gym_name": "Synthetic Delete Facility",
+        "owner_name": "Synthetic Owner",
+        "email": "synthetic_delete@example.com",
+        "password": "Password123!",
+        "plan_tier": "starter"
+    })
+    assert reg_res.status_code == 200
+    synthetic_id = reg_res.json()["gym"]["id"]
+
+    # 2. Unauthorized attempt: regular gym owner must be rejected with 403 Forbidden
+    unauth_res = client.delete(f"/api/platform/gyms/{synthetic_id}", headers=owner_headers)
+    assert unauth_res.status_code == 403, "Regular gym owner should not be allowed to delete a platform facility"
+
+    # 3. Super Admin deletion
+    del_res = client.delete(f"/api/platform/gyms/{synthetic_id}", headers=admin_headers)
+    assert del_res.status_code == 200
+    assert del_res.json()["success"] is True
+
+    # 4. Fresh read from server confirms facility is completely absent
+    fresh_list_res = client.get("/api/platform/gyms", headers=admin_headers)
+    assert fresh_list_res.status_code == 200
+    remaining_ids = [g["id"] for g in fresh_list_res.json()]
+    assert synthetic_id not in remaining_ids, "Deleted synthetic facility must not be returned in fresh read"
+
+    # 5. Verify other facilities (Titan Gym) remain untouched
+    titan_present = any(g["name"] == "Titan Gym" for g in fresh_list_res.json())
+    assert titan_present, "Other existing facilities must remain completely untouched"
+
+    # 6. Failure case: Deleting non-existent facility returns 404
+    missing_del = client.delete("/api/platform/gyms/999999", headers=admin_headers)
+    assert missing_del.status_code == 404
+
+
+def test_website_custom_domain_truthful_verification():
+    """Verify that domain availability check does not claim domain is live/connected without DNS verification."""
+    owner_token = get_auth_token("owner@titangym.com", "Secret123!")
+    headers = {"Authorization": f"Bearer {owner_token}"}
+
+    # 1. Domain availability check for an unregistered domain like demogym.com
+    check_res = client.get("/api/gym/website/check-domain?domain=demogym.com&domain_type=custom", headers=headers)
+    assert check_res.status_code == 200
+    data = check_res.json()
+    assert data["available"] is True
+    # Crucial: Must be marked unverified (not connected) and instruct registrar DNS configuration
+    assert data.get("verified") is False
+    assert "dns" in data["message"].lower() or "registrar" in data["message"].lower()
+
+    # 2. Reserved system keyword must be rejected
+    res_kw = client.get("/api/gym/website/check-domain?domain=admin&domain_type=custom", headers=headers)
+    assert res_kw.status_code == 200
+    assert res_kw.json()["available"] is False
+
+    # 3. Empty domain must be rejected
+    empty_res = client.get("/api/gym/website/check-domain?domain=&domain_type=custom", headers=headers)
+    assert empty_res.status_code == 200
+    assert empty_res.json()["available"] is False
+
+
+def test_app_download_regression_preserved():
+    """Ensure the existing app-download website and endpoints remain completely functional and untouched."""
+    # 1. Windows download returns installer zip
+    res = client.get("/api/download/windows")
+    assert res.status_code == 200
+    assert "application/zip" in res.headers.get("content-type", "")
+    assert len(res.content) > 0
+
+    # 2. Network info preserves download URL
+    net_res = client.get("/api/settings/network-info")
+    assert net_res.status_code == 200
+    assert net_res.json()["download_url"] == "/api/download/windows"
+
+
+

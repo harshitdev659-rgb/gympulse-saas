@@ -33,7 +33,7 @@ class ApiService {
   }
 
   async request(endpoint, options = {}) {
-    // If running on static host (e.g. GitHub Pages or file://), immediately execute via in-memory mock engine with zero network latency
+    // Explicit static host mode (e.g. GitHub Pages or file:// without a Python server)
     if (isStaticHost) {
       return handleMockRequest(endpoint, options);
     }
@@ -41,51 +41,50 @@ class ApiService {
     const url = `${API_BASE}${endpoint}`;
     const headers = { ...this.getHeaders(options.body && typeof options.body === 'string'), ...options.headers };
 
-    // Prevent UI hanging on sleeping/cold backend containers with 3.5s timeout
+    // Standard 15s timeout to prevent infinite UI hang on network freeze
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     try {
       const response = await fetch(url, { ...options, headers, signal: controller.signal });
       clearTimeout(timeoutId);
-      
-      // If 404 on API endpoint (running on static host without Python backend)
-      if (response.status === 404) {
-        return handleMockRequest(endpoint, options);
-      }
-
-      if (response.status === 401 && !endpoint.includes('/auth/login')) {
-        // Fallback to standalone device session rather than prematurely logging out
-        console.warn(`Server returned 401 on ${endpoint}. Attempting fallback to persistent device session.`);
-        try {
-          return handleMockRequest(endpoint, options);
-        } catch (mockErr) {
-          throw new Error('Unauthorized or session expired.');
-        }
-      }
 
       if (response.status === 204) {
         return null;
       }
 
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.detail || data.message || 'API request failed');
-        }
-        return data;
+      const contentType = response.headers.get('content-type') || '';
+      let data = null;
+      if (contentType.includes('application/json')) {
+        data = await response.json();
       } else {
         const text = await response.text();
-        if (!response.ok) {
-          throw new Error(text || 'API request failed');
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = text;
         }
-        return text;
       }
+
+      if (!response.ok) {
+        const errorMsg = (typeof data === 'object' && data !== null)
+          ? (data.detail || data.message || `Request failed with status ${response.status}`)
+          : (data || `Request failed with status ${response.status}`);
+        const err = new Error(errorMsg);
+        err.status = response.status;
+        err.data = data;
+        throw err;
+      }
+
+      return data;
     } catch (error) {
       clearTimeout(timeoutId);
-      console.warn(`API network unavailable on ${endpoint}. Falling back to standalone mobile engine.`);
-      return handleMockRequest(endpoint, options);
+      // Real backend HTTP or network errors must remain real errors.
+      // Never silently fall back to mock storage or show fake success when a live API call fails.
+      if (error.name === 'AbortError') {
+        throw new Error(`Request to ${endpoint} timed out after 15 seconds. Please check your connection.`);
+      }
+      throw error;
     }
   }
 

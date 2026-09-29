@@ -382,14 +382,30 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
 
   const handleConfirmDeleteFacility = async () => {
     if (!deletingGym) return;
-    setActionLoadingId(deletingGym.id);
+    const targetGym = deletingGym;
+    setActionLoadingId(targetGym.id);
     try {
-      const res = await api.deletePlatformGym(deletingGym.id);
-      toast.success(res.message || `Facility "${deletingGym.name}" permanently deleted.`);
+      // 1. Send DELETE request to backend
+      const res = await api.deletePlatformGym(targetGym.id);
+
+      // 2. Perform a fresh read from the server to verify deletion
+      const freshGyms = await api.getPlatformGyms();
+      const stillExists = Array.isArray(freshGyms) && freshGyms.some(
+        (g) => g.id === targetGym.id || String(g.id) === String(targetGym.id)
+      );
+
+      if (stillExists) {
+        throw new Error(`Deletion verification failed: Facility "${targetGym.name}" still exists on the server.`);
+      }
+
+      // 3. ONLY THEN show success and update UI state
+      setGyms(freshGyms);
       setDeletingGym(null);
-      await fetchData();
+      toast.success(res?.message || `Facility "${targetGym.name}" permanently deleted.`);
+      await fetchData(true);
     } catch (err) {
       toast.error(err.message || 'Deletion failed.');
+      await fetchData(true);
     } finally {
       setActionLoadingId(null);
     }
@@ -406,13 +422,6 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
     }
 
     setActionLoadingId('remove-all-active');
-    // Immediate optimistic update
-    setGyms((prev) => prev.filter((g) => !isFacilityActive(g)));
-    setMetrics((prev) => prev ? {
-      ...prev,
-      active_facilities: 0,
-      platform_mrr: 0
-    } : null);
 
     try {
       if (api.removeAllActiveGyms) {
@@ -420,6 +429,15 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
       } else {
         await Promise.all(activeGyms.map((g) => api.deletePlatformGym(g.id)));
       }
+      
+      // Verify via fresh read
+      const freshGyms = await api.getPlatformGyms();
+      const remainingActive = (Array.isArray(freshGyms) ? freshGyms : []).filter(isFacilityActive);
+      if (remainingActive.length > 0) {
+        throw new Error(`Verification notice: ${remainingActive.length} active facilities still remain on the server.`);
+      }
+      
+      setGyms(freshGyms);
       toast.success(`Successfully removed all ${activeGyms.length} active gym facilities.`);
       await fetchData(true);
     } catch (err) {
@@ -440,14 +458,6 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
     }
 
     setActionLoadingId('remove-all');
-    setGyms([]);
-    setMetrics((prev) => prev ? {
-      ...prev,
-      total_gyms: 0,
-      active_facilities: 0,
-      pending_approvals: 0,
-      platform_mrr: 0
-    } : null);
 
     try {
       if (api.removeAllGyms) {
@@ -455,6 +465,14 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
       } else {
         await Promise.all(gyms.map((g) => api.deletePlatformGym(g.id)));
       }
+      
+      // Verify via fresh read
+      const freshGyms = await api.getPlatformGyms();
+      if (Array.isArray(freshGyms) && freshGyms.length > 0) {
+        throw new Error(`Verification notice: ${freshGyms.length} facilities still remain on the server.`);
+      }
+      
+      setGyms([]);
       toast.success('All gym facilities have been permanently removed.');
       await fetchData(true);
     } catch (err) {
@@ -464,6 +482,7 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
       setActionLoadingId(null);
     }
   };
+
 
 
   const filteredGyms = gyms.filter((g) => {

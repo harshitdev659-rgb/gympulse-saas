@@ -1135,10 +1135,11 @@ export function handleMockRequest(endpoint, options = {}) {
               (g.slug && g.slug.toLowerCase() === cleanCustom))
     );
     if (conflict) {
-      return { available: false, domain: clean, message: `Custom domain "${clean}" is already registered to another facility.` };
+      return { available: false, domain: clean, message: `Custom domain "${clean}" is already registered to another facility on GymPulse.` };
     }
-    return { available: true, domain: clean, message: `Custom domain "${clean}" is available to connect!` };
+    return { available: true, domain: clean, verified: false, dns_status: "unverified", message: `Domain "${clean}" is available on GymPulse. Requires domain ownership and DNS configuration with your registrar.` };
   }
+
 
   if (endpoint.startsWith('/gym/website')) {
     if (method === 'PUT') {

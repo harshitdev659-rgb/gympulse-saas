@@ -557,8 +557,15 @@ def check_domain_availability(
         Gym.id != current_gym.id
     ).first()
     if existing:
-        return {"available": False, "domain": clean, "message": f"Custom domain '{clean}' is already registered to another facility."}
-    return {"available": True, "domain": clean, "message": f"Custom domain '{clean}' is available to register!"}
+        return {"available": False, "domain": clean, "verified": False, "message": f"Custom domain '{clean}' is already registered to another facility on GymPulse."}
+    return {
+        "available": True,
+        "domain": clean,
+        "verified": False,
+        "dns_status": "unverified",
+        "message": f"'{clean}' is available on GymPulse. Requires domain ownership and DNS configuration with your registrar."
+    }
+
 
 @router.put("/gym/website", response_model=GymResponse)
 def update_gym_website_settings(

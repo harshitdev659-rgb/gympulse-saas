@@ -239,27 +239,32 @@ def delete_gym_facility(
         GymInquiry, Notification, Payment, Attendance,
         MemberMembership, Member, MembershipPlan, Trainer, GymSetting, User
     )
-    # If the operating superadmin was associated with this gym, detach them first
-    if current_admin.gym_id == gym_id:
-        current_admin.gym_id = None
-        db.add(current_admin)
-        db.flush()
+    try:
+        # If the operating superadmin was associated with this gym, detach them first
+        if current_admin.gym_id == gym_id:
+            current_admin.gym_id = None
+            db.add(current_admin)
+            db.flush()
 
-    # Reassign or detach any other superadmin users before cascade
-    db.query(User).filter(User.gym_id == gym_id, User.is_superadmin == True).update({"gym_id": None}, synchronize_session=False)
+        # Reassign or detach any other superadmin users before cascade
+        db.query(User).filter(User.gym_id == gym_id, User.is_superadmin == True).update({"gym_id": None}, synchronize_session=False)
 
-    db.query(GymInquiry).filter(GymInquiry.gym_id == gym_id).delete(synchronize_session=False)
-    db.query(Notification).filter(Notification.gym_id == gym_id).delete(synchronize_session=False)
-    db.query(Payment).filter(Payment.gym_id == gym_id).delete(synchronize_session=False)
-    db.query(Attendance).filter(Attendance.gym_id == gym_id).delete(synchronize_session=False)
-    db.query(MemberMembership).filter(MemberMembership.gym_id == gym_id).delete(synchronize_session=False)
-    db.query(Member).filter(Member.gym_id == gym_id).delete(synchronize_session=False)
-    db.query(MembershipPlan).filter(MembershipPlan.gym_id == gym_id).delete(synchronize_session=False)
-    db.query(Trainer).filter(Trainer.gym_id == gym_id).delete(synchronize_session=False)
-    db.query(GymSetting).filter(GymSetting.gym_id == gym_id).delete(synchronize_session=False)
-    db.query(User).filter(User.gym_id == gym_id, User.is_superadmin == False).delete(synchronize_session=False)
-    db.delete(gym)
-    db.commit()
+        db.query(GymInquiry).filter(GymInquiry.gym_id == gym_id).delete(synchronize_session=False)
+        db.query(Notification).filter(Notification.gym_id == gym_id).delete(synchronize_session=False)
+        db.query(Payment).filter(Payment.gym_id == gym_id).delete(synchronize_session=False)
+        db.query(Attendance).filter(Attendance.gym_id == gym_id).delete(synchronize_session=False)
+        db.query(MemberMembership).filter(MemberMembership.gym_id == gym_id).delete(synchronize_session=False)
+        db.query(Member).filter(Member.gym_id == gym_id).delete(synchronize_session=False)
+        db.query(MembershipPlan).filter(MembershipPlan.gym_id == gym_id).delete(synchronize_session=False)
+        db.query(Trainer).filter(Trainer.gym_id == gym_id).delete(synchronize_session=False)
+        db.query(GymSetting).filter(GymSetting.gym_id == gym_id).delete(synchronize_session=False)
+        db.query(User).filter(User.gym_id == gym_id, User.is_superadmin == False).delete(synchronize_session=False)
+        db.delete(gym)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database transaction error while deleting facility: {str(e)}")
+
 
     return {
         "success": True,

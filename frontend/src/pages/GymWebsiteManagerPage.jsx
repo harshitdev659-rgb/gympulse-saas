@@ -247,13 +247,18 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
       if (refreshGymProfile) {
         await refreshGymProfile();
       }
-      toast.success('Your gym website & domain have been saved and published live!');
+      if (cleanCustom) {
+        toast.success('Website configuration saved! Custom domain registered as Pending DNS Verification.');
+      } else {
+        toast.success('Your gym website configuration has been saved successfully!');
+      }
     } catch (err) {
       toast.error(err.message || 'Failed to save website configuration.');
     } finally {
       setIsSaving(false);
     }
   };
+
 
   const handleStatusChange = async (inquiryId, newStatus) => {
     try {
@@ -271,31 +276,29 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
   const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
   const isGitHubPages = windowOrigin.includes('github.io') || pathname.includes('/gympulse-saas');
   const baseSubpath = isGitHubPages ? '/gympulse-saas' : '';
+  const isLocalHost = windowOrigin.includes('localhost') || windowOrigin.includes('127.0.0.1');
 
   const cleanCustomDomain = (form.website_custom_domain || gym?.website_custom_domain || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
   const subdomainSlug = (form.website_subdomain || gym?.website_subdomain || gym?.slug || 'my-gym').trim();
-  const currentSlug = cleanCustomDomain || subdomainSlug;
 
-  // Primary URL: If custom domain is specified, show that; otherwise use the facility URL
-  const subdomainPublicUrl = `${windowOrigin}${baseSubpath}/app.html?facility=${encodeURIComponent(subdomainSlug)}`;
-  const customDomainDirectUrl = cleanCustomDomain 
-    ? (windowOrigin.includes('localhost') || windowOrigin.includes('127.0.0.1')
-        ? `${windowOrigin}${baseSubpath}/app.html?facility=${encodeURIComponent(cleanCustomDomain)}`
-        : `https://${cleanCustomDomain}`)
-    : null;
+  // Active verified GymPulse-hosted URL:
+  const localPreviewUrl = `${windowOrigin}${baseSubpath}/app.html?facility=${encodeURIComponent(subdomainSlug)}`;
+  const cloudHostedUrl = networkInfo?.cloud_url 
+    ? `${networkInfo.cloud_url.replace(/\/$/, '')}/app.html?facility=${encodeURIComponent(subdomainSlug)}`
+    : `https://harshitdev659-rgb.github.io/gympulse-saas/app.html?facility=${encodeURIComponent(subdomainSlug)}`;
 
-  const fullPublicUrl = customDomainDirectUrl || subdomainPublicUrl;
+  const workingPublicUrl = isGitHubPages ? localPreviewUrl : (networkInfo?.cloud_url ? cloudHostedUrl : localPreviewUrl);
 
   const handleVisitWebsite = () => {
     if (onPreviewWebsite) {
-      onPreviewWebsite(currentSlug);
+      onPreviewWebsite(subdomainSlug);
     } else {
-      window.open(fullPublicUrl, '_blank', 'noopener,noreferrer');
+      window.open(workingPublicUrl, '_blank', 'noopener,noreferrer');
     }
   };
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(fullPublicUrl);
+    navigator.clipboard.writeText(workingPublicUrl);
     setCopied(true);
     toast.success('Live website link copied to clipboard!');
     setTimeout(() => setCopied(false), 2000);
@@ -321,7 +324,7 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
           <button
             type="button"
             onClick={handleCopyLink}
-            className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all flex items-center gap-1.5 border border-white/15"
+            className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all flex items-center gap-1.5 border border-white/15 cursor-pointer"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
             {copied ? 'Copied!' : 'Copy Link'}
@@ -330,77 +333,93 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
           <button
             type="button"
             onClick={handleVisitWebsite}
-            className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-brand-500/25"
+            className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-brand-500/25 cursor-pointer"
           >
             Visit Live Website <ExternalLink className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* Live URL Pill Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="text-xs font-bold text-slate-800">
-              {cleanCustomDomain ? 'Custom Domain Live URL:' : 'Dedicated Website URL:'}
-            </span>
-            <a
-              href={fullPublicUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-mono text-xs font-extrabold text-brand-700 hover:text-brand-800 hover:underline select-all flex items-center gap-1"
-            >
-              {fullPublicUrl} <ExternalLink className="w-3 h-3 inline" />
-            </a>
-          </div>
-
-          {cleanCustomDomain && (
-            <div className="flex items-center gap-2 text-[11px] text-slate-500 pl-5 flex-wrap">
-              <span className="font-semibold text-slate-700">Subdomain Link:</span>
+      {/* Live URL Pill Bar & Status */}
+      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+              <span className="text-xs font-bold text-slate-800">
+                {isLocalHost ? 'Local Machine Preview URL:' : 'GymPulse Hosted Website URL (Active):'}
+              </span>
               <a
-                href={subdomainPublicUrl}
+                href={workingPublicUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-mono text-slate-600 hover:text-brand-600 select-all"
+                className="font-mono text-xs font-extrabold text-brand-700 hover:text-brand-800 hover:underline select-all flex items-center gap-1"
               >
-                {subdomainPublicUrl}
+                {workingPublicUrl} <ExternalLink className="w-3 h-3 inline" />
               </a>
+              {isLocalHost && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                  Local Only (127.0.0.1)
+                </span>
+              )}
             </div>
-          )}
+
+            {isLocalHost && (
+              <div className="text-[11px] text-slate-500 pl-5">
+                Note: Localhost URLs are only accessible on your computer. For public athlete access, use your GymPulse 24/7 cloud host link.
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setActiveSubTab('editor')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+                activeSubTab === 'editor'
+                  ? 'bg-brand-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              <Edit3 className="w-3.5 h-3.5 inline mr-1" /> Website Editor
+            </button>
+            <button
+              onClick={() => setActiveSubTab('leads')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 ${
+                activeSubTab === 'leads'
+                  ? 'bg-brand-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5 inline" /> 
+              <span>Website Inquiries</span>
+              {inquiries.filter((i) => i.status === 'new').length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-rose-500 text-white">
+                  {inquiries.filter((i) => i.status === 'new').length}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setActiveSubTab('editor')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
-              activeSubTab === 'editor'
-                ? 'bg-brand-600 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            <Edit3 className="w-3.5 h-3.5 inline mr-1" /> Website Editor
-          </button>
-          <button
-            onClick={() => setActiveSubTab('leads')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 ${
-              activeSubTab === 'leads'
-                ? 'bg-brand-600 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5 inline" /> 
-            <span>Website Inquiries</span>
-            {inquiries.filter((i) => i.status === 'new').length > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-rose-500 text-white">
-                {inquiries.filter((i) => i.status === 'new').length}
+        {/* Truthful Custom Domain Status Card */}
+        {cleanCustomDomain && (
+          <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200/90 text-xs text-amber-950 space-y-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold text-slate-900">Custom Domain Configured:</span>
+              <span className="font-mono font-bold text-amber-900">{cleanCustomDomain}</span>
+              <span className="px-2 py-0.5 rounded-full bg-amber-200/80 text-amber-900 text-[10px] font-extrabold border border-amber-300">
+                🟡 Pending DNS Verification
               </span>
-            )}
-          </button>
-        </div>
+            </div>
+            <p className="text-[11px] text-amber-800 leading-relaxed">
+              <strong>Domain Ownership & DNS Routing Not Verified:</strong> GymPulse does not register domains. You must purchase this domain through a registrar (such as GoDaddy or Namecheap) and configure DNS records (CNAME or A record) pointing to GymPulse. Until DNS is verified, prospective athletes must use your active GymPulse Hosted URL above.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Subtab 1: Website Editor */}
+
       {activeSubTab === 'editor' && (
         <form onSubmit={handleSave} className="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-6 space-y-6">
           <div className="border-b border-slate-100 pb-4">
@@ -602,7 +621,7 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
               </div>
               <div className="flex rounded-xl shadow-xs">
                 <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-slate-200 bg-slate-50 text-slate-600 text-xs font-mono font-bold">
-                  {windowOrigin.replace(/^https?:\/\//, '')}{baseSubpath}/app.html?facility=
+                  {isLocalHost ? 'facility=' : 'app.html?facility='}
                 </span>
                 <input
                   type="text"
@@ -620,7 +639,7 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
                 />
               </div>
               <p className={`text-[11px] mt-1 ${subdomainCheck.status === 'taken' ? 'text-rose-600 font-bold' : subdomainCheck.status === 'available' ? 'text-emerald-700 font-bold' : 'text-slate-500'}`}>
-                {subdomainCheck.message || 'This forms your unique public web address.'}
+                {subdomainCheck.message || 'Unique facility identifier for your dedicated GymPulse website.'}
               </p>
             </div>
 
@@ -635,8 +654,8 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
                   </span>
                 )}
                 {customDomainCheck.status === 'available' && (
-                  <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
-                    <Check className="w-3 h-3 text-emerald-600" /> Available to Connect
+                  <span className="text-[10px] font-extrabold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3 text-amber-600" /> Available to Configure
                   </span>
                 )}
                 {customDomainCheck.status === 'taken' && (
@@ -654,14 +673,15 @@ export const GymWebsiteManagerPage = ({ onPreviewWebsite }) => {
                   customDomainCheck.status === 'taken'
                     ? 'border-rose-400 focus:ring-rose-400 bg-rose-50/20'
                     : customDomainCheck.status === 'available'
-                    ? 'border-emerald-400 focus:ring-emerald-400 bg-emerald-50/20'
+                    ? 'border-amber-400 focus:ring-amber-400 bg-amber-50/20'
                     : 'border-slate-300 focus:ring-brand-500'
                 }`}
               />
-              <p className={`text-[11px] mt-1 ${customDomainCheck.status === 'taken' ? 'text-rose-600 font-bold' : customDomainCheck.status === 'available' ? 'text-emerald-700 font-bold' : 'text-slate-500'}`}>
-                {customDomainCheck.message || 'Connect your branded custom domain (e.g. yourgym.com).'}
+              <p className={`text-[11px] mt-1 ${customDomainCheck.status === 'taken' ? 'text-rose-600 font-bold' : customDomainCheck.status === 'available' ? 'text-amber-800 font-bold' : 'text-slate-500'}`}>
+                {customDomainCheck.message || 'Configure your custom domain. Requires domain purchase from a registrar and DNS CNAME setup.'}
               </p>
             </div>
+
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

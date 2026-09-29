@@ -158,7 +158,10 @@ function buildDemoDb() {
 }
 
 function injectDemoGym(db) {
-  if (db.gyms.some(g => g.id === DEMO_GYM_ID)) return db;
+  if (Array.isArray(db.deleted_gym_ids) && (db.deleted_gym_ids.includes(DEMO_GYM_ID) || db.deleted_gym_ids.includes(String(DEMO_GYM_ID)))) {
+    return db;
+  }
+  if (db.gyms.some(g => g.id === DEMO_GYM_ID || String(g.id) === String(DEMO_GYM_ID))) return db;
   const { gym, owner, plans, trainers, members, payments, attendance } = buildDemoDb();
   db.gyms.push(gym);
   db.users.push(owner);
@@ -174,6 +177,7 @@ const defaultDb = {
   version: DB_VERSION,
   currentGymId: null,
   currentUserId: null,
+  deleted_gym_ids: [],
   gyms: [],
   users: [
     {
@@ -241,7 +245,10 @@ function getDb() {
     if (!parsed.platform_payment_settings) {
       parsed.platform_payment_settings = { ...defaultDb.platform_payment_settings };
     }
-    // Ensure demo gym always exists (e.g. after a partial reset or first upgrade)
+    if (!Array.isArray(parsed.deleted_gym_ids)) {
+      parsed.deleted_gym_ids = [];
+    }
+    // Ensure demo gym exists IF it was not explicitly deleted
     injectDemoGym(parsed);
     memoryDb = parsed;
     return memoryDb;
@@ -1769,12 +1776,21 @@ export function handleMockRequest(endpoint, options = {}) {
   }
 
   // Delete Gym as Super Admin (Loose Matching on ID)
-  const matchGymDelete = endpoint.match(/^\/platform\/gyms\/([^/?]+)$/);
+  const matchGymDelete = endpoint.match(/^\/platform\/gyms\/([^/?]+)\/?$/);
   if (matchGymDelete && method === 'DELETE') {
     const gymId = matchGymDelete[1];
     const targetGym = db.gyms.find((g) => g.id == gymId || String(g.id) === String(gymId));
     if (!targetGym) {
-      return { success: false, message: 'Gym not found' };
+      throw new Error(`Facility not found (ID: ${gymId})`);
+    }
+
+    if (!Array.isArray(db.deleted_gym_ids)) {
+      db.deleted_gym_ids = [];
+    }
+    db.deleted_gym_ids.push(targetGym.id);
+    db.deleted_gym_ids.push(String(targetGym.id));
+    if (!isNaN(Number(targetGym.id))) {
+      db.deleted_gym_ids.push(Number(targetGym.id));
     }
 
     // Permanently purge gym and all associated tenant records
@@ -1791,6 +1807,18 @@ export function handleMockRequest(endpoint, options = {}) {
       db.currentGymId = db.gyms[0]?.id || null;
     }
     saveDb(db);
+
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const storedGym = localStorage.getItem('gympulse_gym');
+        if (storedGym) {
+          const parsed = JSON.parse(storedGym);
+          if (parsed && (parsed.id == gymId || String(parsed.id) === String(gymId))) {
+            localStorage.removeItem('gympulse_gym');
+          }
+        }
+      } catch (e) {}
+    }
 
     return {
       success: true,
@@ -1809,8 +1837,18 @@ export function handleMockRequest(endpoint, options = {}) {
       if (approval === 'rejected') return false;
       return approval === 'approved' || isApproved || sub === 'active';
     };
-    const activeGymIds = new Set(db.gyms.filter(isGymActive).map((g) => String(g.id)));
+    const activeGyms = db.gyms.filter(isGymActive);
+    const activeGymIds = new Set(activeGyms.map((g) => String(g.id)));
     const count = activeGymIds.size;
+
+    if (!Array.isArray(db.deleted_gym_ids)) {
+      db.deleted_gym_ids = [];
+    }
+    activeGyms.forEach((g) => {
+      db.deleted_gym_ids.push(g.id);
+      db.deleted_gym_ids.push(String(g.id));
+      if (!isNaN(Number(g.id))) db.deleted_gym_ids.push(Number(g.id));
+    });
 
     db.gyms = db.gyms.filter((g) => !activeGymIds.has(String(g.id)));
     db.members = db.members.filter((m) => !activeGymIds.has(String(m.gym_id)));
@@ -1831,6 +1869,14 @@ export function handleMockRequest(endpoint, options = {}) {
   // Remove All Gyms Across Entire Platform
   if (endpoint.startsWith('/platform/gyms/remove-all') && method === 'POST') {
     const count = db.gyms.length;
+    if (!Array.isArray(db.deleted_gym_ids)) {
+      db.deleted_gym_ids = [];
+    }
+    db.gyms.forEach((g) => {
+      db.deleted_gym_ids.push(g.id);
+      db.deleted_gym_ids.push(String(g.id));
+      if (!isNaN(Number(g.id))) db.deleted_gym_ids.push(Number(g.id));
+    });
     db.gyms = [];
     db.members = [];
     db.attendance = [];
@@ -1969,8 +2015,17 @@ export function handleMockRequest(endpoint, options = {}) {
     db.inquiries   = db.inquiries.filter(i => i.gym_id !== targetGymId);
 
     if (targetGymId === DEMO_GYM_ID) {
+      if (Array.isArray(db.deleted_gym_ids)) {
+        db.deleted_gym_ids = db.deleted_gym_ids.filter((id) => id != DEMO_GYM_ID && String(id) !== String(DEMO_GYM_ID));
+      }
       // Re-build the demo gym
       const fresh = buildDemoDb();
+      if (!db.gyms.some((g) => g.id == DEMO_GYM_ID || String(g.id) === String(DEMO_GYM_ID))) {
+        db.gyms.push(fresh.gym);
+      }
+      if (!db.users.some((u) => u.id == fresh.owner.id || String(u.id) === String(fresh.owner.id))) {
+        db.users.push(fresh.owner);
+      }
       fresh.plans.forEach(p => db.plans.push(p));
       fresh.trainers.forEach(t => db.trainers.push(t));
       fresh.members.forEach(m => db.members.push(m));

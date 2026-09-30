@@ -1,7 +1,7 @@
 from typing import List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, func
+from sqlalchemy import or_, and_, func
 from app.core.database import get_db
 from app.core.dependencies import require_superadmin
 from app.models.models import Gym, User, Member, Notification
@@ -17,20 +17,21 @@ def get_platform_metrics(
     """Overview stats for the Platform Owner / Super Admin."""
     total_gyms = db.query(Gym).count()
     
-    # Check both case-insensitive approval status, is_approved boolean, and active subscription status
+    # Active facilities must be explicitly approved by Super Admin
     active_facilities = db.query(Gym).filter(
-        or_(
+        and_(
             func.lower(Gym.approval_status) == "approved",
-            Gym.is_approved == True,
-            (Gym.subscription_status == "active") & (func.lower(Gym.approval_status) != "rejected")
+            Gym.is_approved == True
         )
     ).count()
 
+    # Pending approvals are any facilities awaiting verification
     pending_approvals = db.query(Gym).filter(
         or_(
             func.lower(Gym.approval_status) == "pending",
-            (Gym.is_approved == False) & (func.lower(Gym.approval_status) != "rejected")
-        )
+            Gym.is_approved == False
+        ),
+        func.lower(Gym.approval_status) != "rejected"
     ).count()
 
     total_athletes = db.query(Member).count()

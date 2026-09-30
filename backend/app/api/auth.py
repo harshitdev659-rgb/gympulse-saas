@@ -51,7 +51,7 @@ def register_gym(req: RegisterGymRequest, db: Session = Depends(get_db)):
         phone=req.phone,
         currency=req.currency or "INR",
         plan_tier=selected_tier,
-        subscription_status="active",
+        subscription_status="pending_verification",
         approval_status="pending",  # Awaiting Platform Super Admin Approval
         is_approved=False,
         payment_verified=False,  # Awaiting Super Admin payment confirmation
@@ -243,6 +243,8 @@ def submit_payment_reference(
         gym.registration_payment_method = req.payment_method.strip()
     gym.approval_status = "pending"
     gym.is_approved = False
+    gym.payment_verified = False
+    gym.subscription_status = "pending_verification"
     
     db.commit()
     db.refresh(gym)

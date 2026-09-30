@@ -74,7 +74,25 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
   // Live polling and new payment detection refs
   const isFirstLoadRef = useRef(true);
   const prevPendingGymIdsRef = useRef(null);
+  const prevPaymentRefsMapRef = useRef(null);
   const prevPendingUpgradeIdsRef = useRef(null);
+
+  // Deterministically classify facility operational state
+  const isFacilityActive = (g) => {
+    if (!g) return false;
+    const status = String(g.approval_status || '').toLowerCase().trim();
+    const approved = g.is_approved === true || g.is_approved === 'true' || g.is_approved === 1;
+    if (status === 'rejected' || status === 'pending' || !approved) return false;
+    return status === 'approved' && approved;
+  };
+
+  const isFacilityPending = (g) => {
+    if (!g) return false;
+    const status = String(g.approval_status || '').toLowerCase().trim();
+    const approved = g.is_approved === true || g.is_approved === 'true' || g.is_approved === 1;
+    if (status === 'rejected') return false;
+    return status === 'pending' || !approved;
+  };
 
   const fetchData = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -88,7 +106,7 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
 
       if (Array.isArray(g)) {
         // Detect new incoming pending gyms / payments
-        const currentPendingGyms = g.filter((item) => item.approval_status === 'pending');
+        const currentPendingGyms = g.filter(isFacilityPending);
         const currentPendingIds = new Set(currentPendingGyms.map((item) => String(item.id)));
 
         if (prevPendingGymIdsRef.current !== null) {
@@ -103,7 +121,7 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
                 ? 'Cash' 
                 : 'UPI/QR';
               toast.success(
-                `🔔 Payment Received! "${gym.name}" submitted ${methodText} payment (${gym.registration_payment_ref || 'Awaiting Confirmation'}). Ready for verification & approval!`,
+                `🔔 New Facility Request! "${gym.name}" submitted ${methodText} payment (${gym.registration_payment_ref || 'Awaiting Confirmation'}). Ready for verification & approval!`,
                 { duration: 8000 }
               );
             });
@@ -111,6 +129,22 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
           }
         }
         prevPendingGymIdsRef.current = currentPendingIds;
+
+        // Detect payment reference / UTR submission on existing gyms
+        if (prevPaymentRefsMapRef.current !== null) {
+          currentPendingGyms.forEach((gym) => {
+            const oldRef = prevPaymentRefsMapRef.current.get(String(gym.id));
+            const newRef = gym.registration_payment_ref;
+            if (newRef && newRef !== oldRef && oldRef !== undefined) {
+              toast.success(
+                `💳 Payment Reference Submitted! "${gym.name}" submitted payment ref: ${newRef}. Verify & Approve now!`,
+                { duration: 9000 }
+              );
+              playNotificationTone();
+            }
+          });
+        }
+        prevPaymentRefsMapRef.current = new Map(currentPendingGyms.map((gym) => [String(gym.id), gym.registration_payment_ref]));
 
         // Detect new tier upgrades
         const currentPendingUpgrades = g.filter((item) => item.tier_upgrade_status === 'pending');
@@ -131,6 +165,23 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
         }
         prevPendingUpgradeIdsRef.current = currentUpgradeIds;
 
+        // Alert on initial load if pending requests exist
+        if (isFirstLoadRef.current) {
+          if (currentPendingGyms.length > 0) {
+            toast.info(
+              `🔔 Action Required: You have ${currentPendingGyms.length} pending facility payment request(s) awaiting verification.`,
+              { duration: 7000 }
+            );
+            playNotificationTone();
+          }
+          if (currentPendingUpgrades.length > 0) {
+            toast.info(
+              `⚡ Action Required: You have ${currentPendingUpgrades.length} tier upgrade request(s) awaiting verification.`,
+              { duration: 7000 }
+            );
+          }
+        }
+
         setGyms(g);
       }
 
@@ -150,10 +201,10 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
   useEffect(() => {
     fetchData(false);
 
-    // Continuous real-time background polling every 1.5s for instant sync
+    // Continuous real-time background polling every 1000ms for instantaneous sync
     const interval = setInterval(() => {
       fetchData(true);
-    }, 1500);
+    }, 1000);
 
     // Instant cross-tab and storage synchronization
     const handleSync = () => {
@@ -207,23 +258,6 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
     const generatedUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(upiUri)}`;
     setPaymentSettings({ ...paymentSettings, upi_qr_url: generatedUrl });
     toast.success('Generated official UPI payment QR code URL!');
-  };
-
-  // Helpers to deterministically classify facility operational state
-  const isFacilityActive = (g) => {
-    if (!g) return false;
-    const status = String(g.approval_status || '').toLowerCase().trim();
-    const approved = g.is_approved === true || g.is_approved === 'true' || g.is_approved === 1;
-    const subStatus = String(g.subscription_status || '').toLowerCase().trim();
-    if (status === 'rejected') return false;
-    return status === 'approved' || approved || subStatus === 'active';
-  };
-
-  const isFacilityPending = (g) => {
-    if (!g) return false;
-    if (isFacilityActive(g)) return false;
-    const status = String(g.approval_status || '').toLowerCase().trim();
-    return status !== 'rejected';
   };
 
   // Derive counts directly from live gyms array with fallback to metrics endpoint
@@ -849,7 +883,7 @@ export const SuperAdminPage = ({ onPreviewWebsite }) => {
           </p>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {gyms.filter((g) => g.approval_status === 'pending').map((g) => {
+            {gyms.filter(isFacilityPending).map((g) => {
               const planPrice = g.plan_tier === 'business' ? '₹5,999/mo' : g.plan_tier === 'pro' ? '₹2,499/mo' : '₹999/mo';
               const methodLabel = g.registration_payment_method === 'card' 
                 ? 'Credit / Debit Card' 

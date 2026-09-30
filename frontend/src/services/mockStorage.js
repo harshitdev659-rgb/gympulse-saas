@@ -462,6 +462,7 @@ export function handleMockRequest(endpoint, options = {}) {
       address: 'Fitness Facility Address',
       currency: body.currency || 'INR',
       plan_tier: planTier,
+      subscription_status: 'pending_verification',
       is_approved: false, // Requires Super Admin approval
       approval_status: 'pending',
       payment_verified: false,
@@ -1730,9 +1731,8 @@ export function handleMockRequest(endpoint, options = {}) {
       if (!g) return false;
       const approval = String(g.approval_status || '').toLowerCase().trim();
       const isApproved = g.is_approved === true || g.is_approved === 'true' || g.is_approved === 1;
-      const sub = String(g.subscription_status || '').toLowerCase().trim();
-      if (approval === 'rejected') return false;
-      return approval === 'approved' || isApproved || sub === 'active';
+      if (approval === 'rejected' || approval === 'pending' || !isApproved) return false;
+      return approval === 'approved' && isApproved;
     };
     const active_facilities = db.gyms.filter(isGymActive).length;
     const pending_approvals = db.gyms.filter((g) => !isGymActive(g) && String(g.approval_status || '').toLowerCase() !== 'rejected').length;
@@ -1837,9 +1837,8 @@ export function handleMockRequest(endpoint, options = {}) {
       if (!g) return false;
       const approval = String(g.approval_status || '').toLowerCase().trim();
       const isApproved = g.is_approved === true || g.is_approved === 'true' || g.is_approved === 1;
-      const sub = String(g.subscription_status || '').toLowerCase().trim();
-      if (approval === 'rejected') return false;
-      return approval === 'approved' || isApproved || sub === 'active';
+      if (approval === 'rejected' || approval === 'pending' || !isApproved) return false;
+      return approval === 'approved' && isApproved;
     };
     const activeGyms = db.gyms.filter(isGymActive);
     const activeGymIds = new Set(activeGyms.map((g) => String(g.id)));

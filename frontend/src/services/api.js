@@ -96,22 +96,42 @@ class ApiService {
     });
   }
 
-  registerGym(data) {
-    return this.request('/auth/register-gym', {
+  async registerGym(data) {
+    const res = await this.request('/auth/register-gym', {
       method: 'POST',
       body: JSON.stringify(data)
     });
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('gympulse_db_updated', { detail: { action: 'gym_registered', gym: res?.gym } }));
+      try {
+        if (typeof BroadcastChannel !== 'undefined') {
+          const bc = new BroadcastChannel('gympulse_channel');
+          bc.postMessage({ type: 'gym_registered', gym: res?.gym, timestamp: Date.now() });
+        }
+      } catch (e) {}
+    }
+    return res;
   }
 
   getMe() {
     return this.request('/auth/me');
   }
 
-  submitPaymentRef(data) {
-    return this.request('/auth/submit-payment', {
+  async submitPaymentRef(data) {
+    const res = await this.request('/auth/submit-payment', {
       method: 'POST',
       body: JSON.stringify(data)
     });
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('gympulse_db_updated', { detail: { action: 'payment_ref_submitted', data } }));
+      try {
+        if (typeof BroadcastChannel !== 'undefined') {
+          const bc = new BroadcastChannel('gympulse_channel');
+          bc.postMessage({ type: 'payment_ref_submitted', data, timestamp: Date.now() });
+        }
+      } catch (e) {}
+    }
+    return res;
   }
 
   logout() {

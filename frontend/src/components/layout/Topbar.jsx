@@ -17,7 +17,7 @@ import { Button } from '../common/Button';
 import { DownloadAppModal } from '../common/DownloadAppModal';
 import { api } from '../../services/api';
 
-export const Topbar = ({ onToggleSidebar, onOpenAi, onQuickCheckIn, onQuickAddMember }) => {
+export const Topbar = ({ onToggleSidebar, onOpenAi, onQuickCheckIn, onQuickAddMember, activeTab, setActiveTab }) => {
   const { gym, user } = useAuth();
   const toast = useToast();
   const isSuperAdmin = user?.is_superadmin || user?.role === 'superadmin';
@@ -48,7 +48,7 @@ export const Topbar = ({ onToggleSidebar, onOpenAi, onQuickCheckIn, onQuickAddMe
     ? networkInfo.public_url
     : (isLocalOrigin && networkInfo?.mobile_url ? networkInfo.mobile_url : currentOrigin)).replace(/\/+$/, '');
 
-  const gymSlug = (gym?.website_subdomain || gym?.slug || '').trim();
+  const gymSlug = (gym?.website_subdomain || gym?.slug || 'gymfitness').trim();
   const websiteUrl = gymSlug ? `${currentOrigin}${baseSubpath}/app.html?facility=${encodeURIComponent(gymSlug)}` : null;
 
   const handleCopyApp = () => {
@@ -85,14 +85,24 @@ export const Topbar = ({ onToggleSidebar, onOpenAi, onQuickCheckIn, onQuickAddMe
             <img src="/gympulse.png" alt="GymPulse Logo" className="w-8 h-8 rounded-xl object-contain shadow-xs border border-slate-200/80 bg-slate-900 shrink-0" />
             <div className="hidden sm:flex items-center gap-2">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                {isSuperAdmin ? 'Platform Mode:' : 'Current Facility:'}
+                {activeTab === 'superadmin' ? 'Platform Mode:' : 'Current Facility:'}
               </span>
-              <span className="text-sm font-bold text-slate-800">
-                {isSuperAdmin ? 'Super Admin Console' : (gym?.name || 'Facility')}
+              <span className="text-sm font-black text-slate-900">
+                {activeTab === 'superadmin' ? 'Super Admin Console' : (gym?.name || 'gymfitness')}
               </span>
               <span className="px-2 py-0.5 text-[11px] font-bold bg-brand-50 text-brand-700 rounded-md border border-brand-200/60">
                 ₹ {gym?.currency || 'INR'}
               </span>
+              {isSuperAdmin && activeTab !== 'superadmin' && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab && setActiveTab('superadmin')}
+                  className="ml-2 px-2.5 py-0.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black hover:bg-amber-200 transition-all cursor-pointer"
+                  title="Return to Super Admin Platform Control"
+                >
+                  &larr; Super Admin Console
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -111,7 +121,7 @@ export const Topbar = ({ onToggleSidebar, onOpenAi, onQuickCheckIn, onQuickAddMe
           </button>
 
           {/* Dedicated Live Gym Website Button */}
-          {!isSuperAdmin && websiteUrl && (
+          {websiteUrl && (
             <div className="flex items-center bg-indigo-50 border border-indigo-200 rounded-xl overflow-hidden shadow-xs">
               <a
                 href={websiteUrl}
@@ -136,15 +146,15 @@ export const Topbar = ({ onToggleSidebar, onOpenAi, onQuickCheckIn, onQuickAddMe
             </div>
           )}
 
-          {/* Quick Check-In Button */}
+          {/* Quick Check-In Button - ALWAYS PROMINENT */}
           <Button
             onClick={onQuickCheckIn}
             variant="secondary"
             size="sm"
             icon={QrCode}
-            className="hidden sm:inline-flex border-slate-300 hover:border-brand-500 hover:text-brand-600"
+            className="border-2 border-slate-300 hover:border-brand-600 hover:text-brand-600 font-black shadow-xs text-xs"
           >
-            Check-In
+            <span>Check-In</span>
           </Button>
 
           {/* Quick Add Member Button */}

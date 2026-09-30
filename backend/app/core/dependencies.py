@@ -1,5 +1,5 @@
 from typing import Generator, Optional, List
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Header, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from app.core.database import get_db
@@ -50,11 +50,32 @@ def get_current_user(
 
 def get_current_gym(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    x_gym_id: Optional[str] = Header(None, alias="X-Gym-Id")
 ) -> Optional[Gym]:
     """Ensure the user's gym exists and is active, enforcing tenant boundary."""
-    if current_user.gym_id is None and (current_user.is_superadmin or current_user.role == "superadmin"):
-        return None
+    if current_user.is_superadmin or current_user.role == "superadmin":
+        target_gym_id = None
+        if x_gym_id and x_gym_id.isdigit():
+            target_gym_id = int(x_gym_id)
+        elif current_user.gym_id:
+            target_gym_id = current_user.gym_id
+
+        if target_gym_id:
+            gym = db.query(Gym).filter(Gym.id == target_gym_id).first()
+            if gym:
+                return gym
+        # If no specific target requested, fallback to first approved gym
+        first_gym = db.query(Gym).filter(Gym.is_approved == True).first()
+        if not first_gym:
+            first_gym = db.query(Gym).first()
+        return first_gym
+
+    if current_user.gym_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Gym tenant not found"
+        )
     gym = db.query(Gym).filter(Gym.id == current_user.gym_id).first()
     if not gym:
         raise HTTPException(

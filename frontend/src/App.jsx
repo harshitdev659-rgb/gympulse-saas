@@ -117,9 +117,11 @@ function AppContent() {
 
   const isSuperAdmin = user?.is_superadmin || user?.role === 'superadmin';
 
-  // Automatically switch Platform Owners into the Super Admin console
+  // Set initial tab to superadmin for platform owners, without blocking manual navigation
+  const hasInitializedSuperAdminTabRef = React.useRef(false);
   React.useEffect(() => {
-    if (isSuperAdmin && activeTab === 'dashboard') {
+    if (!hasInitializedSuperAdminTabRef.current && isSuperAdmin) {
+      hasInitializedSuperAdminTabRef.current = true;
       setActiveTab('superadmin');
     }
   }, [isSuperAdmin]);
@@ -342,7 +344,10 @@ function AppContent() {
           ) : (
             <>
               {activeTab === 'superadmin' && (
-                <SuperAdminPage onPreviewWebsite={(slug) => setPreviewFacilitySlug(slug)} />
+                <SuperAdminPage
+                  onPreviewWebsite={(slug) => setPreviewFacilitySlug(slug)}
+                  onOpenFacility={(gymId, tab = 'attendance') => setActiveTab(tab)}
+                />
               )}
 
               {activeTab === 'website' && (

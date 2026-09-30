@@ -38,6 +38,8 @@ export const Shell = ({
           onOpenAi={() => setIsAiOpen(true)}
           onQuickCheckIn={() => setIsQuickCheckInOpen(true)}
           onQuickAddMember={onQuickAddMember}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
         />
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">

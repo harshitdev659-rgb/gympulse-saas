@@ -41,9 +41,6 @@ def get_public_facility_website(slug: str, db: Session = Depends(get_db)) -> Dic
         normalized = clean_slug.replace("-", " ")
         gym = db.query(Gym).filter(Gym.name.ilike(normalized)).first()
 
-    if not gym and clean_slug in ["gym-faculty", "gym-facility", "facility", "my-gym", "demo", "apex-fitness"]:
-        gym = db.query(Gym).first()
-
     if not gym:
         raise HTTPException(status_code=404, detail=f"Gym facility website '{slug}' not found.")
 
@@ -236,17 +233,19 @@ def public_join_facility(
         status="active"
     )
     db.add(membership)
+    db.flush()
 
     payment_status = "completed" if req.payment_method in ["upi", "card", "online"] else "pending"
-    inv_num = f"INV-{int(datetime.datetime.now(datetime.UTC).timestamp())}"
+    inv_num = f"INV-{int(datetime.datetime.now(datetime.timezone.utc).timestamp())}"
     payment = Payment(
         gym_id=gym.id,
         member_id=member.id,
+        membership_id=membership.id,
         amount=plan.price,
         payment_method=req.payment_method,
         status=payment_status,
         payment_date=today,
-        receipt_number=inv_num,
+        invoice_number=inv_num,
         notes=f"Online website checkout - {plan.name} (Ref: {req.payment_ref or 'Direct Web'})"
     )
     db.add(payment)
@@ -347,17 +346,20 @@ def public_athlete_checkin(
     if member.status != "active":
         raise HTTPException(status_code=403, detail=f"Membership for {member.first_name} is currently {member.status.upper()}. Please renew at the front desk.")
 
-    now = datetime.datetime.now(datetime.UTC)
+    now = datetime.datetime.now(datetime.timezone.utc)
     today = date.today()
+    today_start = datetime.datetime.combine(today, datetime.time.min)
+    today_end = datetime.datetime.combine(today, datetime.time.max)
 
     existing = db.query(Attendance).filter(
         Attendance.gym_id == gym.id,
         Attendance.member_id == member.id,
-        Attendance.date == today
+        Attendance.check_in_time >= today_start,
+        Attendance.check_in_time <= today_end
     ).order_by(Attendance.id.desc()).first()
 
     if existing and not existing.check_out_time:
-        existing.check_out_time = now.time()
+        existing.check_out_time = now
         db.commit()
         return {
             "success": True,
@@ -370,18 +372,17 @@ def public_athlete_checkin(
     att = Attendance(
         gym_id=gym.id,
         member_id=member.id,
-        date=today,
-        check_in_time=now.time(),
+        check_in_time=now,
         method="qr_kiosk"
     )
     db.add(att)
     db.commit()
 
-    thirty_days_ago = today - timedelta(days=30)
+    thirty_days_ago = now - timedelta(days=30)
     attended_count = db.query(Attendance).filter(
         Attendance.gym_id == gym.id,
         Attendance.member_id == member.id,
-        Attendance.date >= thirty_days_ago
+        Attendance.check_in_time >= thirty_days_ago
     ).count()
 
     return {
@@ -447,7 +448,7 @@ def get_athlete_portal_data(
 
     attendances = db.query(Attendance).filter(
         Attendance.member_id == member.id
-    ).order_by(Attendance.date.desc()).limit(30).all()
+    ).order_by(Attendance.check_in_time.desc()).limit(30).all()
 
     payments = db.query(Payment).filter(
         Payment.member_id == member.id
@@ -472,7 +473,7 @@ def get_athlete_portal_data(
         "attendance_count": len(attendances),
         "recent_attendances": [
             {
-                "date": str(a.date),
+                "date": a.check_in_time.strftime("%Y-%m-%d") if a.check_in_time else "N/A",
                 "check_in": a.check_in_time.strftime("%I:%M %p") if a.check_in_time else "Attended",
                 "method": a.method
             }
@@ -482,7 +483,7 @@ def get_athlete_portal_data(
             {
                 "id": p.id,
                 "amount": p.amount,
-                "receipt_number": p.receipt_number or f"INV-{p.id}",
+                "receipt_number": p.invoice_number or f"INV-{p.id}",
                 "payment_date": str(p.payment_date),
                 "payment_method": p.payment_method,
                 "status": p.status
@@ -698,18 +699,25 @@ def decommission_gym(
     gym_id = current_gym.id
 
     # 3. Explicit Cascade Deletion across all dependent multi-tenant tables
-    db.query(GymInquiry).filter(GymInquiry.gym_id == gym_id).delete()
-    db.query(Notification).filter(Notification.gym_id == gym_id).delete()
-    db.query(Payment).filter(Payment.gym_id == gym_id).delete()
-    db.query(Attendance).filter(Attendance.gym_id == gym_id).delete()
-    db.query(MemberMembership).filter(MemberMembership.gym_id == gym_id).delete()
-    db.query(Member).filter(Member.gym_id == gym_id).delete()
-    db.query(MembershipPlan).filter(MembershipPlan.gym_id == gym_id).delete()
-    db.query(Trainer).filter(Trainer.gym_id == gym_id).delete()
-    db.query(GymSetting).filter(GymSetting.gym_id == gym_id).delete()
-    db.query(User).filter(User.gym_id == gym_id).delete()
-    db.delete(current_gym)
-    db.commit()
+    try:
+        db.query(GymInquiry).filter(GymInquiry.gym_id == gym_id).delete()
+        db.query(Notification).filter(Notification.gym_id == gym_id).delete()
+        db.query(Payment).filter(Payment.gym_id == gym_id).delete()
+        db.query(Attendance).filter(Attendance.gym_id == gym_id).delete()
+        db.query(MemberMembership).filter(MemberMembership.gym_id == gym_id).delete()
+        db.query(Member).filter(Member.gym_id == gym_id).delete()
+        db.query(MembershipPlan).filter(MembershipPlan.gym_id == gym_id).delete()
+        db.query(Trainer).filter(Trainer.gym_id == gym_id).delete()
+        db.query(GymSetting).filter(GymSetting.gym_id == gym_id).delete()
+        db.query(User).filter(User.gym_id == gym_id).delete()
+        db.delete(current_gym)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Facility decommission failed during database cleanup: {str(e)}"
+        )
 
     return GymDecommissionResponse(
         success=True,

@@ -1269,26 +1269,11 @@ export function handleMockRequest(endpoint, options = {}) {
              (g.name && g.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') === cleanDashed)
     );
 
-    // If not found directly, check active user's gym or fallback to first gym or auto-constructed profile
+    // If not found, strictly throw 404 - never synthesize fake facility or leak another tenant's gym
     if (!facilityGym) {
-      if (currentGym) {
-        facilityGym = currentGym;
-      } else if (db.gyms.length > 0) {
-        facilityGym = db.gyms[0];
-      } else {
-        const prettyName = cleanDashed.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') || 'Fitness Facility';
-        facilityGym = {
-          id: 1,
-          name: prettyName,
-          slug: cleanDashed,
-          website_subdomain: cleanDashed,
-          website_custom_domain: rawSlug.includes('.') ? rawSlug : null,
-          email: `contact@${cleanDashed}.com`,
-          phone: '+91 90000 00000',
-          address: 'Central Fitness Boulevard',
-          currency: 'INR'
-        };
-      }
+      const err = new Error(`Gym facility website '${rawSlug}' not found.`);
+      err.status = 404;
+      throw err;
     }
 
     if (endpoint.includes('/inquire') && method === 'POST') {
@@ -1985,6 +1970,106 @@ export function handleMockRequest(endpoint, options = {}) {
       }
       return g;
     }
+  }
+
+  // Delete single facility as Super Admin: DELETE /platform/gyms/:gymId
+  const matchDeleteGym = endpoint.match(/^\/platform\/gyms\/([^/?]+)$/);
+  if (matchDeleteGym && method === 'DELETE') {
+    const gymId = matchDeleteGym[1];
+    const gIdx = db.gyms.findIndex((item) => item.id == gymId || String(item.id) === String(gymId));
+    if (gIdx === -1) {
+      const err = new Error('Gym facility not found');
+      err.status = 404;
+      throw err;
+    }
+    const targetGym = db.gyms[gIdx];
+    const targetIdStr = String(targetGym.id);
+
+    if (!Array.isArray(db.deleted_gym_ids)) {
+      db.deleted_gym_ids = [];
+    }
+    db.deleted_gym_ids.push(targetGym.id);
+    db.deleted_gym_ids.push(targetIdStr);
+    if (!isNaN(Number(targetGym.id))) db.deleted_gym_ids.push(Number(targetGym.id));
+
+    db.gyms.splice(gIdx, 1);
+    db.members = db.members.filter((m) => String(m.gym_id) !== targetIdStr);
+    db.attendance = db.attendance.filter((a) => String(a.gym_id) !== targetIdStr);
+    db.payments = db.payments.filter((p) => String(p.gym_id) !== targetIdStr);
+    db.plans = db.plans.filter((p) => String(p.gym_id) !== targetIdStr);
+    db.trainers = db.trainers.filter((t) => String(t.gym_id) !== targetIdStr);
+    db.inquiries = db.inquiries.filter((inq) => String(inq.gym_id) !== targetIdStr);
+    db.users = db.users.filter((u) => u.is_superadmin || String(u.gym_id) !== targetIdStr);
+
+    if (String(db.currentGymId) === targetIdStr) {
+      db.currentGymId = db.gyms[0]?.id || null;
+    }
+    saveDb(db);
+
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const savedGymStr = localStorage.getItem('gympulse_gym');
+        if (savedGymStr) {
+          const parsedGym = JSON.parse(savedGymStr);
+          if (String(parsedGym.id) === targetIdStr) {
+            localStorage.removeItem('gympulse_gym');
+          }
+        }
+      } catch (e) {}
+    }
+
+    return {
+      success: true,
+      message: `Facility '${targetGym.name}' permanently deleted.`,
+      deleted_id: targetGym.id,
+      deleted_slug: targetGym.slug
+    };
+  }
+
+  // Decommission Gym (Owner Danger Zone): DELETE /gym/decommission
+  if (endpoint.startsWith('/gym/decommission') && method === 'DELETE') {
+    if (!currentGym) {
+      const err = new Error('No facility selected to decommission');
+      err.status = 400;
+      throw err;
+    }
+    if (body?.confirm_gym_name && body.confirm_gym_name.trim().toLowerCase() !== currentGym.name.trim().toLowerCase()) {
+      const err = new Error(`Confirmation name mismatch. Please type '${currentGym.name}' exactly.`);
+      err.status = 400;
+      throw err;
+    }
+
+    const targetIdStr = String(currentGym.id);
+    if (!Array.isArray(db.deleted_gym_ids)) {
+      db.deleted_gym_ids = [];
+    }
+    db.deleted_gym_ids.push(currentGym.id);
+    db.deleted_gym_ids.push(targetIdStr);
+    if (!isNaN(Number(currentGym.id))) db.deleted_gym_ids.push(Number(currentGym.id));
+
+    db.gyms = db.gyms.filter((g) => String(g.id) !== targetIdStr);
+    db.members = db.members.filter((m) => String(m.gym_id) !== targetIdStr);
+    db.attendance = db.attendance.filter((a) => String(a.gym_id) !== targetIdStr);
+    db.payments = db.payments.filter((p) => String(p.gym_id) !== targetIdStr);
+    db.plans = db.plans.filter((p) => String(p.gym_id) !== targetIdStr);
+    db.trainers = db.trainers.filter((t) => String(t.gym_id) !== targetIdStr);
+    db.inquiries = db.inquiries.filter((inq) => String(inq.gym_id) !== targetIdStr);
+    db.users = db.users.filter((u) => u.is_superadmin || String(u.gym_id) !== targetIdStr);
+
+    db.currentGymId = db.gyms[0]?.id || null;
+    saveDb(db);
+
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.removeItem('gympulse_gym');
+      } catch (e) {}
+    }
+
+    return {
+      success: true,
+      message: `Facility '${currentGym.name}' and its dedicated public website have been permanently deleted.`,
+      deleted_slug: currentGym.slug
+    };
   }
 
   // Platform Subscription Payment Settings (Super Admin configuration)

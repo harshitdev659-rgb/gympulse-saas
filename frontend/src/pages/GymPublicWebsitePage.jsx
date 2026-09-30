@@ -267,53 +267,11 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
           setLoading(false);
           return;
         }
+        setError('This gym facility website does not exist or has not been published yet.');
+        setData(null);
       } catch (err) {
-        console.debug('API public website fetch error, checking local fallback:', err);
-      }
-
-      // Fallback: Check if active gym in localStorage or current user matches
-      try {
-        let fallbackGym = null;
-        const cachedGymStr = typeof localStorage !== 'undefined' ? localStorage.getItem('gympulse_gym') : null;
-        if (cachedGymStr) {
-          fallbackGym = JSON.parse(cachedGymStr);
-        }
-
-        const cleanSlug = (slug || '').toLowerCase().trim();
-        const gymName = (fallbackGym && fallbackGym.name) ? fallbackGym.name : cleanSlug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') || 'Premier Fitness Facility';
-
-        const fallbackData = {
-          id: fallbackGym?.id || 1,
-          name: gymName,
-          slug: fallbackGym?.slug || slug || 'facility',
-          website_subdomain: fallbackGym?.website_subdomain || fallbackGym?.slug || slug || 'facility',
-          headline: fallbackGym?.website_headline || `Welcome to ${gymName}`,
-          tagline: fallbackGym?.website_tagline || 'World-Class Fitness, Strength & Conditioning',
-          about: fallbackGym?.website_about || `${gymName} offers premier strength training equipment, certified coaching, and a welcoming fitness community for all skill levels.`,
-          cover_image: fallbackGym?.website_cover_image || 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200&auto=format&fit=crop&q=80',
-          amenities: ['Olympic Free Weights', 'Cardio Theatre', 'Strength Machines', 'Certified Trainers', 'Steam & Sauna', 'Lockers'],
-          currency: fallbackGym?.currency || 'INR',
-          phone: fallbackGym?.phone || '+91 90000 00000',
-          email: fallbackGym?.email || `contact@${cleanSlug || 'gympulse'}.com`,
-          address: fallbackGym?.address || 'Central Fitness Complex',
-          business_hours: 'Mon-Sat: 6:00 AM - 10:00 PM',
-          plans: [
-            { id: 1, name: 'Monthly Flex Pass', duration_days: 30, price: 1499, description: 'Unlimited gym floor access & locker usage' },
-            { id: 2, name: 'Quarterly Power Plan', duration_days: 90, price: 3999, description: '3 months access with initial fitness assessment' },
-            { id: 3, name: 'Annual Elite Pass', duration_days: 365, price: 11999, description: '365 days unlimited access + VIP coach check-ins' }
-          ],
-          trainers: [
-            { id: 1, name: 'Coach Alex Rivera', specialty: 'Strength & Conditioning', bio: 'Certified CSCS coach with 8+ years elite athlete training experience.' },
-            { id: 2, name: 'Elena Rostova', specialty: 'Functional Fitness & Mobility', bio: 'Specialist in functional biomechanics, mobility restoration, and HIIT.' }
-          ]
-        };
-
-        setData(fallbackData);
-        if (fallbackData.plans && fallbackData.plans.length > 0) {
-          setForm((prev) => ({ ...prev, plan_name: fallbackData.plans[0].name }));
-        }
-      } catch (e) {
-        setError('Could not load gym facility website.');
+        setError(err.message || 'Facility website offline or not found');
+        setData(null);
       } finally {
         setLoading(false);
       }
@@ -339,9 +297,8 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
       setSubmitSuccess(true);
       toast.success(res?.message || 'Inquiry submitted successfully!');
     } catch (err) {
-      // In offline/mock mode, succeed gracefully
-      setSubmitSuccess(true);
-      toast.success('Your inquiry has been received! Facility staff will contact you shortly.');
+      setSubmitSuccess(false);
+      toast.error(err.message || 'Failed to submit inquiry. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

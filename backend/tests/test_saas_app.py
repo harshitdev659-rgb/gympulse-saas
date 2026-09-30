@@ -703,4 +703,106 @@ def test_app_download_regression_preserved():
     assert net_res.json()["download_url"] == "/api/download/windows"
 
 
+def test_public_website_404_for_unknown_slug():
+    """Verify that a non-existent or deleted gym facility returns strict 404 and does not leak other gyms."""
+    res = client.get("/api/public/facility/totally-unknown-nonexistent-gym")
+    assert res.status_code == 404
+    assert "not found" in res.json()["detail"].lower()
+
+
+def test_public_join_checkin_and_athlete_portal():
+    """Verify public website membership pass purchase, athlete check-in/out, and athlete self-service portal."""
+    # 1. Fetch public website to obtain available plan ID
+    pub_res = client.get("/api/public/facility/titan-gym")
+    assert pub_res.status_code == 200
+    plan_id = pub_res.json()["plans"][0]["id"]
+
+    # 2. Prospective athlete joins via public website
+    join_payload = {
+        "first_name": "Karan",
+        "last_name": "Sharma",
+        "phone": "+91 91234 56789",
+        "email": "karan@example.com",
+        "plan_id": plan_id
+    }
+    join_res = client.post("/api/public/facility/titan-gym/join", json=join_payload)
+    assert join_res.status_code == 200
+    join_data = join_res.json()
+    assert join_data["success"] is True
+    assert "active" in join_data["message"].lower()
+
+    # 3. Athlete checks in at facility front desk kiosk via phone number
+    checkin_res = client.post("/api/public/facility/titan-gym/checkin", json={
+        "phone_or_id": "+91 91234 56789"
+    })
+    assert checkin_res.status_code == 200
+    checkin_data = checkin_res.json()
+    assert checkin_data["success"] is True
+    assert checkin_data["action"] == "check_in"
+
+    # 4. Athlete checks out
+    checkout_res = client.post("/api/public/facility/titan-gym/checkin", json={
+        "phone_or_id": "+91 91234 56789"
+    })
+    assert checkout_res.status_code == 200
+    checkout_data = checkout_res.json()
+    assert checkout_data["success"] is True
+    assert checkout_data["action"] == "check_out"
+
+    # 5. Athlete searches their self-service portal
+    portal_res = client.get("/api/public/facility/titan-gym/portal?query=9123456789")
+    assert portal_res.status_code == 200
+    portal_data = portal_res.json()
+    assert "Karan" in portal_data["member"]["full_name"]
+    assert len(portal_data["recent_attendances"]) >= 1
+    assert len(portal_data["payments"]) >= 1
+    assert "receipt_number" in portal_data["payments"][0]
+
+
+def test_decommission_gym_with_full_cascade():
+    """Verify owner decommissioning cascades across all child records cleanly."""
+    # 1. Register a temporary facility
+    reg_res = client.post("/api/auth/register-gym", json={
+        "gym_name": "Temporary Decom Gym",
+        "owner_name": "Decom Owner",
+        "email": "decom.owner@fitness.com",
+        "password": "Password123!",
+        "currency": "INR"
+    })
+    assert reg_res.status_code == 200
+    temp_gym_id = reg_res.json()["gym"]["id"]
+    temp_token = reg_res.json()["access_token"]
+    headers = {"Authorization": f"Bearer {temp_token}"}
+
+    # 2. Superadmin approves it
+    admin_token = get_auth_token("superadmin@gympulse.com", "SuperAdmin123!")
+    client.post(f"/api/platform/gyms/{temp_gym_id}/approve", headers={"Authorization": f"Bearer {admin_token}"})
+
+    # 3. Add an inquiry and a trainer to this gym
+    from app.models.models import GymInquiry, Trainer
+    from app.core.database import SessionLocal
+    db = SessionLocal()
+    try:
+        inq = GymInquiry(gym_id=temp_gym_id, full_name="Interested User", phone="+91 98888 77777")
+        tr = Trainer(gym_id=temp_gym_id, name="Coach Mike", phone="+91 97777 66666")
+        db.add(inq)
+        db.add(tr)
+        db.commit()
+    finally:
+        db.close()
+
+    # 4. Decommission the gym
+    decom_res = client.request("DELETE", "/api/gym/decommission", headers=headers, json={
+        "password": "Password123!",
+        "confirm_gym_name": "Temporary Decom Gym"
+    })
+    assert decom_res.status_code == 200
+    assert decom_res.json()["success"] is True
+
+    # 5. Confirm gym is gone and website is 404
+    pub_res = client.get("/api/public/facility/temporary-decom-gym")
+    assert pub_res.status_code == 404
+
+
+
 

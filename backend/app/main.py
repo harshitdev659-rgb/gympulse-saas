@@ -125,13 +125,30 @@ def download_windows_app():
     )
 
 
+class MultiDirectoryStaticFiles(StaticFiles):
+    """
+    Serves static files across multiple search directories (e.g. backend/static/assets and root assets),
+    ensuring older frontend chunks requested by running clients/tabs remain resolvable without 404 errors.
+    """
+    def __init__(self, directories: list[str], **kwargs):
+        valid = [os.path.abspath(d) for d in directories if os.path.isdir(d)]
+        primary = valid[0] if valid else "."
+        super().__init__(directory=primary, check_dir=False, **kwargs)
+        self.all_directories = valid
+
+
 # Check for production frontend build in static/ or ../frontend/dist
 frontend_dist = os.path.join(os.path.dirname(__file__), "..", "static")
 if not os.path.exists(frontend_dist):
     frontend_dist = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")
 
+root_assets = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "assets"))
+
 if os.path.exists(frontend_dist):
-    app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="assets")
+    asset_dirs = [os.path.join(frontend_dist, "assets")]
+    if os.path.exists(root_assets) and root_assets not in asset_dirs:
+        asset_dirs.append(root_assets)
+    app.mount("/assets", MultiDirectoryStaticFiles(directories=asset_dirs), name="assets")
 
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str, request: Request):

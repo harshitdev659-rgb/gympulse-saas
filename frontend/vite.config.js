@@ -26,7 +26,7 @@ export default defineConfig({
   },
   build: {
     outDir: '../backend/static',
-    emptyOutDir: true,
+    emptyOutDir: false,
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {

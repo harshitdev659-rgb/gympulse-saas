@@ -11,19 +11,43 @@ import { MembersPage } from './pages/MembersPage';
 import { PendingApprovalPage } from './pages/PendingApprovalPage';
 import { canAccessTab } from './utils/permissions';
 
+// Resilient lazy import that automatically refreshes once with cache-busting if a chunk hash is stale
+function lazyWithRetry(factory) {
+  return lazy(async () => {
+    const hasRefreshed = window.sessionStorage.getItem('gympulse_chunk_retry');
+    try {
+      const component = await factory();
+      window.sessionStorage.removeItem('gympulse_chunk_retry');
+      return component;
+    } catch (error) {
+      const isChunkError =
+        error?.name === 'ChunkLoadError' ||
+        /Failed to fetch dynamically imported module|dynamically imported|Loading chunk/i.test(error?.message || '');
+
+      if (isChunkError && !hasRefreshed) {
+        window.sessionStorage.setItem('gympulse_chunk_retry', 'true');
+        const separator = window.location.search ? '&' : '?';
+        window.location.href = window.location.pathname + (window.location.search || '') + separator + '_v=' + Date.now() + (window.location.hash || '');
+        return new Promise(() => {}); // Wait for page refresh
+      }
+      throw error;
+    }
+  });
+}
+
 // Code-split dynamic routes for blazing fast initial bundle & load times
-const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage })));
-const MemberDetailPage = lazy(() => import('./pages/MemberDetailPage').then(m => ({ default: m.MemberDetailPage })));
-const PlansPage = lazy(() => import('./pages/PlansPage').then(m => ({ default: m.PlansPage })));
-const AttendancePage = lazy(() => import('./pages/AttendancePage').then(m => ({ default: m.AttendancePage })));
-const PaymentsPage = lazy(() => import('./pages/PaymentsPage').then(m => ({ default: m.PaymentsPage })));
-const TrainersPage = lazy(() => import('./pages/TrainersPage').then(m => ({ default: m.TrainersPage })));
-const ReportsPage = lazy(() => import('./pages/ReportsPage').then(m => ({ default: m.ReportsPage })));
-const SettingsPage = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
-const SuperAdminPage = lazy(() => import('./pages/SuperAdminPage').then(m => ({ default: m.SuperAdminPage })));
-const GymPublicWebsitePage = lazy(() => import('./pages/GymPublicWebsitePage').then(m => ({ default: m.GymPublicWebsitePage })));
-const GymWebsiteManagerPage = lazy(() => import('./pages/GymWebsiteManagerPage').then(m => ({ default: m.GymWebsiteManagerPage })));
-const DownloadPage = lazy(() => import('./pages/DownloadPage').then(m => ({ default: m.DownloadPage })));
+const ForgotPasswordPage = lazyWithRetry(() => import('./pages/ForgotPasswordPage').then(m => ({ default: m.ForgotPasswordPage })));
+const MemberDetailPage = lazyWithRetry(() => import('./pages/MemberDetailPage').then(m => ({ default: m.MemberDetailPage })));
+const PlansPage = lazyWithRetry(() => import('./pages/PlansPage').then(m => ({ default: m.PlansPage })));
+const AttendancePage = lazyWithRetry(() => import('./pages/AttendancePage').then(m => ({ default: m.AttendancePage })));
+const PaymentsPage = lazyWithRetry(() => import('./pages/PaymentsPage').then(m => ({ default: m.PaymentsPage })));
+const TrainersPage = lazyWithRetry(() => import('./pages/TrainersPage').then(m => ({ default: m.TrainersPage })));
+const ReportsPage = lazyWithRetry(() => import('./pages/ReportsPage').then(m => ({ default: m.ReportsPage })));
+const SettingsPage = lazyWithRetry(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
+const SuperAdminPage = lazyWithRetry(() => import('./pages/SuperAdminPage').then(m => ({ default: m.SuperAdminPage })));
+const GymPublicWebsitePage = lazyWithRetry(() => import('./pages/GymPublicWebsitePage').then(m => ({ default: m.GymPublicWebsitePage })));
+const GymWebsiteManagerPage = lazyWithRetry(() => import('./pages/GymWebsiteManagerPage').then(m => ({ default: m.GymWebsiteManagerPage })));
+const DownloadPage = lazyWithRetry(() => import('./pages/DownloadPage').then(m => ({ default: m.DownloadPage })));
 
 const LoadingFallback = () => (
   <div className="flex items-center justify-center min-h-[300px] py-12">

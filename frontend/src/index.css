@@ -23,6 +23,14 @@
     caret-color: #4338ca; /* Bold indigo cursor */
   }
 
+  .input-error, input.input-error, textarea.input-error, select.input-error {
+    border-color: #ef4444 !important;
+    border-width: 2px !important;
+    border-style: solid !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25) !important;
+    background-color: #fff1f2 !important;
+  }
+
   input:not([class*="text-"]),
   textarea:not([class*="text-"]),
   select:not([class*="text-"]) {

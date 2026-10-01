@@ -4,6 +4,20 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  safelist: [
+    'input-error',
+    'border-red-500',
+    'border-rose-500',
+    'ring-red-300',
+    'ring-red-400',
+    'ring-rose-200',
+    'bg-red-50',
+    'bg-rose-50',
+    'bg-rose-50/20',
+    'text-red-600',
+    'text-rose-600',
+    'text-red-950'
+  ],
   theme: {
     extend: {
       colors: {

@@ -600,6 +600,8 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
               </label>
               <input
                 type="text"
+                id="add_member_first_name"
+                name="first_name"
                 value={addForm.first_name}
                 onChange={(e) => {
                   setAddForm({ ...addForm, first_name: e.target.value });
@@ -607,17 +609,29 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                     setAddFormErrors((prev) => ({ ...prev, first_name: null }));
                   }
                 }}
-                onBlur={() => setAddFormTouched((prev) => ({ ...prev, first_name: true }))}
+                onBlur={() => {
+                  if (!addForm.first_name?.trim()) {
+                    setAddFormErrors((prev) => ({ ...prev, first_name: 'First name is required' }));
+                  }
+                }}
                 placeholder="e.g. John"
-                className={`w-full px-3.5 py-2 text-sm rounded-xl border font-semibold text-slate-900 focus:outline-none transition-all placeholder:text-slate-400 placeholder:font-normal ${
-                  addFormErrors.first_name && (addFormTouched.first_name || Object.keys(addFormErrors).length > 0)
-                    ? 'border-rose-500 ring-2 ring-rose-200 bg-rose-50/20 focus:border-rose-500 focus:ring-rose-300'
-                    : 'border-slate-300 focus:ring-2 focus:ring-brand-500'
+                className={`w-full px-3.5 py-2 text-sm rounded-xl font-semibold text-slate-900 focus:outline-none transition-all placeholder:text-slate-400 placeholder:font-normal ${
+                  addFormErrors.first_name
+                    ? 'input-error border-2 border-red-500 bg-red-50 text-red-950 ring-2 ring-red-300'
+                    : 'border border-slate-300 focus:ring-2 focus:ring-brand-500 bg-white'
                 }`}
+                style={addFormErrors.first_name ? {
+                  borderColor: '#ef4444',
+                  borderWidth: '2px',
+                  borderStyle: 'solid',
+                  boxShadow: '0 0 0 3px rgba(239, 68, 68, 0.25)',
+                  backgroundColor: '#fff1f2',
+                  color: '#0f172a'
+                } : {}}
               />
-              {addFormErrors.first_name && (addFormTouched.first_name || Object.keys(addFormErrors).length > 0) && (
-                <p className="text-xs text-rose-600 mt-1 font-bold flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              {addFormErrors.first_name && (
+                <p className="text-xs text-red-600 mt-1 font-bold flex items-center gap-1" style={{ color: '#dc2626' }}>
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-600" style={{ color: '#dc2626' }} />
                   <span>{addFormErrors.first_name}</span>
                 </p>
               )}
@@ -628,6 +642,8 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
               </label>
               <input
                 type="text"
+                id="add_member_last_name"
+                name="last_name"
                 value={addForm.last_name}
                 onChange={(e) => {
                   setAddForm({ ...addForm, last_name: e.target.value });
@@ -635,17 +651,29 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                     setAddFormErrors((prev) => ({ ...prev, last_name: null }));
                   }
                 }}
-                onBlur={() => setAddFormTouched((prev) => ({ ...prev, last_name: true }))}
+                onBlur={() => {
+                  if (!addForm.last_name?.trim()) {
+                    setAddFormErrors((prev) => ({ ...prev, last_name: 'Last name is required' }));
+                  }
+                }}
                 placeholder="e.g. Doe"
-                className={`w-full px-3.5 py-2 text-sm rounded-xl border font-semibold text-slate-900 focus:outline-none transition-all placeholder:text-slate-400 placeholder:font-normal ${
-                  addFormErrors.last_name && (addFormTouched.last_name || Object.keys(addFormErrors).length > 0)
-                    ? 'border-rose-500 ring-2 ring-rose-200 bg-rose-50/20 focus:border-rose-500 focus:ring-rose-300'
-                    : 'border-slate-300 focus:ring-2 focus:ring-brand-500'
+                className={`w-full px-3.5 py-2 text-sm rounded-xl font-semibold text-slate-900 focus:outline-none transition-all placeholder:text-slate-400 placeholder:font-normal ${
+                  addFormErrors.last_name
+                    ? 'input-error border-2 border-red-500 bg-red-50 text-red-950 ring-2 ring-red-300'
+                    : 'border border-slate-300 focus:ring-2 focus:ring-brand-500 bg-white'
                 }`}
+                style={addFormErrors.last_name ? {
+                  borderColor: '#ef4444',
+                  borderWidth: '2px',
+                  borderStyle: 'solid',
+                  boxShadow: '0 0 0 3px rgba(239, 68, 68, 0.25)',
+                  backgroundColor: '#fff1f2',
+                  color: '#0f172a'
+                } : {}}
               />
-              {addFormErrors.last_name && (addFormTouched.last_name || Object.keys(addFormErrors).length > 0) && (
-                <p className="text-xs text-rose-600 mt-1 font-bold flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              {addFormErrors.last_name && (
+                <p className="text-xs text-red-600 mt-1 font-bold flex items-center gap-1" style={{ color: '#dc2626' }}>
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-600" style={{ color: '#dc2626' }} />
                   <span>{addFormErrors.last_name}</span>
                 </p>
               )}
@@ -659,6 +687,8 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
               </label>
               <input
                 type="tel"
+                id="add_member_phone"
+                name="phone"
                 value={addForm.phone}
                 onChange={(e) => {
                   setAddForm({ ...addForm, phone: e.target.value });
@@ -666,17 +696,29 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                     setAddFormErrors((prev) => ({ ...prev, phone: null }));
                   }
                 }}
-                onBlur={() => setAddFormTouched((prev) => ({ ...prev, phone: true }))}
+                onBlur={() => {
+                  if (!addForm.phone?.trim()) {
+                    setAddFormErrors((prev) => ({ ...prev, phone: 'Valid phone number required' }));
+                  }
+                }}
                 placeholder="+91 98765 43210"
-                className={`w-full px-3.5 py-2 text-sm rounded-xl border font-semibold text-slate-900 focus:outline-none transition-all placeholder:text-slate-400 placeholder:font-normal ${
-                  addFormErrors.phone && (addFormTouched.phone || Object.keys(addFormErrors).length > 0)
-                    ? 'border-rose-500 ring-2 ring-rose-200 bg-rose-50/20 focus:border-rose-500 focus:ring-rose-300'
-                    : 'border-slate-300 focus:ring-2 focus:ring-brand-500'
+                className={`w-full px-3.5 py-2 text-sm rounded-xl font-semibold text-slate-900 focus:outline-none transition-all placeholder:text-slate-400 placeholder:font-normal ${
+                  addFormErrors.phone
+                    ? 'input-error border-2 border-red-500 bg-red-50 text-red-950 ring-2 ring-red-300'
+                    : 'border border-slate-300 focus:ring-2 focus:ring-brand-500 bg-white'
                 }`}
+                style={addFormErrors.phone ? {
+                  borderColor: '#ef4444',
+                  borderWidth: '2px',
+                  borderStyle: 'solid',
+                  boxShadow: '0 0 0 3px rgba(239, 68, 68, 0.25)',
+                  backgroundColor: '#fff1f2',
+                  color: '#0f172a'
+                } : {}}
               />
-              {addFormErrors.phone && (addFormTouched.phone || Object.keys(addFormErrors).length > 0) && (
-                <p className="text-xs text-rose-600 mt-1 font-bold flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              {addFormErrors.phone && (
+                <p className="text-xs text-red-600 mt-1 font-bold flex items-center gap-1" style={{ color: '#dc2626' }}>
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-600" style={{ color: '#dc2626' }} />
                   <span>{addFormErrors.phone}</span>
                 </p>
               )}
@@ -687,6 +729,8 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
               </label>
               <input
                 type="email"
+                id="add_member_email"
+                name="email"
                 value={addForm.email}
                 onChange={(e) => {
                   setAddForm({ ...addForm, email: e.target.value });
@@ -694,17 +738,24 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                     setAddFormErrors((prev) => ({ ...prev, email: null }));
                   }
                 }}
-                onBlur={() => setAddFormTouched((prev) => ({ ...prev, email: true }))}
                 placeholder="john.doe@example.com"
-                className={`w-full px-3.5 py-2 text-sm rounded-xl border font-semibold text-slate-900 focus:outline-none transition-all placeholder:text-slate-400 placeholder:font-normal ${
-                  addFormErrors.email && (addFormTouched.email || Object.keys(addFormErrors).length > 0)
-                    ? 'border-rose-500 ring-2 ring-rose-200 bg-rose-50/20 focus:border-rose-500 focus:ring-rose-300'
-                    : 'border-slate-300 focus:ring-2 focus:ring-brand-500'
+                className={`w-full px-3.5 py-2 text-sm rounded-xl font-semibold text-slate-900 focus:outline-none transition-all placeholder:text-slate-400 placeholder:font-normal ${
+                  addFormErrors.email
+                    ? 'input-error border-2 border-red-500 bg-red-50 text-red-950 ring-2 ring-red-300'
+                    : 'border border-slate-300 focus:ring-2 focus:ring-brand-500 bg-white'
                 }`}
+                style={addFormErrors.email ? {
+                  borderColor: '#ef4444',
+                  borderWidth: '2px',
+                  borderStyle: 'solid',
+                  boxShadow: '0 0 0 3px rgba(239, 68, 68, 0.25)',
+                  backgroundColor: '#fff1f2',
+                  color: '#0f172a'
+                } : {}}
               />
-              {addFormErrors.email && (addFormTouched.email || Object.keys(addFormErrors).length > 0) && (
-                <p className="text-xs text-rose-600 mt-1 font-bold flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              {addFormErrors.email && (
+                <p className="text-xs text-red-600 mt-1 font-bold flex items-center gap-1" style={{ color: '#dc2626' }}>
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-600" style={{ color: '#dc2626' }} />
                   <span>{addFormErrors.email}</span>
                 </p>
               )}
@@ -812,6 +863,7 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
               type="submit"
               variant="primary"
               isLoading={isSubmitting}
+              onClick={handleCreateMember}
             >
               Save Member
             </Button>
@@ -958,6 +1010,8 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
               </label>
               <input
                 type="text"
+                id="manual_member_first_name"
+                name="first_name"
                 value={manualForm.first_name}
                 onChange={(e) => {
                   setManualForm({ ...manualForm, first_name: e.target.value });
@@ -965,17 +1019,29 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                     setManualFormErrors((prev) => ({ ...prev, first_name: null }));
                   }
                 }}
-                onBlur={() => setManualFormTouched((prev) => ({ ...prev, first_name: true }))}
+                onBlur={() => {
+                  if (!manualForm.first_name?.trim()) {
+                    setManualFormErrors((prev) => ({ ...prev, first_name: 'First name is required' }));
+                  }
+                }}
                 placeholder="e.g. Ramesh"
-                className={`w-full px-3.5 py-2.5 text-sm font-semibold text-slate-900 rounded-xl border transition-all focus:outline-none bg-white ${
-                  manualFormErrors.first_name && (manualFormTouched.first_name || Object.keys(manualFormErrors).length > 0)
-                    ? 'border-rose-500 ring-2 ring-rose-200 bg-rose-50/20 focus:border-rose-500'
-                    : 'border-slate-300 focus:ring-2 focus:ring-emerald-500'
+                className={`w-full px-3.5 py-2.5 text-sm font-semibold text-slate-900 rounded-xl transition-all focus:outline-none ${
+                  manualFormErrors.first_name
+                    ? 'input-error border-2 border-red-500 bg-red-50 text-red-950 ring-2 ring-red-300'
+                    : 'border border-slate-300 focus:ring-2 focus:ring-emerald-500 bg-white'
                 }`}
+                style={manualFormErrors.first_name ? {
+                  borderColor: '#ef4444',
+                  borderWidth: '2px',
+                  borderStyle: 'solid',
+                  boxShadow: '0 0 0 3px rgba(239, 68, 68, 0.25)',
+                  backgroundColor: '#fff1f2',
+                  color: '#0f172a'
+                } : {}}
               />
-              {manualFormErrors.first_name && (manualFormTouched.first_name || Object.keys(manualFormErrors).length > 0) && (
-                <p className="text-xs text-rose-600 mt-1 font-bold flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              {manualFormErrors.first_name && (
+                <p className="text-xs text-red-600 mt-1 font-bold flex items-center gap-1" style={{ color: '#dc2626' }}>
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-600" style={{ color: '#dc2626' }} />
                   <span>{manualFormErrors.first_name}</span>
                 </p>
               )}
@@ -986,6 +1052,8 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
               </label>
               <input
                 type="text"
+                id="manual_member_last_name"
+                name="last_name"
                 value={manualForm.last_name}
                 onChange={(e) => {
                   setManualForm({ ...manualForm, last_name: e.target.value });
@@ -993,17 +1061,29 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                     setManualFormErrors((prev) => ({ ...prev, last_name: null }));
                   }
                 }}
-                onBlur={() => setManualFormTouched((prev) => ({ ...prev, last_name: true }))}
+                onBlur={() => {
+                  if (!manualForm.last_name?.trim()) {
+                    setManualFormErrors((prev) => ({ ...prev, last_name: 'Last name is required' }));
+                  }
+                }}
                 placeholder="e.g. Kumar"
-                className={`w-full px-3.5 py-2.5 text-sm font-semibold text-slate-900 rounded-xl border transition-all focus:outline-none bg-white ${
-                  manualFormErrors.last_name && (manualFormTouched.last_name || Object.keys(manualFormErrors).length > 0)
-                    ? 'border-rose-500 ring-2 ring-rose-200 bg-rose-50/20 focus:border-rose-500'
-                    : 'border-slate-300 focus:ring-2 focus:ring-emerald-500'
+                className={`w-full px-3.5 py-2.5 text-sm font-semibold text-slate-900 rounded-xl transition-all focus:outline-none ${
+                  manualFormErrors.last_name
+                    ? 'input-error border-2 border-red-500 bg-red-50 text-red-950 ring-2 ring-red-300'
+                    : 'border border-slate-300 focus:ring-2 focus:ring-emerald-500 bg-white'
                 }`}
+                style={manualFormErrors.last_name ? {
+                  borderColor: '#ef4444',
+                  borderWidth: '2px',
+                  borderStyle: 'solid',
+                  boxShadow: '0 0 0 3px rgba(239, 68, 68, 0.25)',
+                  backgroundColor: '#fff1f2',
+                  color: '#0f172a'
+                } : {}}
               />
-              {manualFormErrors.last_name && (manualFormTouched.last_name || Object.keys(manualFormErrors).length > 0) && (
-                <p className="text-xs text-rose-600 mt-1 font-bold flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              {manualFormErrors.last_name && (
+                <p className="text-xs text-red-600 mt-1 font-bold flex items-center gap-1" style={{ color: '#dc2626' }}>
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-600" style={{ color: '#dc2626' }} />
                   <span>{manualFormErrors.last_name}</span>
                 </p>
               )}
@@ -1017,6 +1097,8 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
               </label>
               <input
                 type="tel"
+                id="manual_member_phone"
+                name="phone"
                 value={manualForm.phone}
                 onChange={(e) => {
                   setManualForm({ ...manualForm, phone: e.target.value });
@@ -1024,17 +1106,29 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                     setManualFormErrors((prev) => ({ ...prev, phone: null }));
                   }
                 }}
-                onBlur={() => setManualFormTouched((prev) => ({ ...prev, phone: true }))}
+                onBlur={() => {
+                  if (!manualForm.phone?.trim()) {
+                    setManualFormErrors((prev) => ({ ...prev, phone: 'Valid phone number required' }));
+                  }
+                }}
                 placeholder="+91 98765 00000"
-                className={`w-full px-3.5 py-2.5 text-sm font-semibold text-slate-900 rounded-xl border transition-all focus:outline-none bg-white ${
-                  manualFormErrors.phone && (manualFormTouched.phone || Object.keys(manualFormErrors).length > 0)
-                    ? 'border-rose-500 ring-2 ring-rose-200 bg-rose-50/20 focus:border-rose-500'
-                    : 'border-slate-300 focus:ring-2 focus:ring-emerald-500'
+                className={`w-full px-3.5 py-2.5 text-sm font-semibold text-slate-900 rounded-xl transition-all focus:outline-none ${
+                  manualFormErrors.phone
+                    ? 'input-error border-2 border-red-500 bg-red-50 text-red-950 ring-2 ring-red-300'
+                    : 'border border-slate-300 focus:ring-2 focus:ring-emerald-500 bg-white'
                 }`}
+                style={manualFormErrors.phone ? {
+                  borderColor: '#ef4444',
+                  borderWidth: '2px',
+                  borderStyle: 'solid',
+                  boxShadow: '0 0 0 3px rgba(239, 68, 68, 0.25)',
+                  backgroundColor: '#fff1f2',
+                  color: '#0f172a'
+                } : {}}
               />
-              {manualFormErrors.phone && (manualFormTouched.phone || Object.keys(manualFormErrors).length > 0) && (
-                <p className="text-xs text-rose-600 mt-1 font-bold flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              {manualFormErrors.phone && (
+                <p className="text-xs text-red-600 mt-1 font-bold flex items-center gap-1" style={{ color: '#dc2626' }}>
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-600" style={{ color: '#dc2626' }} />
                   <span>{manualFormErrors.phone}</span>
                 </p>
               )}
@@ -1169,6 +1263,7 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
               type="submit"
               variant="primary"
               isLoading={isManualSubmitting}
+              onClick={handleCreateManualMember}
               className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
             >
               Enroll &amp; Save Member

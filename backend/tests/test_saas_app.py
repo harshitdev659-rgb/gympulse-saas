@@ -803,6 +803,13 @@ def test_decommission_gym_with_full_cascade():
     pub_res = client.get("/api/public/facility/temporary-decom-gym")
     assert pub_res.status_code == 404
 
+def test_direct_gym_slug_redirect():
+    """Verify that /gym/{slug} issues a 302 redirect to /app.html?facility={slug} without 500 error."""
+    res = client.get("/gym/apex-titanium-gym", follow_redirects=False)
+    assert res.status_code == 302
+    assert "/app.html?facility=apex-titanium-gym" in res.headers["location"]
+
+
 
 
 

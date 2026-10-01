@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Dumbbell, 
   MapPin, 
@@ -28,7 +28,10 @@ import {
   UserCheck,
   Search,
   Smartphone,
-  ExternalLink
+  ExternalLink,
+  Camera,
+  CameraOff,
+  User
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useToast } from '../context/ToastContext';
@@ -85,6 +88,107 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
   });
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [checkInSuccessData, setCheckInSuccessData] = useState(null);
+  const [athleteProfile, setAthleteProfile] = useState(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [capturedPhoto, setCapturedPhoto] = useState(null);
+  const [hasCameraSupport, setHasCameraSupport] = useState(true);
+  const [cameraLoading, setCameraLoading] = useState(false);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const canvasRef = useRef(null);
+
+  const startCamera = async () => {
+    try {
+      setCameraLoading(true);
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        setHasCameraSupport(false);
+        setCameraLoading(false);
+        return;
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play().catch(() => {});
+      }
+      setIsCameraActive(true);
+      setHasCameraSupport(true);
+    } catch (err) {
+      console.warn('Camera stream notice:', err);
+      setHasCameraSupport(false);
+      setIsCameraActive(false);
+    } finally {
+      setCameraLoading(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  // If member has logged in / checked in once, automatically fetch their athlete details
+  useEffect(() => {
+    if (isCheckInModalOpen) {
+      const remembered = localStorage.getItem('gympulse_athlete_phone') || checkInPhone;
+      if (remembered?.trim()) {
+        api.getPublicFacilityPortal(slug, remembered.trim())
+          .then((res) => {
+            if (res?.member) {
+              setAthleteProfile(res.member);
+              setCheckInPhone(res.member.phone || remembered.trim());
+            }
+          })
+          .catch(() => {});
+      }
+      startCamera();
+    } else {
+      stopCamera();
+    }
+  }, [isCheckInModalOpen, slug]);
+
+  const capturePhotoAndCheckIn = async (e) => {
+    if (e) e.preventDefault();
+    const phoneToUse = checkInPhone.trim() || athleteProfile?.phone || '';
+    if (!phoneToUse) {
+      toast.error('Please enter your registered phone number or Member ID.');
+      return;
+    }
+    if (videoRef.current && canvasRef.current && isCameraActive) {
+      try {
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const photoData = canvas.toDataURL('image/jpeg', 0.8);
+        setCapturedPhoto(photoData);
+      } catch (err) {
+        console.warn('Photo snapshot note:', err);
+      }
+    }
+    stopCamera();
+    setIsCheckingIn(true);
+    try {
+      const res = await api.publicAthleteCheckIn(slug, phoneToUse);
+      setCheckInSuccessData(res);
+      playSuccessChime();
+      try {
+        localStorage.setItem('gympulse_athlete_phone', phoneToUse);
+      } catch (err) {}
+      toast.success(res?.message || 'Check-in confirmed!');
+    } catch (err) {
+      toast.error(err.message || 'Check-in failed. Please verify with front desk.');
+    } finally {
+      setIsCheckingIn(false);
+    }
+  };
 
   // Direct Membership Pass Checkout State
   const [isBuyPassModalOpen, setIsBuyPassModalOpen] = useState(false);
@@ -1087,6 +1191,15 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
                 </p>
               </div>
 
+              {capturedPhoto && (
+                <div className="relative w-28 h-28 mx-auto rounded-2xl overflow-hidden border-2 border-emerald-400 shadow-md">
+                  <img src={capturedPhoto} alt="Check-in Selfie" className="w-full h-full object-cover" />
+                  <div className="absolute bottom-1 right-1 bg-emerald-600 text-white p-1 rounded-full shadow-xs">
+                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                  </div>
+                </div>
+              )}
+
               {checkInSuccessData.monthly_workouts && (
                 <div className="p-3 rounded-xl bg-white border border-emerald-200 flex items-center justify-center gap-2 text-xs font-black text-slate-900">
                   <Flame className="w-4 h-4 text-orange-500 fill-current" />
@@ -1099,8 +1212,8 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
                   type="button"
                   onClick={() => {
                     setIsCheckInModalOpen(false);
-                    setPortalQuery(checkInPhone);
-                    handleFetchPortalData(checkInPhone);
+                    setPortalQuery(checkInPhone || athleteProfile?.phone || '');
+                    handleFetchPortalData(checkInPhone || athleteProfile?.phone || '');
                     setIsPortalModalOpen(true);
                   }}
                   className="flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs shadow-xs transition-colors cursor-pointer"
@@ -1112,6 +1225,7 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
                   onClick={() => {
                     setIsCheckInModalOpen(false);
                     setCheckInSuccessData(null);
+                    setCapturedPhoto(null);
                   }}
                   className="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs transition-colors cursor-pointer"
                 >
@@ -1120,44 +1234,133 @@ export const GymPublicWebsitePage = ({ slug, onBackToApp }) => {
               </div>
             </div>
           ) : (
-            <form onSubmit={handlePerformAthleteCheckIn} className="space-y-4">
-              <div>
-                <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
-                  Mobile Number or Member ID *
-                </label>
-                <input
-                  type="text"
-                  required
-                  autoFocus
-                  value={checkInPhone}
-                  onChange={(e) => setCheckInPhone(e.target.value)}
-                  placeholder="e.g. 9876543210 or Member ID"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-300 font-extrabold text-slate-950 focus:border-brand-500 focus:outline-none text-base"
-                />
-                <p className="text-[11px] text-slate-500 mt-1">
-                  Enter your registered phone number or Member ID to mark entrance attendance.
-                </p>
+            <div className="space-y-4">
+              {/* Remembered Athlete Profile Card */}
+              {athleteProfile ? (
+                <div className="p-3.5 rounded-2xl bg-indigo-50 border border-indigo-200 text-left flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-full bg-indigo-600 text-white flex items-center justify-center font-black text-base shrink-0 shadow-xs">
+                    {athleteProfile.full_name?.charAt(0) || 'A'}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full">
+                        Athlete Recognized
+                      </span>
+                      <span className="text-xs text-slate-500 font-mono">#{athleteProfile.member_code || athleteProfile.id?.slice(0, 6)}</span>
+                    </div>
+                    <h4 className="text-sm font-black text-slate-950 truncate mt-0.5">{athleteProfile.full_name}</h4>
+                    <p className="text-xs text-indigo-950 font-bold truncate">
+                      {athleteProfile.plan_name || 'Active Membership'} &bull; {athleteProfile.phone}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAthleteProfile(null);
+                      setCheckInPhone('');
+                    }}
+                    className="text-[10px] font-bold text-slate-600 hover:text-slate-800 underline px-1 cursor-pointer"
+                  >
+                    Change
+                  </button>
+                </div>
+              ) : null}
+
+              {/* Gym Camera Viewfinder */}
+              <div className="relative rounded-2xl overflow-hidden bg-slate-950 aspect-[4/3] flex items-center justify-center border-2 border-slate-300 shadow-inner">
+                {isCameraActive ? (
+                  <>
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-full object-cover"
+                      style={{ transform: 'scaleX(-1)' }}
+                    />
+                    <div className="absolute inset-0 border-2 border-white/20 rounded-2xl pointer-events-none flex items-center justify-center">
+                      <div className="w-40 h-40 border-2 border-dashed border-white/40 rounded-full"></div>
+                    </div>
+                    <div className="absolute top-2.5 left-2.5 bg-slate-950/80 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1.5 shadow-xs">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Gym Front-Desk Camera
+                    </div>
+                  </>
+                ) : capturedPhoto ? (
+                  <div className="relative w-full h-full">
+                    <img src={capturedPhoto} alt="Captured Selfie" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCapturedPhoto(null);
+                        startCamera();
+                      }}
+                      className="absolute top-2.5 right-2.5 bg-slate-950/80 hover:bg-slate-900 text-white text-xs px-2.5 py-1 rounded-lg font-bold shadow-xs cursor-pointer"
+                    >
+                      Retake
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-center p-6 text-slate-400 space-y-2">
+                    <Camera className="w-10 h-10 mx-auto opacity-50 text-slate-300" />
+                    <p className="text-xs font-bold text-slate-300">
+                      {cameraLoading ? 'Starting camera...' : hasCameraSupport ? 'Camera ready for check-in selfie' : 'Camera permission not granted'}
+                    </p>
+                    {hasCameraSupport && !cameraLoading && (
+                      <button
+                        type="button"
+                        onClick={startCamera}
+                        className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors cursor-pointer"
+                      >
+                        Enable Camera
+                      </button>
+                    )}
+                  </div>
+                )}
+                <canvas ref={canvasRef} className="hidden" />
               </div>
 
+              {/* If no athlete is recognized yet, let them enter phone or member code */}
+              {!athleteProfile && (
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                    Mobile Number or Member ID *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={checkInPhone}
+                    onChange={(e) => setCheckInPhone(e.target.value)}
+                    placeholder="e.g. 9876543210 or Member ID"
+                    className="w-full px-4 py-2.5 rounded-xl border-2 border-slate-300 font-extrabold text-slate-950 focus:border-brand-500 focus:outline-none text-sm"
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Once checked in on this device, your profile will automatically load next time.
+                  </p>
+                </div>
+              )}
+
+              {/* Action Button: Snap Photo & Check In */}
               <button
-                type="submit"
-                disabled={isCheckingIn}
+                type="button"
+                onClick={capturePhotoAndCheckIn}
+                disabled={isCheckingIn || (!checkInPhone.trim() && !athleteProfile)}
                 className="w-full py-3.5 rounded-xl text-white font-black text-sm shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                 style={{ backgroundColor: gymPrimaryColor }}
               >
                 {isCheckingIn ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Verifying Athlete Pass...</span>
+                    <span>Verifying & Recording Attendance...</span>
                   </>
                 ) : (
                   <>
-                    <Zap className="w-4 h-4 fill-current" />
-                    <span>Confirm Check-In</span>
+                    <Camera className="w-4 h-4" />
+                    <span>📸 Take Photo & Check In</span>
                   </>
                 )}
               </button>
-            </form>
+            </div>
           )}
         </div>
       </Modal>

@@ -36,8 +36,22 @@ def get_platform_metrics(
 
     total_athletes = db.query(Member).count()
     
-    # Estimate MRR in INR based on active facilities
-    platform_mrr = active_facilities * 2499.0
+    # Dynamic MRR calculation based on active facility plan tiers (Starter: ₹999, Pro: ₹2,499, Business: ₹5,999)
+    TIER_PRICES = {
+        "starter": 999.0,
+        "free": 999.0,
+        "pro": 2499.0,
+        "growth": 2499.0,
+        "business": 5999.0,
+        "enterprise": 5999.0,
+    }
+    active_gyms = db.query(Gym).filter(
+        and_(
+            func.lower(Gym.approval_status) == "approved",
+            Gym.is_approved == True
+        )
+    ).all()
+    platform_mrr = float(sum(TIER_PRICES.get(str(g.plan_tier or "starter").lower(), 2499.0) for g in active_gyms))
 
     return {
         "total_gyms": total_gyms,

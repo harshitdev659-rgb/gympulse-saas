@@ -150,14 +150,60 @@ if os.path.exists(frontend_dist):
         asset_dirs.append(root_assets)
     app.mount("/assets", MultiDirectoryStaticFiles(directories=asset_dirs), name="assets")
 
+    @app.get("/gym/{slug}")
+    @app.get("/gym/{slug}/")
+    @app.get("/facility/{slug}")
+    @app.get("/facility/{slug}/")
+    def redirect_facility_portal(slug: str, request: Request):
+        query = str(request.query_params)
+        target = f"/app.html?facility={slug}"
+        if query:
+            target += f"&{query}"
+        return RedirectResponse(url=target, status_code=302)
+
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str, request: Request):
         # Don't intercept API or docs routes
         if full_path.startswith("api") or full_path in ["docs", "redoc", "openapi.json"]:
             return HTMLResponse(status_code=404, content="Not found")
+
+        # Handle deep links like /gym/{slug} or /facility/{slug}
+        if full_path.startswith("gym/") or full_path.startswith("facility/"):
+            parts = full_path.strip("/").split("/")
+            if len(parts) >= 2:
+                # If asset was requested under /gym/... e.g. /gym/gympulse.png or /gym/assets/...
+                if parts[1] == "gympulse.png":
+                    png_path = os.path.join(frontend_dist, "gympulse.png")
+                    if os.path.isfile(png_path):
+                        return FileResponse(png_path)
+                if parts[1] == "assets" and len(parts) >= 3:
+                    asset_path = os.path.join(frontend_dist, "assets", "/".join(parts[2:]))
+                    if os.path.isfile(asset_path):
+                        return FileResponse(asset_path)
+                # Otherwise redirect to app.html with facility query param
+                slug = parts[1]
+                query = str(request.query_params)
+                target = f"/app.html?facility={slug}"
+                if query:
+                    target += f"&{query}"
+                return RedirectResponse(url=target, status_code=302)
+
+        # Fallback for relative gympulse.png
+        if full_path.endswith("gympulse.png"):
+            png_path = os.path.join(frontend_dist, "gympulse.png")
+            if os.path.isfile(png_path):
+                return FileResponse(png_path)
+
         file_path = os.path.join(frontend_dist, full_path)
         if os.path.isfile(file_path):
             return FileResponse(file_path)
+
+        # If app.html is specifically requested, return app.html or index.html
+        if full_path in ["app.html", "app"]:
+            app_html = os.path.join(frontend_dist, "app.html")
+            if os.path.isfile(app_html):
+                return FileResponse(app_html)
+
         return FileResponse(os.path.join(frontend_dist, "index.html"))
 else:
     @app.get("/")

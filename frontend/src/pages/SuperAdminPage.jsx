@@ -22,7 +22,8 @@ import {
   ChevronUp,
   Save,
   Copy,
-  Sparkles
+  Sparkles,
+  Eye
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useToast } from '../context/ToastContext';
@@ -273,7 +274,21 @@ export const SuperAdminPage = ({ onPreviewWebsite, onOpenFacility }) => {
     ? gyms.filter(isFacilityPending).length
     : (metrics?.pending_approvals ?? 0);
 
-  const platformMrrAmount = activeFacilitiesCount * 2499.0;
+  const TIER_PRICES = {
+    starter: 999.0,
+    free: 999.0,
+    pro: 2499.0,
+    growth: 2499.0,
+    business: 5999.0,
+    enterprise: 5999.0,
+  };
+
+  const platformMrrAmount = (Array.isArray(gyms) && gyms.length > 0)
+    ? gyms.filter(isFacilityActive).reduce((sum, g) => {
+        const tier = String(g.plan_tier || 'starter').toLowerCase();
+        return sum + (TIER_PRICES[tier] ?? 2499.0);
+      }, 0)
+    : (metrics?.platform_mrr ?? 0);
 
   const handleApprove = async (gymId, gymName) => {
     setActionLoadingId(gymId);
@@ -1275,7 +1290,16 @@ export const SuperAdminPage = ({ onPreviewWebsite, onOpenFacility }) => {
                             <div className="flex items-center gap-1.5">
                               <button
                                 type="button"
-                                onClick={() => onOpenFacility ? onOpenFacility(g.id, 'attendance') : null}
+                                onClick={() => onOpenFacility ? onOpenFacility(g.id, 'dashboard', g) : null}
+                                className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                                title="Inspect Live Facility Operations Console (Dashboard, Members, Attendance, Finances)"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                <span>Inspect Gym Live</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onOpenFacility ? onOpenFacility(g.id, 'attendance', g) : null}
                                 className="px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-black text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
                                 title="Open Front Desk Attendance, Live QR Kiosk, and check-ins"
                               >

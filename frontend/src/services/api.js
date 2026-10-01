@@ -21,6 +21,15 @@ class ApiService {
     }
   }
 
+  setGymId(gymId) {
+    this.gymId = gymId;
+    if (gymId) {
+      localStorage.setItem('gympulse_selected_gym_id', String(gymId));
+    } else {
+      localStorage.removeItem('gympulse_selected_gym_id');
+    }
+  }
+
   getHeaders(isJson = true) {
     const headers = {};
     if (isJson) {
@@ -28,6 +37,10 @@ class ApiService {
     }
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
+    }
+    const activeGymId = this.gymId || (typeof localStorage !== 'undefined' ? localStorage.getItem('gympulse_selected_gym_id') : null);
+    if (activeGymId) {
+      headers['X-Gym-Id'] = String(activeGymId);
     }
     return headers;
   }

@@ -59,7 +59,7 @@ const LoadingFallback = () => (
 );
 
 function AppContent() {
-  const { user, gym, isAuthenticated, loading, login, logout } = useAuth();
+  const { user, gym, isAuthenticated, loading, login, logout, switchFacility } = useAuth();
   
   // Dedicated /download route
   const [isDownloadCenter, setIsDownloadCenter] = useState(() => {
@@ -132,6 +132,15 @@ function AppContent() {
       setIsViewingLanding(false);
     }
   }, [gym?.is_approved]);
+
+  // Ensure that while user is authenticated on this device, publicView never switches to login/register
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      if (publicView === 'login' || publicView === 'register') {
+        setPublicView('landing');
+      }
+    }
+  }, [isAuthenticated, publicView]);
 
   const handleOpenAi = (prompt = '') => {
     setAiInitialPrompt(prompt);
@@ -253,7 +262,11 @@ function AppContent() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setIsViewingLanding(false)}
+              onClick={() => {
+                setIsViewingLanding(false);
+                setPublicView('landing');
+                setActiveTab(isSuperAdmin ? 'superadmin' : 'dashboard');
+              }}
               className="px-3 py-1 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-bold transition-all shadow-xs cursor-pointer"
             >
               &larr; Return to {isSuperAdmin ? 'SuperAdmin Console' : gym?.is_approved ? 'Dashboard' : 'Approval Status Screen'}
@@ -262,6 +275,7 @@ function AppContent() {
               onClick={() => {
                 logout();
                 setIsViewingLanding(false);
+                setPublicView('landing');
               }}
               className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white font-semibold transition-all cursor-pointer"
             >
@@ -270,8 +284,16 @@ function AppContent() {
           </div>
         </div>
         <LandingPage
-          onNavigateLogin={() => setIsViewingLanding(false)}
-          onNavigateRegister={() => setIsViewingLanding(false)}
+          onNavigateLogin={() => {
+            setIsViewingLanding(false);
+            setPublicView('landing');
+            setActiveTab(isSuperAdmin ? 'superadmin' : 'dashboard');
+          }}
+          onNavigateRegister={() => {
+            setIsViewingLanding(false);
+            setPublicView('landing');
+            setActiveTab(isSuperAdmin ? 'superadmin' : 'dashboard');
+          }}
           currentUser={user}
         />
       </div>
@@ -346,7 +368,14 @@ function AppContent() {
               {activeTab === 'superadmin' && (
                 <SuperAdminPage
                   onPreviewWebsite={(slug) => setPreviewFacilitySlug(slug)}
-                  onOpenFacility={(gymId, tab = 'attendance') => setActiveTab(tab)}
+                  onOpenFacility={(gymId, tab = 'dashboard', gymObj = null) => {
+                    if (gymObj) {
+                      switchFacility(gymObj);
+                    } else if (gymId) {
+                      switchFacility({ id: gymId, name: `Facility #${gymId}` });
+                    }
+                    setActiveTab(tab);
+                  }}
                 />
               )}
 

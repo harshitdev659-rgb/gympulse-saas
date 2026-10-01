@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { AiAssistantDrawer } from '../ai/AiAssistantDrawer';
@@ -19,13 +19,33 @@ export const Shell = ({
 }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // When activeTab changes, automatically close all open modals/drawers to prevent stacking
+  useEffect(() => {
+    setIsAiOpen(false);
+    setIsQuickCheckInOpen(false);
+    setSidebarOpen(false);
+    window.dispatchEvent(new CustomEvent('gympulse:dismiss-modals'));
+  }, [activeTab]);
+
+  const handleOpenAi = () => {
+    window.dispatchEvent(new CustomEvent('gympulse:dismiss-modals'));
+    setIsQuickCheckInOpen(false);
+    setIsAiOpen(true);
+  };
+
+  const handleQuickCheckIn = () => {
+    window.dispatchEvent(new CustomEvent('gympulse:dismiss-modals'));
+    setIsAiOpen(false);
+    setIsQuickCheckInOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex">
       {/* Sidebar */}
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        onOpenAi={() => setIsAiOpen(true)}
+        onOpenAi={handleOpenAi}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onPreviewWebsite={onPreviewWebsite}
@@ -35,9 +55,14 @@ export const Shell = ({
       <div className="flex-1 lg:pl-64 flex flex-col min-w-0">
         <Topbar
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-          onOpenAi={() => setIsAiOpen(true)}
-          onQuickCheckIn={() => setIsQuickCheckInOpen(true)}
-          onQuickAddMember={onQuickAddMember}
+          onOpenAi={handleOpenAi}
+          onQuickCheckIn={handleQuickCheckIn}
+          onQuickAddMember={() => {
+            window.dispatchEvent(new CustomEvent('gympulse:dismiss-modals'));
+            setIsAiOpen(false);
+            setIsQuickCheckInOpen(false);
+            onQuickAddMember?.();
+          }}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
         />

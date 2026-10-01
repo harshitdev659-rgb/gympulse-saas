@@ -1,15 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dumbbell, Lock, Mail, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { Button } from '../components/common/Button';
 
 export const LoginPage = ({ onNavigateRegister, onNavigateForgotPassword, onBackToLanding, onLoginSuccess }) => {
-  const { login } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
   const toast = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // If user is already authenticated on this device, immediately bypass login page
+  useEffect(() => {
+    if (isAuthenticated) {
+      onLoginSuccess?.({ user });
+    }
+  }, [isAuthenticated, user]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

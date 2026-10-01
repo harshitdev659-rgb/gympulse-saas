@@ -9,7 +9,8 @@ import {
   Check,
   ExternalLink,
   Download,
-  Globe
+  Globe,
+  ChevronDown
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -18,7 +19,7 @@ import { DownloadAppModal } from '../common/DownloadAppModal';
 import { api } from '../../services/api';
 
 export const Topbar = ({ onToggleSidebar, onOpenAi, onQuickCheckIn, onQuickAddMember, activeTab, setActiveTab }) => {
-  const { gym, user } = useAuth();
+  const { gym, user, switchFacility } = useAuth();
   const toast = useToast();
   const isSuperAdmin = user?.is_superadmin || user?.role === 'superadmin';
 
@@ -26,6 +27,18 @@ export const Topbar = ({ onToggleSidebar, onOpenAi, onQuickCheckIn, onQuickAddMe
   const [networkInfo, setNetworkInfo] = useState(null);
   const [copiedApp, setCopiedApp] = useState(false);
   const [copiedWebsite, setCopiedWebsite] = useState(false);
+  const [platformGyms, setPlatformGyms] = useState([]);
+  const [isGymDropdownOpen, setIsGymDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      api.getPlatformGyms()
+        .then((data) => {
+          if (Array.isArray(data)) setPlatformGyms(data);
+        })
+        .catch(() => {});
+    }
+  }, [isSuperAdmin]);
 
   useEffect(() => {
     api.getNetworkInfo()
@@ -66,7 +79,15 @@ export const Topbar = ({ onToggleSidebar, onOpenAi, onQuickCheckIn, onQuickAddMe
     setTimeout(() => setCopiedWebsite(false), 2000);
   };
 
+  // Dismiss open topbar modals on global dismiss-modals event
+  useEffect(() => {
+    const handleDismiss = () => setIsMobileModalOpen(false);
+    window.addEventListener('gympulse:dismiss-modals', handleDismiss);
+    return () => window.removeEventListener('gympulse:dismiss-modals', handleDismiss);
+  }, []);
+
   const handleDownloadClick = () => {
+    window.dispatchEvent(new CustomEvent('gympulse:dismiss-modals'));
     setIsMobileModalOpen(true);
   };
 
@@ -93,11 +114,69 @@ export const Topbar = ({ onToggleSidebar, onOpenAi, onQuickCheckIn, onQuickAddMe
               <span className="px-2 py-0.5 text-[11px] font-bold bg-brand-50 text-brand-700 rounded-md border border-brand-200/60">
                 ₹ {gym?.currency || 'INR'}
               </span>
+
+              {/* SuperAdmin Facility Switcher Dropdown */}
+              {isSuperAdmin && (
+                <div className="relative ml-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsGymDropdownOpen(!isGymDropdownOpen)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 text-xs font-bold transition-all shadow-xs cursor-pointer"
+                    title="Switch facility context to inspect any gym"
+                  >
+                    <span>🏛️ Switch Gym: {gym?.name || 'Select Facility'}</span>
+                    <ChevronDown className="w-3.5 h-3.5 text-purple-700" />
+                  </button>
+
+                  {isGymDropdownOpen && (
+                    <div className="absolute left-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 py-2 z-50 animate-in fade-in zoom-in-95">
+                      <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Select Facility To Inspect</span>
+                        <span className="text-[10px] font-bold text-purple-600">{platformGyms.length} Registered</span>
+                      </div>
+                      <div className="max-h-64 overflow-y-auto py-1 divide-y divide-slate-50">
+                        {platformGyms.map((g) => {
+                          const isCurrent = gym?.id === g.id;
+                          return (
+                            <button
+                              key={g.id}
+                              type="button"
+                              onClick={() => {
+                                switchFacility(g);
+                                setIsGymDropdownOpen(false);
+                                toast.success(`Switched active context to ${g.name}!`);
+                              }}
+                              className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-purple-50/60 transition-colors ${
+                                isCurrent ? 'bg-purple-50 font-black text-purple-900' : 'text-slate-700'
+                              }`}
+                            >
+                              <div className="truncate mr-2">
+                                <div className="font-bold truncate text-slate-900">{g.name}</div>
+                                <div className="text-[10px] text-slate-500 font-mono flex items-center gap-1 mt-0.5">
+                                  <span>#{g.id}</span>
+                                  <span>&bull;</span>
+                                  <span className="capitalize">{g.plan_tier || 'starter'}</span>
+                                  <span>&bull;</span>
+                                  <span className={g.is_approved ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'}>
+                                    {g.is_approved ? 'Active' : 'Pending'}
+                                  </span>
+                                </div>
+                              </div>
+                              {isCurrent && <Check className="w-4 h-4 text-purple-600 shrink-0" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {isSuperAdmin && activeTab !== 'superadmin' && (
                 <button
                   type="button"
                   onClick={() => setActiveTab && setActiveTab('superadmin')}
-                  className="ml-2 px-2.5 py-0.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black hover:bg-amber-200 transition-all cursor-pointer"
+                  className="ml-1 px-2.5 py-0.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black hover:bg-amber-200 transition-all cursor-pointer"
                   title="Return to Super Admin Platform Control"
                 >
                   &larr; Super Admin Console

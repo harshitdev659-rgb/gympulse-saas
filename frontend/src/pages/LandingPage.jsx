@@ -548,12 +548,21 @@ export const LandingPage = ({ onNavigateLogin, onNavigateRegister, currentUser }
             <Button onClick={onNavigateRegister} size="lg" className="w-full sm:w-auto px-8 py-3.5 shadow-xl shadow-brand-500/20">
               Get Started Now
             </Button>
-            <button
-              onClick={onNavigateLogin}
-              className="w-full sm:w-auto px-6 py-3.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-sm font-bold text-white transition-colors"
-            >
-              Sign In to Your Facility
-            </button>
+            {currentUser ? (
+              <button
+                onClick={onNavigateLogin}
+                className="w-full sm:w-auto px-6 py-3.5 rounded-xl border border-brand-500 bg-brand-600 hover:bg-brand-500 text-sm font-bold text-white transition-colors cursor-pointer"
+              >
+                Return to Facility Console ({currentUser.name || 'Active'}) &rarr;
+              </button>
+            ) : (
+              <button
+                onClick={onNavigateLogin}
+                className="w-full sm:w-auto px-6 py-3.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-sm font-bold text-white transition-colors"
+              >
+                Sign In to Your Facility
+              </button>
+            )}
           </div>
         </div>
       </section>

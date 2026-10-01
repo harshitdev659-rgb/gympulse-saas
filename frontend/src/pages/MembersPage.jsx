@@ -20,7 +20,8 @@ import {
   Sparkles,
   PlusCircle,
   Check,
-  MessageCircle
+  MessageCircle,
+  AlertCircle
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -85,6 +86,10 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
     initial_plan_id: '',
   };
   const [addForm, setAddForm] = useState(initialAddForm);
+  const [addFormErrors, setAddFormErrors] = useState({});
+  const [addFormTouched, setAddFormTouched] = useState({});
+  const [manualFormErrors, setManualFormErrors] = useState({});
+  const [manualFormTouched, setManualFormTouched] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchMembers = async () => {
@@ -126,8 +131,29 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
 
   const handleCreateMember = async (e) => {
     e.preventDefault();
-    if (!addForm.first_name || !addForm.last_name || !addForm.phone) {
-      toast.error('Please enter name and phone number.');
+    const errors = {};
+    if (!addForm.first_name?.trim()) {
+      errors.first_name = 'First name is required';
+    }
+    if (!addForm.last_name?.trim()) {
+      errors.last_name = 'Last name is required';
+    }
+    if (!addForm.phone?.trim()) {
+      errors.phone = 'Valid phone number required';
+    } else {
+      const cleanDigits = addForm.phone.replace(/[^0-9]/g, '');
+      if (cleanDigits.length < 7) {
+        errors.phone = 'Please enter a valid phone number (at least 7 digits)';
+      }
+    }
+    if (addForm.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addForm.email.trim())) {
+      errors.email = 'Please enter a valid email address';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setAddFormErrors(errors);
+      setAddFormTouched({ first_name: true, last_name: true, phone: true, email: true });
+      toast.error('Please fill in the required fields correctly.');
       return;
     }
 
@@ -135,6 +161,10 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
     try {
       const payload = {
         ...addForm,
+        first_name: addForm.first_name.trim(),
+        last_name: addForm.last_name.trim(),
+        phone: addForm.phone.trim(),
+        email: addForm.email?.trim() || null,
         assigned_trainer_id: addForm.assigned_trainer_id ? Number(addForm.assigned_trainer_id) : null,
         initial_plan_id: addForm.initial_plan_id ? Number(addForm.initial_plan_id) : null,
         date_of_birth: addForm.date_of_birth || null,
@@ -143,6 +173,8 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
       toast.success(`${addForm.first_name} ${addForm.last_name} added successfully!`);
       setIsAddModalOpen(false);
       setAddForm(initialAddForm);
+      setAddFormErrors({});
+      setAddFormTouched({});
       fetchMembers();
     } catch (err) {
       toast.error(err.message || 'Failed to create member.');
@@ -153,8 +185,21 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
 
   const handleCreateManualMember = async (e) => {
     e.preventDefault();
-    if (!manualForm.first_name || !manualForm.last_name || !manualForm.phone) {
-      toast.error('Please enter member full name and phone number.');
+    const errors = {};
+    if (!manualForm.first_name?.trim()) {
+      errors.first_name = 'First name is required';
+    }
+    if (!manualForm.last_name?.trim()) {
+      errors.last_name = 'Last name is required';
+    }
+    if (!manualForm.phone?.trim()) {
+      errors.phone = 'Valid phone number required';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setManualFormErrors(errors);
+      setManualFormTouched({ first_name: true, last_name: true, phone: true });
+      toast.error('Please fill in the required fields.');
       return;
     }
 
@@ -539,11 +584,15 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
 
       <Modal
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setAddFormErrors({});
+          setAddFormTouched({});
+        }}
         title="Add New Member"
         maxWidth="max-w-2xl"
       >
-        <form onSubmit={handleCreateMember} className="space-y-4">
+        <form onSubmit={handleCreateMember} noValidate className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
@@ -551,12 +600,27 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
               </label>
               <input
                 type="text"
-                required
                 value={addForm.first_name}
-                onChange={(e) => setAddForm({ ...addForm, first_name: e.target.value })}
+                onChange={(e) => {
+                  setAddForm({ ...addForm, first_name: e.target.value });
+                  if (addFormErrors.first_name) {
+                    setAddFormErrors((prev) => ({ ...prev, first_name: null }));
+                  }
+                }}
+                onBlur={() => setAddFormTouched((prev) => ({ ...prev, first_name: true }))}
                 placeholder="e.g. John"
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 placeholder:text-slate-400 placeholder:font-normal"
+                className={`w-full px-3.5 py-2 text-sm rounded-xl border font-semibold text-slate-900 focus:outline-none transition-all placeholder:text-slate-400 placeholder:font-normal ${
+                  addFormErrors.first_name && (addFormTouched.first_name || Object.keys(addFormErrors).length > 0)
+                    ? 'border-rose-500 ring-2 ring-rose-200 bg-rose-50/20 focus:border-rose-500 focus:ring-rose-300'
+                    : 'border-slate-300 focus:ring-2 focus:ring-brand-500'
+                }`}
               />
+              {addFormErrors.first_name && (addFormTouched.first_name || Object.keys(addFormErrors).length > 0) && (
+                <p className="text-xs text-rose-600 mt-1 font-bold flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{addFormErrors.first_name}</span>
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
@@ -564,12 +628,27 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
               </label>
               <input
                 type="text"
-                required
                 value={addForm.last_name}
-                onChange={(e) => setAddForm({ ...addForm, last_name: e.target.value })}
+                onChange={(e) => {
+                  setAddForm({ ...addForm, last_name: e.target.value });
+                  if (addFormErrors.last_name) {
+                    setAddFormErrors((prev) => ({ ...prev, last_name: null }));
+                  }
+                }}
+                onBlur={() => setAddFormTouched((prev) => ({ ...prev, last_name: true }))}
                 placeholder="e.g. Doe"
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 placeholder:text-slate-400 placeholder:font-normal"
+                className={`w-full px-3.5 py-2 text-sm rounded-xl border font-semibold text-slate-900 focus:outline-none transition-all placeholder:text-slate-400 placeholder:font-normal ${
+                  addFormErrors.last_name && (addFormTouched.last_name || Object.keys(addFormErrors).length > 0)
+                    ? 'border-rose-500 ring-2 ring-rose-200 bg-rose-50/20 focus:border-rose-500 focus:ring-rose-300'
+                    : 'border-slate-300 focus:ring-2 focus:ring-brand-500'
+                }`}
               />
+              {addFormErrors.last_name && (addFormTouched.last_name || Object.keys(addFormErrors).length > 0) && (
+                <p className="text-xs text-rose-600 mt-1 font-bold flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{addFormErrors.last_name}</span>
+                </p>
+              )}
             </div>
           </div>
 
@@ -580,12 +659,27 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
               </label>
               <input
                 type="tel"
-                required
                 value={addForm.phone}
-                onChange={(e) => setAddForm({ ...addForm, phone: e.target.value })}
+                onChange={(e) => {
+                  setAddForm({ ...addForm, phone: e.target.value });
+                  if (addFormErrors.phone) {
+                    setAddFormErrors((prev) => ({ ...prev, phone: null }));
+                  }
+                }}
+                onBlur={() => setAddFormTouched((prev) => ({ ...prev, phone: true }))}
                 placeholder="+91 98765 43210"
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 placeholder:text-slate-400 placeholder:font-normal"
+                className={`w-full px-3.5 py-2 text-sm rounded-xl border font-semibold text-slate-900 focus:outline-none transition-all placeholder:text-slate-400 placeholder:font-normal ${
+                  addFormErrors.phone && (addFormTouched.phone || Object.keys(addFormErrors).length > 0)
+                    ? 'border-rose-500 ring-2 ring-rose-200 bg-rose-50/20 focus:border-rose-500 focus:ring-rose-300'
+                    : 'border-slate-300 focus:ring-2 focus:ring-brand-500'
+                }`}
               />
+              {addFormErrors.phone && (addFormTouched.phone || Object.keys(addFormErrors).length > 0) && (
+                <p className="text-xs text-rose-600 mt-1 font-bold flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{addFormErrors.phone}</span>
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1">
@@ -594,10 +688,26 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
               <input
                 type="email"
                 value={addForm.email}
-                onChange={(e) => setAddForm({ ...addForm, email: e.target.value })}
+                onChange={(e) => {
+                  setAddForm({ ...addForm, email: e.target.value });
+                  if (addFormErrors.email) {
+                    setAddFormErrors((prev) => ({ ...prev, email: null }));
+                  }
+                }}
+                onBlur={() => setAddFormTouched((prev) => ({ ...prev, email: true }))}
                 placeholder="john.doe@example.com"
-                className="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 placeholder:text-slate-400 placeholder:font-normal"
+                className={`w-full px-3.5 py-2 text-sm rounded-xl border font-semibold text-slate-900 focus:outline-none transition-all placeholder:text-slate-400 placeholder:font-normal ${
+                  addFormErrors.email && (addFormTouched.email || Object.keys(addFormErrors).length > 0)
+                    ? 'border-rose-500 ring-2 ring-rose-200 bg-rose-50/20 focus:border-rose-500 focus:ring-rose-300'
+                    : 'border-slate-300 focus:ring-2 focus:ring-brand-500'
+                }`}
               />
+              {addFormErrors.email && (addFormTouched.email || Object.keys(addFormErrors).length > 0) && (
+                <p className="text-xs text-rose-600 mt-1 font-bold flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{addFormErrors.email}</span>
+                </p>
+              )}
             </div>
           </div>
 
@@ -848,12 +958,27 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
               </label>
               <input
                 type="text"
-                required
                 value={manualForm.first_name}
-                onChange={(e) => setManualForm({ ...manualForm, first_name: e.target.value })}
+                onChange={(e) => {
+                  setManualForm({ ...manualForm, first_name: e.target.value });
+                  if (manualFormErrors.first_name) {
+                    setManualFormErrors((prev) => ({ ...prev, first_name: null }));
+                  }
+                }}
+                onBlur={() => setManualFormTouched((prev) => ({ ...prev, first_name: true }))}
                 placeholder="e.g. Ramesh"
-                className="w-full px-3.5 py-2.5 text-sm font-semibold text-slate-900 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                className={`w-full px-3.5 py-2.5 text-sm font-semibold text-slate-900 rounded-xl border transition-all focus:outline-none bg-white ${
+                  manualFormErrors.first_name && (manualFormTouched.first_name || Object.keys(manualFormErrors).length > 0)
+                    ? 'border-rose-500 ring-2 ring-rose-200 bg-rose-50/20 focus:border-rose-500'
+                    : 'border-slate-300 focus:ring-2 focus:ring-emerald-500'
+                }`}
               />
+              {manualFormErrors.first_name && (manualFormTouched.first_name || Object.keys(manualFormErrors).length > 0) && (
+                <p className="text-xs text-rose-600 mt-1 font-bold flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{manualFormErrors.first_name}</span>
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
@@ -861,12 +986,27 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
               </label>
               <input
                 type="text"
-                required
                 value={manualForm.last_name}
-                onChange={(e) => setManualForm({ ...manualForm, last_name: e.target.value })}
+                onChange={(e) => {
+                  setManualForm({ ...manualForm, last_name: e.target.value });
+                  if (manualFormErrors.last_name) {
+                    setManualFormErrors((prev) => ({ ...prev, last_name: null }));
+                  }
+                }}
+                onBlur={() => setManualFormTouched((prev) => ({ ...prev, last_name: true }))}
                 placeholder="e.g. Kumar"
-                className="w-full px-3.5 py-2.5 text-sm font-semibold text-slate-900 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                className={`w-full px-3.5 py-2.5 text-sm font-semibold text-slate-900 rounded-xl border transition-all focus:outline-none bg-white ${
+                  manualFormErrors.last_name && (manualFormTouched.last_name || Object.keys(manualFormErrors).length > 0)
+                    ? 'border-rose-500 ring-2 ring-rose-200 bg-rose-50/20 focus:border-rose-500'
+                    : 'border-slate-300 focus:ring-2 focus:ring-emerald-500'
+                }`}
               />
+              {manualFormErrors.last_name && (manualFormTouched.last_name || Object.keys(manualFormErrors).length > 0) && (
+                <p className="text-xs text-rose-600 mt-1 font-bold flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{manualFormErrors.last_name}</span>
+                </p>
+              )}
             </div>
           </div>
 
@@ -877,12 +1017,27 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
               </label>
               <input
                 type="tel"
-                required
                 value={manualForm.phone}
-                onChange={(e) => setManualForm({ ...manualForm, phone: e.target.value })}
+                onChange={(e) => {
+                  setManualForm({ ...manualForm, phone: e.target.value });
+                  if (manualFormErrors.phone) {
+                    setManualFormErrors((prev) => ({ ...prev, phone: null }));
+                  }
+                }}
+                onBlur={() => setManualFormTouched((prev) => ({ ...prev, phone: true }))}
                 placeholder="+91 98765 00000"
-                className="w-full px-3.5 py-2.5 text-sm font-semibold text-slate-900 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                className={`w-full px-3.5 py-2.5 text-sm font-semibold text-slate-900 rounded-xl border transition-all focus:outline-none bg-white ${
+                  manualFormErrors.phone && (manualFormTouched.phone || Object.keys(manualFormErrors).length > 0)
+                    ? 'border-rose-500 ring-2 ring-rose-200 bg-rose-50/20 focus:border-rose-500'
+                    : 'border-slate-300 focus:ring-2 focus:ring-emerald-500'
+                }`}
               />
+              {manualFormErrors.phone && (manualFormTouched.phone || Object.keys(manualFormErrors).length > 0) && (
+                <p className="text-xs text-rose-600 mt-1 font-bold flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{manualFormErrors.phone}</span>
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">

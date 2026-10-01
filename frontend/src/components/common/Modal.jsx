@@ -14,11 +14,19 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-xl' 
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
+  // Listen to global dismiss-modals event to prevent modal stacking across navigation/drawers
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleDismiss = () => onClose?.();
+    window.addEventListener('gympulse:dismiss-modals', handleDismiss);
+    return () => window.removeEventListener('gympulse:dismiss-modals', handleDismiss);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-xs transition-opacity duration-200"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-xs transition-opacity duration-200"
       onClick={onClose}
     >
       <div 

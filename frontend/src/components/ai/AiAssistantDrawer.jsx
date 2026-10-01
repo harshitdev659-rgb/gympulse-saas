@@ -60,6 +60,14 @@ export const AiAssistantDrawer = ({ isOpen, onClose, setActiveTab, initialPrompt
     }
   }, [isOpen]);
 
+  // Global dismiss listener
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleDismiss = () => onClose?.();
+    window.addEventListener('gympulse:dismiss-modals', handleDismiss);
+    return () => window.removeEventListener('gympulse:dismiss-modals', handleDismiss);
+  }, [isOpen, onClose]);
+
   const startRecording = async () => {
     try {
       const rec = new AudioRecorder();
@@ -208,7 +216,7 @@ export const AiAssistantDrawer = ({ isOpen, onClose, setActiveTab, initialPrompt
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden">
+    <div className="fixed inset-0 z-[95] overflow-hidden">
       {/* Backdrop */}
       <div 
         onClick={onClose}

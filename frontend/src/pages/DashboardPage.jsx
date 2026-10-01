@@ -60,6 +60,10 @@ export const DashboardPage = ({ setActiveTab, onQuickCheckIn, onOpenAi, refreshT
     api.getNetworkInfo()
       .then((data) => setNetworkInfo(data))
       .catch(() => {});
+
+    const handleDismiss = () => setIsDownloadModalOpen(false);
+    window.addEventListener('gympulse:dismiss-modals', handleDismiss);
+    return () => window.removeEventListener('gympulse:dismiss-modals', handleDismiss);
   }, [refreshTrigger]);
 
   const windowOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000';

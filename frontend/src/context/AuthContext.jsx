@@ -105,6 +105,17 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('gympulse_token');
       localStorage.removeItem('gympulse_user');
       localStorage.removeItem('gympulse_gym');
+      localStorage.removeItem('gympulse_selected_gym_id');
+    } catch (e) {}
+  };
+
+  const switchFacility = (targetGym) => {
+    if (!targetGym) return;
+    setGym(targetGym);
+    api.setGymId(targetGym.id);
+    try {
+      localStorage.setItem('gympulse_gym', JSON.stringify(targetGym));
+      localStorage.setItem('gympulse_selected_gym_id', String(targetGym.id));
     } catch (e) {}
   };
 
@@ -133,6 +144,7 @@ export const AuthProvider = ({ children }) => {
       login,
       register,
       logout,
+      switchFacility,
       refreshGymProfile,
       isAuthenticated: !!user
     }}>

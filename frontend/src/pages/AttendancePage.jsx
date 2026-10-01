@@ -20,7 +20,8 @@ import {
   Flame,
   Check,
   Zap,
-  Maximize2
+  Maximize2,
+  Wifi
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -43,6 +44,13 @@ export const AttendancePage = ({ isCheckInModalOpen, setIsCheckInModalOpen, refr
   const [tokenTimeLeft, setTokenTimeLeft] = useState(15);
   const [liveClock, setLiveClock] = useState(() => new Date().toLocaleTimeString());
   const [kioskPhone, setKioskPhone] = useState('');
+  const [networkInfo, setNetworkInfo] = useState(null);
+
+  useEffect(() => {
+    api.getNetworkInfo().then((info) => {
+      if (info) setNetworkInfo(info);
+    }).catch(() => {});
+  }, []);
   const [kioskCheckInSuccess, setKioskCheckInSuccess] = useState(null);
   const [isKioskCheckingIn, setIsKioskCheckingIn] = useState(false);
 
@@ -147,7 +155,22 @@ export const AttendancePage = ({ isCheckInModalOpen, setIsCheckInModalOpen, refr
   };
 
   const gymSlug = gym?.website_subdomain || gym?.slug || 'gym';
-  const checkInUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/app.html?facility=${gymSlug}&action=checkin`;
+
+  const getMobileAccessibleBaseUrl = () => {
+    if (typeof window === 'undefined') return '';
+    if (networkInfo?.tunnel_url) return networkInfo.tunnel_url.replace(/\/$/, '');
+    if (window.location.hostname !== '127.0.0.1' && window.location.hostname !== 'localhost') {
+      return window.location.origin;
+    }
+    if (networkInfo?.lan_url) return networkInfo.lan_url.replace(/\/$/, '');
+    if (networkInfo?.cloud_url && !networkInfo.cloud_url.includes('github.io')) {
+      return networkInfo.cloud_url.replace(/\/$/, '');
+    }
+    return window.location.origin;
+  };
+
+  const checkInBase = getMobileAccessibleBaseUrl();
+  const checkInUrl = `${checkInBase}/app.html?facility=${gymSlug}&action=checkin`;
   const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&margin=8&data=${encodeURIComponent(checkInUrl)}`;
 
   useEffect(() => {
@@ -584,6 +607,12 @@ export const AttendancePage = ({ isCheckInModalOpen, setIsCheckInModalOpen, refr
             <p className="text-xs text-slate-700 font-medium mt-2 leading-relaxed max-w-sm mx-auto">
               Place this QR Code stand at your front desk or gym entrance. Athletes can scan with any mobile camera to log their check-in immediately.
             </p>
+            {networkInfo?.lan_ip && (
+              <div className="flex items-center justify-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold mx-auto w-fit mt-2">
+                <Wifi className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Wi-Fi Ready: {checkInBase}</span>
+              </div>
+            )}
           </div>
 
           {/* Action buttons */}
@@ -696,6 +725,13 @@ export const AttendancePage = ({ isCheckInModalOpen, setIsCheckInModalOpen, refr
                     ></div>
                   </div>
                 </div>
+
+                {networkInfo?.lan_ip && (
+                  <div className="flex items-center justify-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-[11px] font-semibold mt-2">
+                    <Wifi className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Wi-Fi Network: {networkInfo.lan_ip}</span>
+                  </div>
+                )}
               </div>
 
               {/* Direct Tablet / Phone Entry */}

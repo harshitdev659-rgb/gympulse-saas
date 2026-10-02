@@ -88,9 +88,20 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
   const [addForm, setAddForm] = useState(initialAddForm);
   const [addFormErrors, setAddFormErrors] = useState({});
   const [addFormTouched, setAddFormTouched] = useState({});
+  const [hasSubmitted, setHasSubmitted] = useState(false);
   const [manualFormErrors, setManualFormErrors] = useState({});
   const [manualFormTouched, setManualFormTouched] = useState({});
+  const [hasManualSubmitted, setHasManualSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const addFirstNameHasError = (hasSubmitted && !addForm.first_name?.trim()) || Boolean(addFormErrors.first_name);
+  const addLastNameHasError = (hasSubmitted && !addForm.last_name?.trim()) || Boolean(addFormErrors.last_name);
+  const addPhoneHasError = (hasSubmitted && (!addForm.phone?.trim() || addForm.phone.replace(/[^0-9]/g, '').length < 7)) || Boolean(addFormErrors.phone);
+  const addEmailHasError = Boolean(addFormErrors.email);
+
+  const manualFirstNameHasError = (hasManualSubmitted && !manualForm.first_name?.trim()) || Boolean(manualFormErrors.first_name);
+  const manualLastNameHasError = (hasManualSubmitted && !manualForm.last_name?.trim()) || Boolean(manualFormErrors.last_name);
+  const manualPhoneHasError = (hasManualSubmitted && !manualForm.phone?.trim()) || Boolean(manualFormErrors.phone);
 
   const fetchMembers = async () => {
     try {
@@ -130,15 +141,16 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
   }, [searchTerm, statusFilter, expiringSoonFilter]);
 
   const handleCreateMember = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
+    setHasSubmitted(true);
     const errors = {};
-    if (!addForm.first_name?.trim()) {
+    if (!addForm.first_name || !addForm.first_name.trim()) {
       errors.first_name = 'First name is required';
     }
-    if (!addForm.last_name?.trim()) {
+    if (!addForm.last_name || !addForm.last_name.trim()) {
       errors.last_name = 'Last name is required';
     }
-    if (!addForm.phone?.trim()) {
+    if (!addForm.phone || !addForm.phone.trim()) {
       errors.phone = 'Valid phone number required';
     } else {
       const cleanDigits = addForm.phone.replace(/[^0-9]/g, '');
@@ -146,7 +158,7 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
         errors.phone = 'Please enter a valid phone number (at least 7 digits)';
       }
     }
-    if (addForm.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addForm.email.trim())) {
+    if (addForm.email && addForm.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addForm.email.trim())) {
       errors.email = 'Please enter a valid email address';
     }
 
@@ -172,6 +184,7 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
       await api.createMember(payload);
       toast.success(`${addForm.first_name} ${addForm.last_name} added successfully!`);
       setIsAddModalOpen(false);
+      setHasSubmitted(false);
       setAddForm(initialAddForm);
       setAddFormErrors({});
       setAddFormTouched({});
@@ -184,15 +197,16 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
   };
 
   const handleCreateManualMember = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
+    setHasManualSubmitted(true);
     const errors = {};
-    if (!manualForm.first_name?.trim()) {
+    if (!manualForm.first_name || !manualForm.first_name.trim()) {
       errors.first_name = 'First name is required';
     }
-    if (!manualForm.last_name?.trim()) {
+    if (!manualForm.last_name || !manualForm.last_name.trim()) {
       errors.last_name = 'Last name is required';
     }
-    if (!manualForm.phone?.trim()) {
+    if (!manualForm.phone || !manualForm.phone.trim()) {
       errors.phone = 'Valid phone number required';
     }
 
@@ -586,6 +600,7 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
         isOpen={isAddModalOpen}
         onClose={() => {
           setIsAddModalOpen(false);
+          setHasSubmitted(false);
           setAddFormErrors({});
           setAddFormTouched({});
         }}
@@ -616,11 +631,11 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                 }}
                 placeholder="e.g. John"
                 className={`w-full px-3.5 py-2 text-sm rounded-xl font-semibold text-slate-900 focus:outline-none transition-all placeholder:text-slate-400 placeholder:font-normal ${
-                  addFormErrors.first_name
+                  addFirstNameHasError
                     ? 'input-error border-2 border-red-500 bg-red-50 text-red-950 ring-2 ring-red-300'
                     : 'border border-slate-300 focus:ring-2 focus:ring-brand-500 bg-white'
                 }`}
-                style={addFormErrors.first_name ? {
+                style={addFirstNameHasError ? {
                   borderColor: '#ef4444',
                   borderWidth: '2px',
                   borderStyle: 'solid',
@@ -629,10 +644,10 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                   color: '#0f172a'
                 } : {}}
               />
-              {addFormErrors.first_name && (
+              {addFirstNameHasError && (
                 <p className="text-xs text-red-600 mt-1 font-bold flex items-center gap-1" style={{ color: '#dc2626' }}>
                   <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-600" style={{ color: '#dc2626' }} />
-                  <span>{addFormErrors.first_name}</span>
+                  <span>{addFormErrors.first_name || 'First name is required'}</span>
                 </p>
               )}
             </div>
@@ -658,11 +673,11 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                 }}
                 placeholder="e.g. Doe"
                 className={`w-full px-3.5 py-2 text-sm rounded-xl font-semibold text-slate-900 focus:outline-none transition-all placeholder:text-slate-400 placeholder:font-normal ${
-                  addFormErrors.last_name
+                  addLastNameHasError
                     ? 'input-error border-2 border-red-500 bg-red-50 text-red-950 ring-2 ring-red-300'
                     : 'border border-slate-300 focus:ring-2 focus:ring-brand-500 bg-white'
                 }`}
-                style={addFormErrors.last_name ? {
+                style={addLastNameHasError ? {
                   borderColor: '#ef4444',
                   borderWidth: '2px',
                   borderStyle: 'solid',
@@ -671,10 +686,10 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                   color: '#0f172a'
                 } : {}}
               />
-              {addFormErrors.last_name && (
+              {addLastNameHasError && (
                 <p className="text-xs text-red-600 mt-1 font-bold flex items-center gap-1" style={{ color: '#dc2626' }}>
                   <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-600" style={{ color: '#dc2626' }} />
-                  <span>{addFormErrors.last_name}</span>
+                  <span>{addFormErrors.last_name || 'Last name is required'}</span>
                 </p>
               )}
             </div>
@@ -703,11 +718,11 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                 }}
                 placeholder="+91 98765 43210"
                 className={`w-full px-3.5 py-2 text-sm rounded-xl font-semibold text-slate-900 focus:outline-none transition-all placeholder:text-slate-400 placeholder:font-normal ${
-                  addFormErrors.phone
+                  addPhoneHasError
                     ? 'input-error border-2 border-red-500 bg-red-50 text-red-950 ring-2 ring-red-300'
                     : 'border border-slate-300 focus:ring-2 focus:ring-brand-500 bg-white'
                 }`}
-                style={addFormErrors.phone ? {
+                style={addPhoneHasError ? {
                   borderColor: '#ef4444',
                   borderWidth: '2px',
                   borderStyle: 'solid',
@@ -716,10 +731,10 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                   color: '#0f172a'
                 } : {}}
               />
-              {addFormErrors.phone && (
+              {addPhoneHasError && (
                 <p className="text-xs text-red-600 mt-1 font-bold flex items-center gap-1" style={{ color: '#dc2626' }}>
                   <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-600" style={{ color: '#dc2626' }} />
-                  <span>{addFormErrors.phone}</span>
+                  <span>{addFormErrors.phone || 'Valid phone number required'}</span>
                 </p>
               )}
             </div>
@@ -991,7 +1006,12 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
       {/* Manual Membership & Name Modal */}
       <Modal
         isOpen={isManualModalOpen}
-        onClose={() => setIsManualModalOpen(false)}
+        onClose={() => {
+          setIsManualModalOpen(false);
+          setHasManualSubmitted(false);
+          setManualFormErrors({});
+          setManualFormTouched({});
+        }}
         title="Manual Membership & Name"
         maxWidth="max-w-lg"
       >
@@ -1026,11 +1046,11 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                 }}
                 placeholder="e.g. Ramesh"
                 className={`w-full px-3.5 py-2.5 text-sm font-semibold text-slate-900 rounded-xl transition-all focus:outline-none ${
-                  manualFormErrors.first_name
+                  manualFirstNameHasError
                     ? 'input-error border-2 border-red-500 bg-red-50 text-red-950 ring-2 ring-red-300'
                     : 'border border-slate-300 focus:ring-2 focus:ring-emerald-500 bg-white'
                 }`}
-                style={manualFormErrors.first_name ? {
+                style={manualFirstNameHasError ? {
                   borderColor: '#ef4444',
                   borderWidth: '2px',
                   borderStyle: 'solid',
@@ -1039,10 +1059,10 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                   color: '#0f172a'
                 } : {}}
               />
-              {manualFormErrors.first_name && (
+              {manualFirstNameHasError && (
                 <p className="text-xs text-red-600 mt-1 font-bold flex items-center gap-1" style={{ color: '#dc2626' }}>
                   <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-600" style={{ color: '#dc2626' }} />
-                  <span>{manualFormErrors.first_name}</span>
+                  <span>{manualFormErrors.first_name || 'First name is required'}</span>
                 </p>
               )}
             </div>
@@ -1068,11 +1088,11 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                 }}
                 placeholder="e.g. Kumar"
                 className={`w-full px-3.5 py-2.5 text-sm font-semibold text-slate-900 rounded-xl transition-all focus:outline-none ${
-                  manualFormErrors.last_name
+                  manualLastNameHasError
                     ? 'input-error border-2 border-red-500 bg-red-50 text-red-950 ring-2 ring-red-300'
                     : 'border border-slate-300 focus:ring-2 focus:ring-emerald-500 bg-white'
                 }`}
-                style={manualFormErrors.last_name ? {
+                style={manualLastNameHasError ? {
                   borderColor: '#ef4444',
                   borderWidth: '2px',
                   borderStyle: 'solid',
@@ -1081,10 +1101,10 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                   color: '#0f172a'
                 } : {}}
               />
-              {manualFormErrors.last_name && (
+              {manualLastNameHasError && (
                 <p className="text-xs text-red-600 mt-1 font-bold flex items-center gap-1" style={{ color: '#dc2626' }}>
                   <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-600" style={{ color: '#dc2626' }} />
-                  <span>{manualFormErrors.last_name}</span>
+                  <span>{manualFormErrors.last_name || 'Last name is required'}</span>
                 </p>
               )}
             </div>
@@ -1113,11 +1133,11 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                 }}
                 placeholder="+91 98765 00000"
                 className={`w-full px-3.5 py-2.5 text-sm font-semibold text-slate-900 rounded-xl transition-all focus:outline-none ${
-                  manualFormErrors.phone
+                  manualPhoneHasError
                     ? 'input-error border-2 border-red-500 bg-red-50 text-red-950 ring-2 ring-red-300'
                     : 'border border-slate-300 focus:ring-2 focus:ring-emerald-500 bg-white'
                 }`}
-                style={manualFormErrors.phone ? {
+                style={manualPhoneHasError ? {
                   borderColor: '#ef4444',
                   borderWidth: '2px',
                   borderStyle: 'solid',
@@ -1126,10 +1146,10 @@ export const MembersPage = ({ onSelectMember, isAddModalOpen, setIsAddModalOpen 
                   color: '#0f172a'
                 } : {}}
               />
-              {manualFormErrors.phone && (
+              {manualPhoneHasError && (
                 <p className="text-xs text-red-600 mt-1 font-bold flex items-center gap-1" style={{ color: '#dc2626' }}>
                   <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-600" style={{ color: '#dc2626' }} />
-                  <span>{manualFormErrors.phone}</span>
+                  <span>{manualFormErrors.phone || 'Valid phone number required'}</span>
                 </p>
               )}
             </div>

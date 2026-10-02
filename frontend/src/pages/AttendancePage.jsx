@@ -30,6 +30,7 @@ import { Button } from '../components/common/Button';
 import { Badge } from '../components/common/Badge';
 import { Modal } from '../components/common/Modal';
 import { exportAttendanceLogCsv } from '../utils/csvExport';
+import QRCode from 'qrcode';
 
 export const AttendancePage = ({ isCheckInModalOpen, setIsCheckInModalOpen, refreshTrigger }) => {
   const { gym } = useAuth();
@@ -45,6 +46,8 @@ export const AttendancePage = ({ isCheckInModalOpen, setIsCheckInModalOpen, refr
   const [liveClock, setLiveClock] = useState(() => new Date().toLocaleTimeString());
   const [kioskPhone, setKioskPhone] = useState('');
   const [networkInfo, setNetworkInfo] = useState(null);
+  const [localStandQrDataUrl, setLocalStandQrDataUrl] = useState('');
+  const [localKioskQrDataUrl, setLocalKioskQrDataUrl] = useState('');
 
   useEffect(() => {
     api.getNetworkInfo().then((info) => {
@@ -173,6 +176,14 @@ export const AttendancePage = ({ isCheckInModalOpen, setIsCheckInModalOpen, refr
   const checkInUrl = `${checkInBase}/app.html?facility=${gymSlug}&action=checkin`;
   const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&margin=8&data=${encodeURIComponent(checkInUrl)}`;
 
+  // Generate offline local QR data URL for the Stand QR
+  useEffect(() => {
+    if (!checkInUrl) return;
+    QRCode.toDataURL(checkInUrl, { width: 350, margin: 2, errorCorrectionLevel: 'M' })
+      .then((dataUrl) => setLocalStandQrDataUrl(dataUrl))
+      .catch((err) => console.warn('Local stand QR generation error:', err));
+  }, [checkInUrl]);
+
   useEffect(() => {
     if (!isLiveKioskOpen) return;
     const clockInterval = setInterval(() => {
@@ -188,6 +199,14 @@ export const AttendancePage = ({ isCheckInModalOpen, setIsCheckInModalOpen, refr
 
   const dynamicKioskUrl = `${checkInUrl}&token=${rotatingToken}`;
   const dynamicQrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=380x380&margin=8&data=${encodeURIComponent(dynamicKioskUrl)}`;
+
+  // Generate offline local rotating QR data URL for the Live Kiosk
+  useEffect(() => {
+    if (!dynamicKioskUrl) return;
+    QRCode.toDataURL(dynamicKioskUrl, { width: 380, margin: 2, errorCorrectionLevel: 'M' })
+      .then((dataUrl) => setLocalKioskQrDataUrl(dataUrl))
+      .catch((err) => console.warn('Local kiosk QR generation error:', err));
+  }, [dynamicKioskUrl]);
 
   const playSuccessChime = () => {
     try {
@@ -265,7 +284,7 @@ export const AttendancePage = ({ isCheckInModalOpen, setIsCheckInModalOpen, refr
             <h1>${gymName}</h1>
             <p class="sub">Scan QR Code Upon Floor Entrance</p>
             <div class="qr-box">
-              <img src="${qrImageUrl}" alt="Attendance QR Code" />
+              <img src="${localStandQrDataUrl || qrImageUrl}" alt="Attendance QR Code" />
             </div>
             <div class="steps">
               <div class="step-item">📱 1. Open your smartphone camera or scanner</div>
@@ -287,7 +306,7 @@ export const AttendancePage = ({ isCheckInModalOpen, setIsCheckInModalOpen, refr
 
   const handleDownloadQr = () => {
     const link = document.createElement('a');
-    link.href = qrImageUrl;
+    link.href = localStandQrDataUrl || qrImageUrl;
     link.download = `${gymSlug}-attendance-qr.png`;
     link.target = '_blank';
     document.body.appendChild(link);
@@ -592,8 +611,13 @@ export const AttendancePage = ({ isCheckInModalOpen, setIsCheckInModalOpen, refr
           <div className="p-1 rounded-2xl bg-gradient-to-tr from-brand-600 via-indigo-600 to-brand-600 inline-block">
             <div className="bg-white p-4 rounded-xl border border-slate-100 flex items-center justify-center">
               <img
-                src={qrImageUrl}
+                src={localStandQrDataUrl || qrImageUrl}
                 alt="Facility Attendance QR Code"
+                onError={(e) => {
+                  if (localStandQrDataUrl && e.target.src !== localStandQrDataUrl) {
+                    e.target.src = localStandQrDataUrl;
+                  }
+                }}
                 className="w-56 h-56 object-contain rounded-lg"
               />
             </div>
@@ -702,8 +726,13 @@ export const AttendancePage = ({ isCheckInModalOpen, setIsCheckInModalOpen, refr
                 <div className="p-1 rounded-3xl bg-gradient-to-tr from-brand-600 via-indigo-600 to-brand-600 shadow-xl inline-block">
                   <div className="bg-white p-3.5 rounded-2xl border border-slate-100 flex items-center justify-center">
                     <img
-                      src={dynamicQrImageUrl}
+                      src={localKioskQrDataUrl || dynamicQrImageUrl}
                       alt="Rotating Attendance QR"
+                      onError={(e) => {
+                        if (localKioskQrDataUrl && e.target.src !== localKioskQrDataUrl) {
+                          e.target.src = localKioskQrDataUrl;
+                        }
+                      }}
                       className="w-48 h-48 sm:w-56 sm:h-56 object-contain"
                     />
                   </div>
